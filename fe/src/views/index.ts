@@ -1,0 +1,6 @@
+export { default as DashboardsView } from './DashboardsView.vue'
+export { default as DatasourcesView } from './DatasourcesView.vue'
+export { default as QueriesView } from './QueriesView.vue'
+export { default as VisualizationsView } from './VisualizationsView.vue'
+export { default as SchedulesView } from './SchedulesView.vue'
+export { default as SettingsView } from './SettingsView.vue'
