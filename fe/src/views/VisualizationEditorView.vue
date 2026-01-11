@@ -306,6 +306,15 @@ watch(
                 </button>
               </div>
             </div>
+
+            <div>
+              <label class="block text-sm text-text-muted mb-1.5">Label (optional)</label>
+              <LInput
+                :model-value="visualization.config?.label || ''"
+                @update:model-value="updateConfig('label', $event)"
+                placeholder="Chart label..."
+              />
+            </div>
           </div>
         </LCard>
 

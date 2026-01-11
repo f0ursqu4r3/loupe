@@ -30,13 +30,17 @@ const chartComponent = computed(() => {
 </script>
 
 <template>
-  <div class="w-full h-full">
+  <div class="w-full h-full flex flex-col">
+    <div v-if="config.label" class="text-sm font-medium text-text mb-2 px-1">
+      {{ config.label }}
+    </div>
     <component
       :is="chartComponent"
       :data="data || { columns: [], rows: [], row_count: 0, execution_time_ms: 0 }"
       :config="config"
       :height="height"
       :loading="loading"
+      class="flex-1 min-h-0"
     />
   </div>
 </template>

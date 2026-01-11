@@ -153,6 +153,9 @@ export interface Visualization extends Timestamps {
 }
 
 export interface VisualizationConfig {
+  // Display title/label
+  label?: string
+
   // Table config
   columns?: TableColumnConfig[]
 
