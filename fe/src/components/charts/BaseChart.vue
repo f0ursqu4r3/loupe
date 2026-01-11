@@ -173,6 +173,15 @@ function handleResize() {
   chart?.resize()
 }
 
+// Debounced resize for ResizeObserver to avoid loop warnings
+let resizeTimeout: ReturnType<typeof setTimeout> | null = null
+function handleResizeDebounced() {
+  if (resizeTimeout) clearTimeout(resizeTimeout)
+  resizeTimeout = setTimeout(() => {
+    handleResize()
+  }, 0)
+}
+
 // Use ResizeObserver to detect container size changes
 let resizeObserver: ResizeObserver | null = null
 
@@ -183,7 +192,7 @@ onMounted(() => {
   // Observe container for size changes (e.g., when grid item resizes)
   if (chartRef.value) {
     resizeObserver = new ResizeObserver(() => {
-      handleResize()
+      handleResizeDebounced()
     })
     resizeObserver.observe(chartRef.value)
   }
@@ -191,6 +200,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
+  if (resizeTimeout) clearTimeout(resizeTimeout)
   resizeObserver?.disconnect()
   chart?.dispose()
 })
