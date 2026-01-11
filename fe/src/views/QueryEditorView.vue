@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   Play,
@@ -16,6 +16,7 @@ import {
   X,
   WandSparkles,
   BarChart3,
+  GripHorizontal,
 } from 'lucide-vue-next'
 import { AppLayout } from '@/components/layout'
 import { LButton, LInput, LTextarea, LSelect, LCard, LSpinner, LBadge } from '@/components/ui'
@@ -65,6 +66,47 @@ const currentRun = ref<Run | null>(null)
 const result = ref<QueryResult | null>(null)
 const resultError = ref<string | null>(null)
 const showResults = ref(false)
+
+// Editor resizing
+const editorHeight = ref(300)
+const isResizing = ref(false)
+const resizeStartY = ref(0)
+const resizeStartHeight = ref(0)
+const MIN_EDITOR_HEIGHT = 150
+const MAX_EDITOR_HEIGHT = 800
+
+function startResize(e: MouseEvent) {
+  isResizing.value = true
+  resizeStartY.value = e.clientY
+  resizeStartHeight.value = editorHeight.value
+  document.addEventListener('mousemove', handleResize)
+  document.addEventListener('mouseup', stopResize)
+  document.body.style.cursor = 'row-resize'
+  document.body.style.userSelect = 'none'
+}
+
+function handleResize(e: MouseEvent) {
+  if (!isResizing.value) return
+  const delta = e.clientY - resizeStartY.value
+  const newHeight = Math.min(
+    MAX_EDITOR_HEIGHT,
+    Math.max(MIN_EDITOR_HEIGHT, resizeStartHeight.value + delta),
+  )
+  editorHeight.value = newHeight
+}
+
+function stopResize() {
+  isResizing.value = false
+  document.removeEventListener('mousemove', handleResize)
+  document.removeEventListener('mouseup', stopResize)
+  document.body.style.cursor = ''
+  document.body.style.userSelect = ''
+}
+
+onBeforeUnmount(() => {
+  document.removeEventListener('mousemove', handleResize)
+  document.removeEventListener('mouseup', stopResize)
+})
 
 // Parameter values for running
 const parameterValues = ref<Record<string, unknown>>({})
@@ -381,7 +423,7 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
       />
 
       <!-- SQL Editor -->
-      <LCard padding="none">
+      <LCard padding="none" class="overflow-hidden">
         <div class="p-3 border-b border-border flex items-center justify-between">
           <span class="text-sm font-medium text-text">SQL</span>
           <div class="flex items-center gap-3">
@@ -401,9 +443,18 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
           ref="sqlEditorRef"
           :model-value="query.sql ?? ''"
           @update:model-value="query.sql = $event"
-          height="300px"
+          :height="`${editorHeight}px`"
           @run="runQuery"
         />
+        <!-- Resize handle -->
+        <div
+          class="h-2 bg-surface-sunken hover:bg-primary-500/20 cursor-row-resize flex items-center justify-center transition-colors border-t border-border group"
+          @mousedown="startResize"
+        >
+          <GripHorizontal
+            class="h-3 w-3 text-text-subtle group-hover:text-primary-500 transition-colors"
+          />
+        </div>
       </LCard>
 
       <!-- Results panel -->

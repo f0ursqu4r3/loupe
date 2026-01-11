@@ -1,26 +1,68 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Plus, Play, FileCode, Edit } from 'lucide-vue-next'
+import { Plus, Play, FileCode, Edit, Loader2, Clock, CheckCircle, XCircle } from 'lucide-vue-next'
 import { AppLayout } from '@/components/layout'
 import { LButton, LCard, LBadge, LEmptyState, LSpinner } from '@/components/ui'
-import { queriesApi } from '@/services/api'
-import type { Query } from '@/types'
+import { ParameterInputs } from '@/components/query'
+import { queriesApi, runsApi } from '@/services/api'
+import type { Query, Run, RunStatus } from '@/types'
 
 const router = useRouter()
 const queries = ref<Query[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
 
+// Track last run per query
+const lastRuns = ref<Record<string, Run | null>>({})
+
+// Track parameter values per query
+const paramValues = reactive<Record<string, Record<string, unknown>>>({})
+
+// Track running state per query
+const runningQueries = ref<Set<string>>(new Set())
+
 async function loadQueries() {
   try {
     loading.value = true
     error.value = null
     queries.value = await queriesApi.list()
+
+    // Load last run for each query
+    for (const query of queries.value) {
+      // Initialize param values with defaults
+      const queryParams: Record<string, unknown> = {}
+      for (const param of query.parameters) {
+        queryParams[param.name] = param.default ?? getDefaultForType(param.param_type)
+      }
+      paramValues[query.id] = queryParams
+
+      // Fetch last run
+      try {
+        const runs = await runsApi.list(query.id)
+        lastRuns.value[query.id] = runs.length > 0 ? runs[0]! : null
+      } catch {
+        lastRuns.value[query.id] = null
+      }
+    }
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load queries'
   } finally {
     loading.value = false
+  }
+}
+
+function getDefaultForType(type: string): unknown {
+  switch (type) {
+    case 'number':
+      return 0
+    case 'boolean':
+      return false
+    case 'date':
+    case 'datetime':
+      return new Date().toISOString().split('T')[0]
+    default:
+      return ''
   }
 }
 
@@ -34,12 +76,70 @@ function formatDate(dateString: string): string {
   }).format(new Date(dateString))
 }
 
+function formatDateTime(dateString: string): string {
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(dateString))
+}
+
+function getStatusColor(status: RunStatus): string {
+  switch (status) {
+    case 'completed':
+      return 'text-success'
+    case 'failed':
+    case 'timeout':
+    case 'cancelled':
+      return 'text-error'
+    case 'running':
+    case 'queued':
+      return 'text-warning'
+    default:
+      return 'text-text-muted'
+  }
+}
+
 function openEditor(queryId?: string) {
   if (queryId) {
     router.push({ name: 'query-editor', params: { id: queryId } })
   } else {
     router.push({ name: 'query-new' })
   }
+}
+
+async function runQuery(query: Query, event: Event) {
+  event.stopPropagation()
+
+  if (runningQueries.value.has(query.id)) return
+
+  runningQueries.value.add(query.id)
+
+  try {
+    // Create a run with current parameter values
+    const run = await runsApi.create({
+      query_id: query.id,
+      parameters: paramValues[query.id] || {},
+    })
+
+    // Poll for completion
+    let currentRun = run
+    while (currentRun.status === 'queued' || currentRun.status === 'running') {
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      currentRun = await runsApi.get(run.id)
+    }
+
+    lastRuns.value[query.id] = currentRun
+  } catch (e) {
+    console.error('Failed to run query:', e)
+  } finally {
+    runningQueries.value.delete(query.id)
+  }
+}
+
+function updateParamValues(queryId: string, values: Record<string, unknown>) {
+  paramValues[queryId] = values
 }
 </script>
 
@@ -103,14 +203,54 @@ function openEditor(queryId?: string) {
             <LButton variant="ghost" size="sm" @click="openEditor(query.id)">
               <Edit class="h-4 w-4" />
             </LButton>
-            <LButton variant="ghost" size="sm">
-              <Play class="h-4 w-4" />
+            <LButton
+              variant="ghost"
+              size="sm"
+              :disabled="runningQueries.has(query.id)"
+              @click="runQuery(query, $event)"
+            >
+              <Loader2 v-if="runningQueries.has(query.id)" class="h-4 w-4 animate-spin" />
+              <Play v-else class="h-4 w-4" />
             </LButton>
           </div>
         </div>
 
+        <!-- Parameter inputs -->
+        <div v-if="query.parameters.length > 0" class="mt-3" @click.stop>
+          <ParameterInputs
+            :parameters="query.parameters"
+            :model-value="paramValues[query.id] || {}"
+            @update:model-value="updateParamValues(query.id, $event)"
+          />
+        </div>
+
         <div class="flex items-center justify-between mt-4 pt-3 border-t border-border">
-          <span class="text-xs text-text-subtle"> Updated {{ formatDate(query.updated_at) }} </span>
+          <!-- Last run info -->
+          <div class="flex items-center gap-2 text-xs">
+            <template v-if="lastRuns[query.id]">
+              <Clock class="h-3.5 w-3.5 text-text-subtle" />
+              <span class="text-text-subtle">Last run:</span>
+              <span :class="getStatusColor(lastRuns[query.id]!.status)">
+                {{ lastRuns[query.id]!.status }}
+              </span>
+              <span class="text-text-subtle">
+                {{ formatDateTime(lastRuns[query.id]!.created_at) }}
+              </span>
+              <CheckCircle
+                v-if="lastRuns[query.id]!.status === 'completed'"
+                class="h-3.5 w-3.5 text-success"
+              />
+              <XCircle
+                v-else-if="
+                  lastRuns[query.id]!.status === 'failed' ||
+                  lastRuns[query.id]!.status === 'timeout'
+                "
+                class="h-3.5 w-3.5 text-error"
+              />
+            </template>
+            <span v-else class="text-text-subtle">Never run</span>
+          </div>
+
           <div class="flex items-center gap-2 text-xs text-text-subtle">
             <span>Timeout: {{ query.timeout_seconds }}s</span>
             <span>·</span>
