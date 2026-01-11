@@ -14,6 +14,7 @@ import {
   AlertCircle,
   CheckCircle,
   X,
+  WandSparkles,
 } from 'lucide-vue-next'
 import { AppLayout } from '@/components/layout'
 import { LButton, LInput, LTextarea, LSelect, LCard, LSpinner, LBadge } from '@/components/ui'
@@ -44,6 +45,9 @@ const saving = ref(false)
 const running = ref(false)
 const error = ref<string | null>(null)
 const saveSuccess = ref(false)
+
+// Editor ref
+const sqlEditorRef = ref<InstanceType<typeof SqlEditor> | null>(null)
 
 // Datasources
 const datasources = ref<Datasource[]>([])
@@ -340,9 +344,21 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
       <LCard padding="none">
         <div class="p-3 border-b border-border flex items-center justify-between">
           <span class="text-sm font-medium text-text">SQL</span>
-          <span class="text-xs text-text-subtle">Press ⌘+Enter to run</span>
+          <div class="flex items-center gap-3">
+            <button
+              type="button"
+              class="flex items-center gap-1.5 text-xs text-text-muted hover:text-text transition-colors"
+              @click="sqlEditorRef?.format()"
+              title="Format SQL (⌘I)"
+            >
+              <WandSparkles class="h-3.5 w-3.5" />
+              Format
+            </button>
+            <span class="text-xs text-text-subtle">⌘+Enter to run</span>
+          </div>
         </div>
         <SqlEditor
+          ref="sqlEditorRef"
           :model-value="query.sql ?? ''"
           @update:model-value="query.sql = $event"
           height="300px"

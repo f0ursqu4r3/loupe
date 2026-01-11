@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch, shallowRef } from 'vue'
 import * as monaco from 'monaco-editor'
+import { format as formatSql } from 'sql-formatter'
 
 interface Props {
   modelValue: string
@@ -135,6 +136,37 @@ onMounted(() => {
     },
   })
 
+  // Add keyboard shortcut for formatting (Cmd/Ctrl + I)
+  editor.value.addAction({
+    id: 'format-sql',
+    label: 'Format SQL',
+    keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI],
+    contextMenuGroupId: 'modification',
+    contextMenuOrder: 1.5,
+    run: (ed) => {
+      const position = ed.getPosition()
+      const value = ed.getValue()
+      const formatted = formatSql(value, {
+        language: 'postgresql',
+        tabWidth: 2,
+        keywordCase: 'upper',
+        linesBetweenQueries: 2,
+      })
+      ed.setValue(formatted)
+      if (position) {
+        // Clamp position to new content bounds
+        const model = ed.getModel()
+        if (model) {
+          const maxLine = model.getLineCount()
+          const line = Math.min(position.lineNumber, maxLine)
+          const maxCol = model.getLineMaxColumn(line)
+          const col = Math.min(position.column, maxCol)
+          ed.setPosition({ lineNumber: line, column: col })
+        }
+      }
+    },
+  })
+
   // Observe theme changes
   themeObserver.observe(document.documentElement, {
     attributes: true,
@@ -160,7 +192,30 @@ onBeforeUnmount(() => {
 // Expose methods for parent components
 defineExpose({
   focus: () => editor.value?.focus(),
-  format: () => editor.value?.getAction('editor.action.formatDocument')?.run(),
+  format: () => {
+    if (editor.value) {
+      const position = editor.value.getPosition()
+      const value = editor.value.getValue()
+      const formatted = formatSql(value, {
+        language: 'postgresql',
+        tabWidth: 2,
+        keywordCase: 'upper',
+        linesBetweenQueries: 2,
+      })
+      editor.value.setValue(formatted)
+      if (position) {
+        // Clamp position to new content bounds
+        const model = editor.value.getModel()
+        if (model) {
+          const maxLine = model.getLineCount()
+          const line = Math.min(position.lineNumber, maxLine)
+          const maxCol = model.getLineMaxColumn(line)
+          const col = Math.min(position.column, maxCol)
+          editor.value.setPosition({ lineNumber: line, column: col })
+        }
+      }
+    }
+  },
   getSelectedText: () => {
     const selection = editor.value?.getSelection()
     if (selection && editor.value) {
