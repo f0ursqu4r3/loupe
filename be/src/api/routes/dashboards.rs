@@ -1,11 +1,11 @@
 use crate::AppState;
 use crate::routes::auth::get_auth_context;
-use actix_web::{web, HttpRequest, HttpResponse};
+use actix_web::{HttpRequest, HttpResponse, web};
+use loupe::Error;
 use loupe::models::{
     CreateDashboardRequest, CreateTileRequest, DashboardResponse, TileResponse,
-    UpdateDashboardRequest,
+    UpdateDashboardRequest, UpdateTileRequest,
 };
-use loupe::Error;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -18,6 +18,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .route("/{id}", web::put().to(update_dashboard))
             .route("/{id}", web::delete().to(delete_dashboard))
             .route("/{id}/tiles", web::post().to(create_tile))
+            .route("/{id}/tiles/{tile_id}", web::put().to(update_tile))
             .route("/{id}/tiles/{tile_id}", web::delete().to(delete_tile)),
     );
 }
@@ -106,14 +107,21 @@ async fn update_dashboard(
     state: web::Data<Arc<AppState>>,
     req: HttpRequest,
     path: web::Path<Uuid>,
-    _body: web::Json<UpdateDashboardRequest>,
+    body: web::Json<UpdateDashboardRequest>,
 ) -> Result<HttpResponse, Error> {
     let (_, org_id) = get_auth_context(&req)?;
     let id = path.into_inner();
-    
-    // For now, just return the existing dashboard
-    // TODO: implement update
-    let dashboard = state.db.get_dashboard(id, org_id).await?;
+
+    let dashboard = state
+        .db
+        .update_dashboard(
+            id,
+            org_id,
+            body.name.as_deref(),
+            body.description.as_deref(),
+            body.parameters.as_ref(),
+        )
+        .await?;
     let tiles = state.db.list_tiles(dashboard.id).await?;
 
     Ok(HttpResponse::Ok().json(DashboardResponse {
@@ -153,7 +161,10 @@ async fn create_tile(
     state.db.get_dashboard(dashboard_id, org_id).await?;
 
     // Verify visualization exists
-    state.db.get_visualization(body.visualization_id, org_id).await?;
+    state
+        .db
+        .get_visualization(body.visualization_id, org_id)
+        .await?;
 
     let tile = state
         .db
@@ -185,4 +196,28 @@ async fn delete_tile(
     let params = path.into_inner();
     state.db.delete_tile(params.tile_id, params.id).await?;
     Ok(HttpResponse::NoContent().finish())
+}
+
+async fn update_tile(
+    state: web::Data<Arc<AppState>>,
+    path: web::Path<TilePathParams>,
+    body: web::Json<UpdateTileRequest>,
+) -> Result<HttpResponse, Error> {
+    let params = path.into_inner();
+
+    let tile = state
+        .db
+        .update_tile(
+            params.tile_id,
+            params.id,
+            body.title.as_deref(),
+            body.pos_x,
+            body.pos_y,
+            body.width,
+            body.height,
+            body.parameter_bindings.as_ref(),
+        )
+        .await?;
+
+    Ok(HttpResponse::Ok().json(TileResponse::from(tile)))
 }

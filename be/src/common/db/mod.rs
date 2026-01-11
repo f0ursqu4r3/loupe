@@ -650,6 +650,36 @@ impl Database {
         Ok(())
     }
 
+    pub async fn update_dashboard(
+        &self,
+        id: Uuid,
+        org_id: Uuid,
+        name: Option<&str>,
+        description: Option<&str>,
+        parameters: Option<&serde_json::Value>,
+    ) -> Result<Dashboard> {
+        let dashboard = sqlx::query_as::<_, Dashboard>(
+            r#"
+            UPDATE dashboards
+            SET name = COALESCE($3, name),
+                description = COALESCE($4, description),
+                parameters = COALESCE($5, parameters),
+                updated_at = NOW()
+            WHERE id = $1 AND org_id = $2
+            RETURNING *
+            "#,
+        )
+        .bind(id)
+        .bind(org_id)
+        .bind(name)
+        .bind(description)
+        .bind(parameters)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(dashboard)
+    }
+
     // ==================== Tiles ====================
 
     pub async fn create_tile(
@@ -704,6 +734,45 @@ impl Database {
             .await?;
 
         Ok(())
+    }
+
+    pub async fn update_tile(
+        &self,
+        id: Uuid,
+        dashboard_id: Uuid,
+        title: Option<&str>,
+        pos_x: Option<i32>,
+        pos_y: Option<i32>,
+        width: Option<i32>,
+        height: Option<i32>,
+        parameter_bindings: Option<&serde_json::Value>,
+    ) -> Result<Tile> {
+        let tile = sqlx::query_as::<_, Tile>(
+            r#"
+            UPDATE tiles
+            SET title = COALESCE($3, title),
+                pos_x = COALESCE($4, pos_x),
+                pos_y = COALESCE($5, pos_y),
+                width = COALESCE($6, width),
+                height = COALESCE($7, height),
+                parameter_bindings = COALESCE($8, parameter_bindings),
+                updated_at = NOW()
+            WHERE id = $1 AND dashboard_id = $2
+            RETURNING *
+            "#,
+        )
+        .bind(id)
+        .bind(dashboard_id)
+        .bind(title)
+        .bind(pos_x)
+        .bind(pos_y)
+        .bind(width)
+        .bind(height)
+        .bind(parameter_bindings)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(tile)
     }
 
     // ==================== Schedules ====================
