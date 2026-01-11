@@ -170,6 +170,14 @@ This repo uses “agents” as owned domains of work. Each agent corresponds to 
 
 (Define these in the repo; keep targets stable for CI.)
 
+## Testing Upkeep
+
+- Tests are part of the definition of done for every agent-owned change.
+- When behavior changes, update or add tests in the same PR.
+- Keep fixtures, mocks, and snapshots aligned with current behavior.
+- If a test becomes flaky, fix or quarantine it immediately; no silent skips.
+- Remove or replace obsolete tests when features are removed or rewritten.
+
 ## CI Expectations
 
 - Format + lint (Rust + JS)
