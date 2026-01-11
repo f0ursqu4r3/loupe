@@ -209,6 +209,7 @@ export interface Dashboard extends Timestamps {
   name: string
   description?: string
   parameters: DashboardParameter[]
+  tiles: Tile[]
   created_by: UUID
 }
 

@@ -1,0 +1,440 @@
+<script setup lang="ts">
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import {
+  ArrowLeft,
+  Save,
+  Loader2,
+  AlertCircle,
+  CheckCircle,
+  X,
+  Plus,
+  Trash2,
+} from 'lucide-vue-next'
+import { AppLayout } from '@/components/layout'
+import { LButton, LInput, LCard, LSpinner, LModal, LEmptyState } from '@/components/ui'
+import { GridItem } from '@/components/dashboard'
+import { VisualizationRenderer } from '@/components/charts'
+import { dashboardsApi, visualizationsApi, runsApi } from '@/services/api'
+import type {
+  Dashboard,
+  Tile,
+  Visualization,
+  QueryResult,
+  CreateDashboardRequest,
+  CreateTileRequest,
+} from '@/types'
+
+const route = useRoute()
+const router = useRouter()
+
+// Route params
+const dashboardId = computed(() => route.params.id as string | undefined)
+const isNew = computed(() => !dashboardId.value || dashboardId.value === 'new')
+
+// Dashboard state
+const dashboard = ref<Partial<Dashboard>>({
+  name: '',
+  description: '',
+  parameters: [],
+  tiles: [],
+})
+
+// UI state
+const loading = ref(false)
+const saving = ref(false)
+const error = ref<string | null>(null)
+const saveSuccess = ref(false)
+
+// Add tile modal
+const showAddTileModal = ref(false)
+const visualizations = ref<Visualization[]>([])
+const selectedVisualizationId = ref<string | null>(null)
+const addingTile = ref(false)
+
+// Tile data cache - stores query results for each visualization
+const tileData = ref<Record<string, QueryResult | null>>({})
+const tileLoading = ref<Record<string, boolean>>({})
+
+// Grid settings
+const GRID_COLS = 12
+const GRID_ROW_HEIGHT = 80
+
+// Load dashboard
+async function loadDashboard() {
+  if (isNew.value) return
+
+  try {
+    loading.value = true
+    const data = await dashboardsApi.get(dashboardId.value!)
+    dashboard.value = data
+
+    // Load tile data
+    for (const tile of data.tiles) {
+      loadTileData(tile)
+    }
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Failed to load dashboard'
+  } finally {
+    loading.value = false
+  }
+}
+
+// Load data for a tile
+async function loadTileData(tile: Tile) {
+  tileLoading.value[tile.id] = true
+  try {
+    // Get the visualization to find the query
+    const viz = await visualizationsApi.get(tile.visualization_id)
+
+    // Run the query
+    const run = await runsApi.create({
+      query_id: viz.query_id,
+      parameters: {},
+    })
+
+    // Poll for completion
+    const maxAttempts = 60
+    let attempts = 0
+    while (attempts < maxAttempts) {
+      const status = await runsApi.get(run.id)
+      if (status.status === 'completed') {
+        tileData.value[tile.id] = await runsApi.getResult(run.id)
+        break
+      } else if (
+        status.status === 'failed' ||
+        status.status === 'cancelled' ||
+        status.status === 'timeout'
+      ) {
+        tileData.value[tile.id] = null
+        break
+      }
+      await new Promise((r) => setTimeout(r, 500))
+      attempts++
+    }
+  } catch (e) {
+    console.error('Failed to load tile data:', e)
+    tileData.value[tile.id] = null
+  } finally {
+    tileLoading.value[tile.id] = false
+  }
+}
+
+// Save dashboard
+async function saveDashboard() {
+  if (!dashboard.value.name?.trim()) {
+    error.value = 'Dashboard name is required'
+    return
+  }
+
+  try {
+    saving.value = true
+    error.value = null
+
+    const payload: CreateDashboardRequest = {
+      name: dashboard.value.name!,
+      description: dashboard.value.description,
+      parameters: dashboard.value.parameters,
+    }
+
+    if (isNew.value) {
+      const created = await dashboardsApi.create(payload)
+      router.replace({ name: 'dashboard-editor', params: { id: created.id } })
+      dashboard.value = created
+    } else {
+      const updated = await dashboardsApi.update(dashboardId.value!, payload)
+      dashboard.value = updated
+    }
+
+    saveSuccess.value = true
+    setTimeout(() => (saveSuccess.value = false), 2000)
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Failed to save dashboard'
+  } finally {
+    saving.value = false
+  }
+}
+
+// Load visualizations for add tile modal
+async function openAddTileModal() {
+  showAddTileModal.value = true
+  try {
+    visualizations.value = await visualizationsApi.list()
+  } catch (e) {
+    console.error('Failed to load visualizations:', e)
+  }
+}
+
+// Add a tile
+async function addTile() {
+  if (!selectedVisualizationId.value || isNew.value) return
+
+  try {
+    addingTile.value = true
+
+    // Find next available position
+    const tiles = dashboard.value.tiles || []
+    const maxY = tiles.reduce((max, t) => Math.max(max, t.pos_y + t.height), 0)
+
+    const payload: CreateTileRequest = {
+      visualization_id: selectedVisualizationId.value,
+      pos_x: 0,
+      pos_y: maxY,
+      width: 6,
+      height: 4,
+    }
+
+    const tile = await dashboardsApi.createTile(dashboardId.value!, payload)
+    dashboard.value.tiles = [...(dashboard.value.tiles || []), tile]
+    loadTileData(tile)
+
+    showAddTileModal.value = false
+    selectedVisualizationId.value = null
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Failed to add tile'
+  } finally {
+    addingTile.value = false
+  }
+}
+
+// Delete a tile
+async function deleteTile(tileId: string) {
+  if (!confirm('Remove this tile from the dashboard?')) return
+
+  try {
+    await dashboardsApi.deleteTile(dashboardId.value!, tileId)
+    dashboard.value.tiles = dashboard.value.tiles?.filter((t) => t.id !== tileId)
+    delete tileData.value[tileId]
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Failed to delete tile'
+  }
+}
+
+// Update tile position/size
+async function updateTile(tile: Tile, updates: Partial<Tile>) {
+  try {
+    const updated = await dashboardsApi.updateTile(dashboardId.value!, tile.id, updates)
+    const idx = dashboard.value.tiles?.findIndex((t) => t.id === tile.id)
+    if (idx !== undefined && idx >= 0 && dashboard.value.tiles) {
+      dashboard.value.tiles[idx] = updated
+    }
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Failed to update tile'
+  }
+}
+
+// Get visualization info for a tile
+const vizCache = ref<Record<string, Visualization>>({})
+async function getVisualization(vizId: string): Promise<Visualization | null> {
+  if (vizCache.value[vizId]) return vizCache.value[vizId]
+  try {
+    const viz = await visualizationsApi.get(vizId)
+    vizCache.value[vizId] = viz
+    return viz
+  } catch {
+    return null
+  }
+}
+
+onMounted(() => {
+  loadDashboard()
+})
+
+// Clear error on changes
+watch(
+  () => dashboard.value.name,
+  () => {
+    error.value = null
+  },
+)
+</script>
+
+<template>
+  <AppLayout :title="isNew ? 'New Dashboard' : dashboard.name || 'Dashboard'">
+    <template #header-left>
+      <LButton variant="ghost" size="sm" @click="router.push({ name: 'dashboards' })">
+        <ArrowLeft class="h-4 w-4" />
+        Back
+      </LButton>
+    </template>
+
+    <template #header-actions>
+      <LButton v-if="!isNew" variant="secondary" @click="openAddTileModal">
+        <Plus class="h-4 w-4" />
+        Add Tile
+      </LButton>
+      <LButton :disabled="saving" @click="saveDashboard">
+        <Loader2 v-if="saving" class="h-4 w-4 animate-spin" />
+        <Save v-else class="h-4 w-4" />
+        {{ saving ? 'Saving...' : 'Save' }}
+      </LButton>
+    </template>
+
+    <!-- Loading state -->
+    <div v-if="loading" class="flex items-center justify-center py-12">
+      <LSpinner size="lg" />
+    </div>
+
+    <div v-else class="space-y-4">
+      <!-- Error banner -->
+      <div
+        v-if="error"
+        class="flex items-center gap-3 p-3 bg-error-muted text-error rounded-lg text-sm"
+      >
+        <AlertCircle class="h-5 w-5 shrink-0" />
+        <span class="flex-1">{{ error }}</span>
+        <button @click="error = null" class="p-1 hover:bg-error/20 rounded">
+          <X class="h-4 w-4" />
+        </button>
+      </div>
+
+      <!-- Success banner -->
+      <div
+        v-if="saveSuccess"
+        class="flex items-center gap-3 p-3 bg-success-muted text-success rounded-lg text-sm"
+      >
+        <CheckCircle class="h-5 w-5 shrink-0" />
+        <span>Dashboard saved successfully</span>
+      </div>
+
+      <!-- Dashboard metadata -->
+      <LCard padding="sm">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-text mb-1.5">Name</label>
+            <LInput v-model="dashboard.name" placeholder="My Dashboard" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-text mb-1.5">Description (optional)</label>
+            <LInput v-model="dashboard.description" placeholder="Dashboard description..." />
+          </div>
+        </div>
+      </LCard>
+
+      <!-- Tiles grid -->
+      <div v-if="isNew" class="py-12">
+        <LEmptyState
+          title="Save to add tiles"
+          description="Save the dashboard first, then you can add visualization tiles."
+        >
+          <template #action>
+            <LButton @click="saveDashboard" :disabled="saving">
+              <Save class="h-4 w-4" />
+              Save Dashboard
+            </LButton>
+          </template>
+        </LEmptyState>
+      </div>
+
+      <div v-else-if="!dashboard.tiles?.length" class="py-12">
+        <LEmptyState
+          title="No tiles yet"
+          description="Add visualization tiles to build your dashboard."
+        >
+          <template #action>
+            <LButton @click="openAddTileModal">
+              <Plus class="h-4 w-4" />
+              Add Tile
+            </LButton>
+          </template>
+        </LEmptyState>
+      </div>
+
+      <div
+        v-else
+        class="grid gap-4"
+        :style="{
+          gridTemplateColumns: `repeat(${GRID_COLS}, 1fr)`,
+          gridAutoRows: `${GRID_ROW_HEIGHT}px`,
+        }"
+      >
+        <GridItem
+          v-for="tile in dashboard.tiles"
+          :key="tile.id"
+          :x="tile.pos_x"
+          :y="tile.pos_y"
+          :width="tile.width"
+          :height="tile.height"
+          :grid-cols="GRID_COLS"
+          :row-height="GRID_ROW_HEIGHT"
+          :gap="16"
+          :min-width="2"
+          :min-height="2"
+          @change="(x, y, w, h) => updateTile(tile, { pos_x: x, pos_y: y, width: w, height: h })"
+        >
+          <LCard padding="none" class="h-full overflow-hidden">
+            <!-- Tile header -->
+            <div
+              class="absolute top-0 left-8 right-0 flex items-center justify-between px-3 py-2 bg-linear-to-b from-surface/90 to-transparent z-10 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <span class="text-sm font-medium text-text truncate">
+                {{ tile.title || vizCache[tile.visualization_id]?.name || 'Untitled' }}
+              </span>
+              <div class="flex items-center gap-1">
+                <button
+                  type="button"
+                  class="p-1 rounded hover:bg-surface-sunken text-text-muted hover:text-error transition-colors"
+                  @click="deleteTile(tile.id)"
+                >
+                  <Trash2 class="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            <!-- Tile content -->
+            <div class="h-full p-3 pt-2">
+              <VisualizationRenderer
+                :chart-type="vizCache[tile.visualization_id]?.chart_type || 'table'"
+                :data="tileData[tile.id] || null"
+                :config="vizCache[tile.visualization_id]?.config || {}"
+                :loading="tileLoading[tile.id]"
+                height="100%"
+                @vue:mounted="getVisualization(tile.visualization_id)"
+              />
+            </div>
+          </LCard>
+        </GridItem>
+      </div>
+    </div>
+
+    <!-- Add tile modal -->
+    <LModal :open="showAddTileModal" title="Add Tile" @close="showAddTileModal = false">
+      <div class="space-y-4">
+        <p class="text-sm text-text-muted">Select a visualization to add to this dashboard.</p>
+
+        <div v-if="visualizations.length === 0" class="text-center py-4">
+          <p class="text-text-muted mb-3">No visualizations found.</p>
+          <LButton variant="secondary" @click="router.push({ name: 'visualizations' })">
+            Create a Visualization First
+          </LButton>
+        </div>
+
+        <div v-else class="space-y-2 max-h-64 overflow-y-auto">
+          <button
+            v-for="viz in visualizations"
+            :key="viz.id"
+            type="button"
+            class="w-full text-left p-3 rounded-lg border transition-colors"
+            :class="
+              selectedVisualizationId === viz.id
+                ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30'
+                : 'border-border hover:border-border-hover'
+            "
+            @click="selectedVisualizationId = viz.id"
+          >
+            <div class="font-medium text-text">{{ viz.name }}</div>
+            <div class="text-xs text-text-muted mt-0.5 capitalize">{{ viz.chart_type }}</div>
+          </button>
+        </div>
+      </div>
+
+      <template #footer>
+        <LButton variant="secondary" @click="showAddTileModal = false">Cancel</LButton>
+        <LButton :disabled="!selectedVisualizationId || addingTile" @click="addTile">
+          <Loader2 v-if="addingTile" class="h-4 w-4 animate-spin" />
+          Add Tile
+        </LButton>
+      </template>
+    </LModal>
+  </AppLayout>
+</template>

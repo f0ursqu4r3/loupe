@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { Plus, MoreVertical, ExternalLink } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
+import { Plus, Trash2, LayoutGrid } from 'lucide-vue-next'
 import { AppLayout } from '@/components/layout'
 import { LButton, LCard, LEmptyState, LSpinner } from '@/components/ui'
 import { dashboardsApi } from '@/services/api'
 import type { Dashboard } from '@/types'
 
+const router = useRouter()
+
 const dashboards = ref<Dashboard[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
+const deleting = ref<string | null>(null)
 
 async function loadDashboards() {
   try {
@@ -31,12 +35,35 @@ function formatDate(dateString: string): string {
     year: 'numeric',
   }).format(new Date(dateString))
 }
+
+function openDashboard(dashboard: Dashboard) {
+  router.push({ name: 'dashboard-editor', params: { id: dashboard.id } })
+}
+
+function createDashboard() {
+  router.push({ name: 'dashboard-new' })
+}
+
+async function deleteDashboard(id: string, event: Event) {
+  event.stopPropagation()
+  if (!confirm('Are you sure you want to delete this dashboard?')) return
+
+  try {
+    deleting.value = id
+    await dashboardsApi.delete(id)
+    dashboards.value = dashboards.value.filter((d) => d.id !== id)
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Failed to delete dashboard'
+  } finally {
+    deleting.value = null
+  }
+}
 </script>
 
 <template>
   <AppLayout title="Dashboards">
     <template #header-actions>
-      <LButton>
+      <LButton @click="createDashboard">
         <Plus class="h-4 w-4" />
         New Dashboard
       </LButton>
@@ -53,8 +80,11 @@ function formatDate(dateString: string): string {
       title="No dashboards yet"
       description="Create your first dashboard to start visualizing your data."
     >
+      <template #icon>
+        <LayoutGrid class="h-8 w-8 text-text-subtle" />
+      </template>
       <template #action>
-        <LButton>
+        <LButton @click="createDashboard">
           <Plus class="h-4 w-4" />
           Create Dashboard
         </LButton>
@@ -67,6 +97,7 @@ function formatDate(dateString: string): string {
         v-for="dashboard in dashboards"
         :key="dashboard.id"
         class="group hover:border-primary-500/50 transition-colors cursor-pointer"
+        @click="openDashboard(dashboard)"
       >
         <div class="flex items-start justify-between mb-3">
           <h3 class="font-semibold text-text group-hover:text-primary-600 transition-colors">
@@ -74,9 +105,11 @@ function formatDate(dateString: string): string {
           </h3>
           <button
             type="button"
-            class="p-1 rounded text-text-muted hover:text-text hover:bg-surface-sunken transition-colors opacity-0 group-hover:opacity-100"
+            class="p-1.5 rounded text-text-muted hover:text-error hover:bg-error-muted transition-colors opacity-0 group-hover:opacity-100"
+            @click="deleteDashboard(dashboard.id, $event)"
+            :disabled="deleting === dashboard.id"
           >
-            <MoreVertical class="h-4 w-4" />
+            <Trash2 class="h-4 w-4" />
           </button>
         </div>
 
@@ -85,8 +118,8 @@ function formatDate(dateString: string): string {
         </p>
 
         <div class="flex items-center justify-between text-xs text-text-subtle">
+          <span>{{ dashboard.tiles?.length || 0 }} tiles</span>
           <span>Updated {{ formatDate(dashboard.updated_at) }}</span>
-          <ExternalLink class="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
         </div>
       </LCard>
     </div>

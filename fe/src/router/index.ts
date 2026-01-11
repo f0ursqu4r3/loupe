@@ -17,6 +17,18 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/dashboards/new',
+      name: 'dashboard-new',
+      component: () => import('@/views/DashboardEditorView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/dashboards/:id',
+      name: 'dashboard-editor',
+      component: () => import('@/views/DashboardEditorView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/datasources',
       name: 'datasources',
       component: () => import('@/views/DatasourcesView.vue'),

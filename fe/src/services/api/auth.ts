@@ -8,7 +8,7 @@ export const authApi = {
 
   async register(data: RegisterRequest): Promise<AuthResponse> {
     // Backend returns user directly on register, then we auto-login
-    const user = await api.post<User>('/auth/register', data)
+    await api.post<User>('/auth/register', data)
     // Auto-login after registration
     return api.post<AuthResponse>('/auth/login', {
       email: data.email,

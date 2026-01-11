@@ -23,7 +23,7 @@ export const dashboardsApi = {
   },
 
   update(id: UUID, data: UpdateDashboardRequest): Promise<Dashboard> {
-    return api.patch<Dashboard>(`/dashboards/${id}`, data)
+    return api.put<Dashboard>(`/dashboards/${id}`, data)
   },
 
   delete(id: UUID): Promise<void> {
@@ -40,7 +40,7 @@ export const dashboardsApi = {
   },
 
   updateTile(dashboardId: UUID, tileId: UUID, data: UpdateTileRequest): Promise<Tile> {
-    return api.patch<Tile>(`/dashboards/${dashboardId}/tiles/${tileId}`, data)
+    return api.put<Tile>(`/dashboards/${dashboardId}/tiles/${tileId}`, data)
   },
 
   deleteTile(dashboardId: UUID, tileId: UUID): Promise<void> {
