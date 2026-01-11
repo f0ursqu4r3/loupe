@@ -29,6 +29,18 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/queries/new',
+      name: 'query-new',
+      component: () => import('@/views/QueryEditorView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/queries/:id',
+      name: 'query-editor',
+      component: () => import('@/views/QueryEditorView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/visualizations',
       name: 'visualizations',
       component: () => import('@/views/VisualizationsView.vue'),

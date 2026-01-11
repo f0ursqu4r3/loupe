@@ -130,7 +130,7 @@ export interface ExecuteQueryRequest {
 
 export interface QueryResult {
   columns: ColumnInfo[]
-  rows: unknown[][]
+  rows: Record<string, unknown>[]
   row_count: number
   execution_time_ms: number
   truncated: boolean
@@ -138,7 +138,7 @@ export interface QueryResult {
 
 export interface ColumnInfo {
   name: string
-  data_type: string
+  type: string
 }
 
 // ===== Visualization =====

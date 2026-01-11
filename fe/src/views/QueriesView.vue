@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { Plus, Play, FileCode } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
+import { Plus, Play, FileCode, Edit } from 'lucide-vue-next'
 import { AppLayout } from '@/components/layout'
 import { LButton, LCard, LBadge, LEmptyState, LSpinner } from '@/components/ui'
 import { queriesApi } from '@/services/api'
 import type { Query } from '@/types'
 
+const router = useRouter()
 const queries = ref<Query[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
@@ -31,12 +33,20 @@ function formatDate(dateString: string): string {
     year: 'numeric',
   }).format(new Date(dateString))
 }
+
+function openEditor(queryId?: string) {
+  if (queryId) {
+    router.push({ name: 'query-editor', params: { id: queryId } })
+  } else {
+    router.push({ name: 'query-new' })
+  }
+}
 </script>
 
 <template>
   <AppLayout title="Queries">
     <template #header-actions>
-      <LButton>
+      <LButton @click="openEditor()">
         <Plus class="h-4 w-4" />
         New Query
       </LButton>
@@ -57,7 +67,7 @@ function formatDate(dateString: string): string {
         <FileCode class="h-8 w-8 text-text-subtle" />
       </template>
       <template #action>
-        <LButton>
+        <LButton @click="openEditor()">
           <Plus class="h-4 w-4" />
           Create Query
         </LButton>
@@ -69,7 +79,8 @@ function formatDate(dateString: string): string {
       <LCard
         v-for="query in queries"
         :key="query.id"
-        class="group hover:border-primary-500/50 transition-colors"
+        class="group hover:border-primary-500/50 transition-colors cursor-pointer"
+        @click="openEditor(query.id)"
       >
         <div class="flex items-start justify-between">
           <div class="flex-1 min-w-0">
@@ -88,7 +99,10 @@ function formatDate(dateString: string): string {
             >
           </div>
 
-          <div class="flex items-center gap-2 ml-4">
+          <div class="flex items-center gap-2 ml-4" @click.stop>
+            <LButton variant="ghost" size="sm" @click="openEditor(query.id)">
+              <Edit class="h-4 w-4" />
+            </LButton>
             <LButton variant="ghost" size="sm">
               <Play class="h-4 w-4" />
             </LButton>
