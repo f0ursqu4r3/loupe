@@ -1,9 +1,9 @@
 use crate::AppState;
-use actix_web::{web, HttpResponse};
-use loupe::models::{CreateScheduleRequest, ScheduleResponse};
+use crate::routes::auth::get_auth_context;
+use actix_web::{HttpRequest, HttpResponse, web};
 use loupe::Error;
+use loupe::models::{CreateScheduleRequest, ScheduleResponse};
 use std::sync::Arc;
-use uuid::Uuid;
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
@@ -13,15 +13,11 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     );
 }
 
-fn get_current_user() -> (Uuid, Uuid) {
-    (
-        Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
-        Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
-    )
-}
-
-async fn list_schedules(state: web::Data<Arc<AppState>>) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_current_user();
+async fn list_schedules(
+    state: web::Data<Arc<AppState>>,
+    req: HttpRequest,
+) -> Result<HttpResponse, Error> {
+    let (_, org_id) = get_auth_context(&req)?;
     let schedules = state.db.list_schedules(org_id).await?;
     let response: Vec<ScheduleResponse> = schedules.into_iter().map(Into::into).collect();
     Ok(HttpResponse::Ok().json(response))
@@ -29,22 +25,23 @@ async fn list_schedules(state: web::Data<Arc<AppState>>) -> Result<HttpResponse,
 
 async fn create_schedule(
     state: web::Data<Arc<AppState>>,
-    req: web::Json<CreateScheduleRequest>,
+    req: HttpRequest,
+    body: web::Json<CreateScheduleRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (user_id, org_id) = get_current_user();
+    let (user_id, org_id) = get_auth_context(&req)?;
 
     // Verify query exists
-    state.db.get_query(req.query_id, org_id).await?;
+    state.db.get_query(body.query_id, org_id).await?;
 
     let schedule = state
         .db
         .create_schedule(
             org_id,
-            req.query_id,
-            &req.name,
-            &req.cron_expression,
-            &req.parameters,
-            req.enabled,
+            body.query_id,
+            &body.name,
+            &body.cron_expression,
+            &body.parameters,
+            body.enabled,
             user_id,
         )
         .await?;
