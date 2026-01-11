@@ -191,19 +191,30 @@ pub struct TilePathParams {
 
 async fn delete_tile(
     state: web::Data<Arc<AppState>>,
+    req: HttpRequest,
     path: web::Path<TilePathParams>,
 ) -> Result<HttpResponse, Error> {
+    let (_, org_id) = get_auth_context(&req)?;
     let params = path.into_inner();
+
+    // Verify dashboard belongs to this org
+    state.db.get_dashboard(params.id, org_id).await?;
+
     state.db.delete_tile(params.tile_id, params.id).await?;
     Ok(HttpResponse::NoContent().finish())
 }
 
 async fn update_tile(
     state: web::Data<Arc<AppState>>,
+    req: HttpRequest,
     path: web::Path<TilePathParams>,
     body: web::Json<UpdateTileRequest>,
 ) -> Result<HttpResponse, Error> {
+    let (_, org_id) = get_auth_context(&req)?;
     let params = path.into_inner();
+
+    // Verify dashboard belongs to this org
+    state.db.get_dashboard(params.id, org_id).await?;
 
     let tile = state
         .db
