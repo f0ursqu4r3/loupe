@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Plus, BarChart3, Table, LineChart, Hash, Trash2 } from 'lucide-vue-next'
+import { Plus, BarChart3, Table, LineChart, Hash, Trash2, PieChart } from 'lucide-vue-next'
 import { AppLayout } from '@/components/layout'
 import { LButton, LCard, LEmptyState, LSpinner, LModal } from '@/components/ui'
 import { visualizationsApi, queriesApi } from '@/services/api'
@@ -48,6 +48,7 @@ const chartTypeIcons: Record<ChartType, typeof BarChart3> = {
   bar: BarChart3,
   line: LineChart,
   single_stat: Hash,
+  pie: PieChart,
 }
 
 const chartTypeLabels: Record<ChartType, string> = {
@@ -55,6 +56,7 @@ const chartTypeLabels: Record<ChartType, string> = {
   bar: 'Bar Chart',
   line: 'Line Chart',
   single_stat: 'Single Stat',
+  pie: 'Pie Chart',
 }
 
 function openVisualization(viz: Visualization) {

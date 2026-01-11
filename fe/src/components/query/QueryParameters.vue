@@ -22,9 +22,10 @@ const paramTypeOptions = [
   { value: 'datetime', label: 'DateTime' },
 ]
 
-// Extract parameters from SQL using {{param}} syntax
+// Extract parameters from SQL using $param_name syntax
+// Parameter names must start with a letter and contain only alphanumeric + underscore
 const detectedParams = computed(() => {
-  const regex = /\{\{\s*(\w+)\s*\}\}/g
+  const regex = /\$([a-zA-Z][a-zA-Z0-9_]*)/g
   const params = new Set<string>()
   let match
   while ((match = regex.exec(props.sql)) !== null) {
@@ -106,7 +107,7 @@ function addMissingParams() {
         <p class="text-xs mt-1">
           Found in SQL but not defined:
           <code v-for="(p, i) in missingParams" :key="p" class="bg-warning/20 px-1 rounded">
-            {{ p }}{{ i < missingParams.length - 1 ? ', ' : '' }}
+            ${{ p }}{{ i < missingParams.length - 1 ? ', ' : '' }}
           </code>
         </p>
         <LButton variant="ghost" size="sm" class="mt-2 -ml-2" @click="addMissingParams">
@@ -170,8 +171,8 @@ function addMissingParams() {
         Add Parameter
       </LButton>
       <p v-if="modelValue.length === 0" class="text-xs text-text-muted">
-        Use <code class="bg-surface-sunken px-1 rounded">{<!-- -->{param_name}}</code> syntax in SQL
-        to reference parameters
+        Use <code class="bg-surface-sunken px-1 rounded">$param_name</code> syntax in SQL to
+        reference parameters
       </p>
     </div>
   </div>
