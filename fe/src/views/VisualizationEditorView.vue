@@ -46,6 +46,7 @@ const visualization = ref<Partial<Visualization>>({
 
 // Query and data
 const query = ref<Query | null>(null)
+const allQueries = ref<Query[]>([])
 const result = ref<QueryResult | null>(null)
 
 // UI state
@@ -73,8 +74,52 @@ const columnOptions = computed(() => {
   }))
 })
 
+// Query options for selector
+const queryOptions = computed(() =>
+  allQueries.value.map((q) => ({
+    value: q.id,
+    label: q.name,
+  })),
+)
+
+// Load all queries for the selector
+async function loadQueries() {
+  try {
+    allQueries.value = await queriesApi.list()
+  } catch (e) {
+    console.error('Failed to load queries:', e)
+  }
+}
+
+// Handle query change
+async function handleQueryChange(queryId: string) {
+  if (!queryId || queryId === visualization.value.query_id) return
+
+  visualization.value.query_id = queryId
+
+  // Load the new query and refresh preview
+  try {
+    query.value = await queriesApi.get(queryId)
+    // Clear column-specific config since columns may differ
+    visualization.value.config = {
+      ...visualization.value.config,
+      x_axis: undefined,
+      y_axis: undefined,
+      series_column: undefined,
+      value_column: undefined,
+      label_column: undefined,
+    }
+    await runQueryForPreview()
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Failed to load query'
+  }
+}
+
 // Load visualization
 async function loadVisualization() {
+  // Load all queries for the selector
+  await loadQueries()
+
   if (isNew.value) {
     // For new visualizations, load the query from query_id param
     if (queryIdFromRoute.value) {
@@ -183,6 +228,7 @@ async function saveVisualization() {
       visualization.value = created
     } else {
       const updated = await visualizationsApi.update(visualizationId.value!, {
+        query_id: visualization.value.query_id,
         name: visualization.value.name,
         chart_type: visualization.value.chart_type,
         config: visualization.value.config,
@@ -467,18 +513,26 @@ watch(
           </div>
         </LCard>
 
-        <!-- Query info -->
-        <LCard v-if="query" padding="sm">
-          <h3 class="text-sm font-medium text-text mb-2">Source Query</h3>
-          <p class="text-sm text-text-muted truncate">{{ query.name }}</p>
-          <LButton
-            variant="ghost"
-            size="sm"
-            class="mt-2 -ml-2"
-            @click="router.push({ name: 'query-editor', params: { id: query.id } })"
-          >
-            Edit Query
-          </LButton>
+        <!-- Source Query -->
+        <LCard padding="sm">
+          <h3 class="text-sm font-medium text-text mb-3">Source Query</h3>
+          <div class="space-y-3">
+            <LSelect
+              :model-value="visualization.query_id || ''"
+              @update:model-value="handleQueryChange($event)"
+              :options="queryOptions"
+              placeholder="Select a query..."
+            />
+            <LButton
+              v-if="query"
+              variant="ghost"
+              size="sm"
+              class="-ml-2"
+              @click="router.push({ name: 'query-editor', params: { id: query.id } })"
+            >
+              Edit Query
+            </LButton>
+          </div>
         </LCard>
       </div>
 

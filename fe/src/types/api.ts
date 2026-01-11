@@ -233,6 +233,7 @@ export interface CreateVisualizationRequest {
 }
 
 export interface UpdateVisualizationRequest {
+  query_id?: UUID
   name?: string
   chart_type?: ChartType
   config?: VisualizationConfig
