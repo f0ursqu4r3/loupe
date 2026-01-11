@@ -87,7 +87,9 @@ const positionClasses = computed(() => {
 <style scoped>
 .tooltip-enter-active,
 .tooltip-leave-active {
-  transition: opacity 150ms ease, transform 150ms ease;
+  transition:
+    opacity 150ms ease,
+    transform 150ms ease;
 }
 
 .tooltip-enter-from,

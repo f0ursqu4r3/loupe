@@ -29,7 +29,7 @@ watch(
   () => props.modelValue,
   (value) => {
     isOpen.value = value
-  }
+  },
 )
 
 function close() {
@@ -71,15 +71,9 @@ const sizeClasses = {
 <template>
   <Teleport to="body">
     <Transition name="modal">
-      <div
-        v-if="isOpen"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4"
-      >
+      <div v-if="isOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
         <!-- Overlay -->
-        <div
-          class="absolute inset-0 bg-black/50 backdrop-blur-sm"
-          @click="onOverlayClick"
-        />
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="onOverlayClick" />
 
         <!-- Modal -->
         <div
@@ -134,7 +128,9 @@ const sizeClasses = {
 
 .modal-enter-active > div:last-child,
 .modal-leave-active > div:last-child {
-  transition: transform 200ms ease, opacity 200ms ease;
+  transition:
+    transform 200ms ease,
+    opacity 200ms ease;
 }
 
 .modal-enter-from,

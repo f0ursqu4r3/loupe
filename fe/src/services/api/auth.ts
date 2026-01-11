@@ -1,10 +1,5 @@
 import { api } from './client'
-import type {
-  User,
-  LoginRequest,
-  RegisterRequest,
-  AuthResponse,
-} from '@/types'
+import type { User, LoginRequest, RegisterRequest, AuthResponse } from '@/types'
 
 export const authApi = {
   login(data: LoginRequest): Promise<AuthResponse> {

@@ -23,11 +23,7 @@ const colorClasses = {
   current: 'text-current',
 }
 
-const classes = computed(() => [
-  'animate-spin',
-  sizeClasses[props.size],
-  colorClasses[props.color],
-])
+const classes = computed(() => ['animate-spin', sizeClasses[props.size], colorClasses[props.color]])
 </script>
 
 <template>

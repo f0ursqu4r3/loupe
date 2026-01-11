@@ -96,17 +96,10 @@ function formatDate(dateString: string | undefined): string {
             <div
               :class="[
                 'w-10 h-10 rounded-lg flex items-center justify-center',
-                schedule.enabled
-                  ? 'bg-success-muted'
-                  : 'bg-surface-sunken',
+                schedule.enabled ? 'bg-success-muted' : 'bg-surface-sunken',
               ]"
             >
-              <Clock
-                :class="[
-                  'h-5 w-5',
-                  schedule.enabled ? 'text-success' : 'text-text-subtle',
-                ]"
-              />
+              <Clock :class="['h-5 w-5', schedule.enabled ? 'text-success' : 'text-text-subtle']" />
             </div>
             <div>
               <div class="flex items-center gap-2">
@@ -132,18 +125,10 @@ function formatDate(dateString: string | undefined): string {
             </div>
 
             <div class="flex items-center gap-2">
-              <LButton
-                variant="ghost"
-                size="sm"
-                @click="triggerSchedule(schedule.id)"
-              >
+              <LButton variant="ghost" size="sm" @click="triggerSchedule(schedule.id)">
                 <Play class="h-4 w-4" />
               </LButton>
-              <LButton
-                variant="secondary"
-                size="sm"
-                @click="toggleSchedule(schedule)"
-              >
+              <LButton variant="secondary" size="sm" @click="toggleSchedule(schedule)">
                 <component :is="schedule.enabled ? Pause : Play" class="h-4 w-4" />
                 {{ schedule.enabled ? 'Pause' : 'Enable' }}
               </LButton>

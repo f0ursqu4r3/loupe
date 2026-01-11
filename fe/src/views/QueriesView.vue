@@ -82,7 +82,10 @@ function formatDate(dateString: string): string {
             <p v-if="query.description" class="text-sm text-text-muted mb-3 line-clamp-2">
               {{ query.description }}
             </p>
-            <pre class="text-xs text-text-subtle bg-surface-sunken p-2 rounded overflow-x-auto max-h-20">{{ query.sql }}</pre>
+            <pre
+              class="text-xs text-text-subtle bg-surface-sunken p-2 rounded overflow-x-auto max-h-20"
+              >{{ query.sql }}</pre
+            >
           </div>
 
           <div class="flex items-center gap-2 ml-4">
@@ -93,9 +96,7 @@ function formatDate(dateString: string): string {
         </div>
 
         <div class="flex items-center justify-between mt-4 pt-3 border-t border-border">
-          <span class="text-xs text-text-subtle">
-            Updated {{ formatDate(query.updated_at) }}
-          </span>
+          <span class="text-xs text-text-subtle"> Updated {{ formatDate(query.updated_at) }} </span>
           <div class="flex items-center gap-2 text-xs text-text-subtle">
             <span>Timeout: {{ query.timeout_seconds }}s</span>
             <span>·</span>

@@ -25,7 +25,10 @@ class ApiClient {
     return this.token
   }
 
-  private buildUrl(path: string, params?: Record<string, string | number | boolean | undefined>): string {
+  private buildUrl(
+    path: string,
+    params?: Record<string, string | number | boolean | undefined>,
+  ): string {
     const url = new URL(`${API_BASE}${path}`, window.location.origin)
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
@@ -114,7 +117,7 @@ class ApiClient {
 export class ApiRequestError extends Error {
   constructor(
     public status: number,
-    public error: ApiError
+    public error: ApiError,
   ) {
     super(error.message)
     this.name = 'ApiRequestError'

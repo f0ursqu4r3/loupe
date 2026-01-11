@@ -1,10 +1,5 @@
 import { api } from './client'
-import type {
-  Schedule,
-  CreateScheduleRequest,
-  UpdateScheduleRequest,
-  UUID,
-} from '@/types'
+import type { Schedule, CreateScheduleRequest, UpdateScheduleRequest, UUID } from '@/types'
 
 export const schedulesApi = {
   list(): Promise<Schedule[]> {

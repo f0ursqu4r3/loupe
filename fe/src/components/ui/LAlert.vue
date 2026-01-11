@@ -32,10 +32,7 @@ const variantClasses = {
 }
 
 const icon = computed(() => icons[props.variant])
-const classes = computed(() => [
-  'flex gap-3 p-4 rounded-lg border',
-  variantClasses[props.variant],
-])
+const classes = computed(() => ['flex gap-3 p-4 rounded-lg border', variantClasses[props.variant]])
 </script>
 
 <template>

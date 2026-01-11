@@ -70,17 +70,14 @@ function toggleMode() {
       </div>
 
       <div>
-        <h1 class="text-4xl font-bold text-white mb-4">
-          Business Intelligence<br />Made Simple
-        </h1>
+        <h1 class="text-4xl font-bold text-white mb-4">Business Intelligence<br />Made Simple</h1>
         <p class="text-primary-100 text-lg">
-          Connect your databases, write SQL queries, and create beautiful visualizations and dashboards.
+          Connect your databases, write SQL queries, and create beautiful visualizations and
+          dashboards.
         </p>
       </div>
 
-      <p class="text-primary-200 text-sm">
-        © 2026 Loupe. Open source BI platform.
-      </p>
+      <p class="text-primary-200 text-sm">© 2026 Loupe. Open source BI platform.</p>
     </div>
 
     <!-- Right side - auth form -->
@@ -103,7 +100,11 @@ function toggleMode() {
             {{ mode === 'login' ? 'Welcome back' : 'Create your account' }}
           </h2>
           <p class="text-text-muted mb-8">
-            {{ mode === 'login' ? 'Sign in to your account to continue' : 'Get started with Loupe for free' }}
+            {{
+              mode === 'login'
+                ? 'Sign in to your account to continue'
+                : 'Get started with Loupe for free'
+            }}
           </p>
 
           <LAlert v-if="error" variant="error" class="mb-6" dismissible @dismiss="error = null">
@@ -113,11 +114,7 @@ function toggleMode() {
           <form class="space-y-4" @submit.prevent="submit">
             <div v-if="mode === 'register'">
               <label class="block text-sm font-medium text-text mb-1.5">Name</label>
-              <LInput
-                v-model="form.name"
-                placeholder="Your name"
-                autocomplete="name"
-              />
+              <LInput v-model="form.name" placeholder="Your name" autocomplete="name" />
             </div>
 
             <div>
@@ -150,12 +147,7 @@ function toggleMode() {
               </div>
             </div>
 
-            <LButton
-              type="submit"
-              class="w-full"
-              :loading="authStore.loading"
-              :disabled="!isValid"
-            >
+            <LButton type="submit" class="w-full" :loading="authStore.loading" :disabled="!isValid">
               {{ mode === 'login' ? 'Sign in' : 'Create account' }}
             </LButton>
           </form>

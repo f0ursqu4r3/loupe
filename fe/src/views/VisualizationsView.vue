@@ -87,7 +87,9 @@ const chartTypeLabels: Record<ChartType, string> = {
       >
         <div class="flex items-start justify-between mb-3">
           <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
+            <div
+              class="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center"
+            >
               <component :is="chartTypeIcons[viz.chart_type]" class="h-5 w-5 text-primary-600" />
             </div>
             <div>
@@ -104,9 +106,7 @@ const chartTypeLabels: Record<ChartType, string> = {
           <component :is="chartTypeIcons[viz.chart_type]" class="h-12 w-12 text-text-subtle/30" />
         </div>
 
-        <div class="text-xs text-text-subtle">
-          Updated {{ formatDate(viz.updated_at) }}
-        </div>
+        <div class="text-xs text-text-subtle">Updated {{ formatDate(viz.updated_at) }}</div>
       </LCard>
     </div>
   </AppLayout>

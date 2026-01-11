@@ -22,10 +22,12 @@ const baseClasses =
 
 const variantClasses = {
   primary: 'bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800',
-  secondary: 'bg-surface-raised text-text border border-border hover:bg-surface-sunken active:bg-surface-sunken',
+  secondary:
+    'bg-surface-raised text-text border border-border hover:bg-surface-sunken active:bg-surface-sunken',
   ghost: 'text-text hover:bg-surface-sunken active:bg-surface-sunken',
   danger: 'bg-error text-white hover:opacity-90 active:opacity-80',
-  outline: 'border border-primary-600 text-primary-600 hover:bg-primary-50 active:bg-primary-100 dark:hover:bg-primary-950 dark:active:bg-primary-900',
+  outline:
+    'border border-primary-600 text-primary-600 hover:bg-primary-50 active:bg-primary-100 dark:hover:bg-primary-950 dark:active:bg-primary-900',
 }
 
 const sizeClasses = {

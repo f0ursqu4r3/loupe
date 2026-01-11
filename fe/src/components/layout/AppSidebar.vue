@@ -35,9 +35,7 @@ const navItems = [
   { to: '/schedules', icon: Calendar, label: 'Schedules' },
 ]
 
-const bottomNavItems = [
-  { to: '/settings', icon: Settings, label: 'Settings' },
-]
+const bottomNavItems = [{ to: '/settings', icon: Settings, label: 'Settings' }]
 
 function isActive(to: string): boolean {
   if (to === '/') return route.path === '/'
@@ -62,10 +60,7 @@ function toggleCollapse() {
         <div class="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center">
           <Search class="h-4 w-4 text-white" />
         </div>
-        <span
-          v-if="!collapsed"
-          class="font-semibold text-lg text-text transition-opacity"
-        >
+        <span v-if="!collapsed" class="font-semibold text-lg text-text transition-opacity">
           Loupe
         </span>
       </RouterLink>
@@ -85,10 +80,7 @@ function toggleCollapse() {
             ]"
           >
             <component :is="item.icon" class="h-5 w-5 flex-shrink-0" />
-            <span
-              v-if="!collapsed"
-              class="text-sm font-medium"
-            >
+            <span v-if="!collapsed" class="text-sm font-medium">
               {{ item.label }}
             </span>
           </RouterLink>
@@ -110,10 +102,7 @@ function toggleCollapse() {
             ]"
           >
             <component :is="item.icon" class="h-5 w-5 flex-shrink-0" />
-            <span
-              v-if="!collapsed"
-              class="text-sm font-medium"
-            >
+            <span v-if="!collapsed" class="text-sm font-medium">
               {{ item.label }}
             </span>
           </RouterLink>
@@ -130,10 +119,7 @@ function toggleCollapse() {
           ]"
           @click="toggleCollapse"
         >
-          <component
-            :is="collapsed ? ChevronRight : ChevronLeft"
-            class="h-5 w-5 flex-shrink-0"
-          />
+          <component :is="collapsed ? ChevronRight : ChevronLeft" class="h-5 w-5 flex-shrink-0" />
           <span v-if="!collapsed" class="text-sm font-medium">Collapse</span>
         </button>
       </div>

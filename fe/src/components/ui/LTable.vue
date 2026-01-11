@@ -16,14 +16,9 @@ const props = withDefaults(defineProps<Props>(), {
   compact: false,
 })
 
-const tableClasses = computed(() => [
-  'w-full text-left',
-  props.class,
-])
+const tableClasses = computed(() => ['w-full text-left', props.class])
 
-const cellPadding = computed(() =>
-  props.compact ? 'px-3 py-2' : 'px-4 py-3'
-)
+const cellPadding = computed(() => (props.compact ? 'px-3 py-2' : 'px-4 py-3'))
 </script>
 
 <template>

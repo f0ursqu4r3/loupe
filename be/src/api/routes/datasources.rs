@@ -1,5 +1,6 @@
 use crate::AppState;
-use actix_web::{web, HttpResponse};
+use crate::routes::auth::get_auth_context;
+use actix_web::{web, HttpRequest, HttpResponse};
 use loupe::connectors::{Connector, PostgresConnector};
 use loupe::models::{
     ConnectionTestResult, CreateDatasourceRequest, DatasourceResponse, DatasourceType,
@@ -22,19 +23,11 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     );
 }
 
-// Temporary: hardcoded user/org for development (replace with auth middleware)
-fn get_current_user() -> (Uuid, Uuid) {
-    // user_id, org_id - will be replaced by auth
-    (
-        Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
-        Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
-    )
-}
-
 async fn list_datasources(
     state: web::Data<Arc<AppState>>,
+    req: HttpRequest,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_current_user();
+    let (_, org_id) = get_auth_context(&req)?;
     let datasources = state.db.list_datasources(org_id).await?;
     let response: Vec<DatasourceResponse> = datasources.into_iter().map(Into::into).collect();
     Ok(HttpResponse::Ok().json(response))
@@ -42,16 +35,17 @@ async fn list_datasources(
 
 async fn create_datasource(
     state: web::Data<Arc<AppState>>,
-    req: web::Json<CreateDatasourceRequest>,
+    req: HttpRequest,
+    body: web::Json<CreateDatasourceRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (user_id, org_id) = get_current_user();
+    let (user_id, org_id) = get_auth_context(&req)?;
 
     // In production, encrypt the connection string
-    let encrypted = &req.connection_string; // TODO: actual encryption
+    let encrypted = &body.connection_string; // TODO: actual encryption
 
     let datasource = state
         .db
-        .create_datasource(org_id, &req.name, req.ds_type, encrypted, user_id)
+        .create_datasource(org_id, &body.name, body.ds_type, encrypted, user_id)
         .await?;
 
     Ok(HttpResponse::Created().json(DatasourceResponse::from(datasource)))
@@ -59,9 +53,10 @@ async fn create_datasource(
 
 async fn get_datasource(
     state: web::Data<Arc<AppState>>,
+    req: HttpRequest,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_current_user();
+    let (_, org_id) = get_auth_context(&req)?;
     let id = path.into_inner();
     let datasource = state.db.get_datasource(id, org_id).await?;
     Ok(HttpResponse::Ok().json(DatasourceResponse::from(datasource)))
@@ -69,17 +64,18 @@ async fn get_datasource(
 
 async fn update_datasource(
     state: web::Data<Arc<AppState>>,
+    req: HttpRequest,
     path: web::Path<Uuid>,
-    req: web::Json<UpdateDatasourceRequest>,
+    body: web::Json<UpdateDatasourceRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_current_user();
+    let (_, org_id) = get_auth_context(&req)?;
     let id = path.into_inner();
 
-    let encrypted = req.connection_string.as_deref(); // TODO: encryption
+    let encrypted = body.connection_string.as_deref(); // TODO: encryption
 
     let datasource = state
         .db
-        .update_datasource(id, org_id, req.name.as_deref(), encrypted)
+        .update_datasource(id, org_id, body.name.as_deref(), encrypted)
         .await?;
 
     Ok(HttpResponse::Ok().json(DatasourceResponse::from(datasource)))
@@ -87,9 +83,10 @@ async fn update_datasource(
 
 async fn delete_datasource(
     state: web::Data<Arc<AppState>>,
+    req: HttpRequest,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_current_user();
+    let (_, org_id) = get_auth_context(&req)?;
     let id = path.into_inner();
     state.db.delete_datasource(id, org_id).await?;
     Ok(HttpResponse::NoContent().finish())
@@ -97,9 +94,10 @@ async fn delete_datasource(
 
 async fn test_connection(
     state: web::Data<Arc<AppState>>,
+    req: HttpRequest,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_current_user();
+    let (_, org_id) = get_auth_context(&req)?;
     let id = path.into_inner();
     let datasource = state.db.get_datasource(id, org_id).await?;
 
@@ -133,9 +131,10 @@ async fn test_connection(
 
 async fn get_schema(
     state: web::Data<Arc<AppState>>,
+    req: HttpRequest,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_current_user();
+    let (_, org_id) = get_auth_context(&req)?;
     let id = path.into_inner();
     let datasource = state.db.get_datasource(id, org_id).await?;
 

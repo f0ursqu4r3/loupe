@@ -2,7 +2,16 @@
 import { ref, onMounted } from 'vue'
 import { Plus, TestTube, CheckCircle, XCircle, Loader2 } from 'lucide-vue-next'
 import { AppLayout } from '@/components/layout'
-import { LButton, LCard, LBadge, LEmptyState, LSpinner, LModal, LInput, LSelect } from '@/components/ui'
+import {
+  LButton,
+  LCard,
+  LBadge,
+  LEmptyState,
+  LSpinner,
+  LModal,
+  LInput,
+  LSelect,
+} from '@/components/ui'
 import { datasourcesApi } from '@/services/api'
 import type { Datasource, ConnectionTestResult } from '@/types'
 
@@ -74,9 +83,7 @@ function formatDate(dateString: string): string {
   }).format(new Date(dateString))
 }
 
-const dsTypeOptions = [
-  { value: 'postgres', label: 'PostgreSQL' },
-]
+const dsTypeOptions = [{ value: 'postgres', label: 'PostgreSQL' }]
 </script>
 
 <template>
@@ -111,7 +118,9 @@ const dsTypeOptions = [
     <div v-else class="space-y-4">
       <LCard v-for="ds in datasources" :key="ds.id" class="flex items-center justify-between">
         <div class="flex items-center gap-4">
-          <div class="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
+          <div
+            class="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center"
+          >
             <span class="text-primary-600 font-semibold text-sm">PG</span>
           </div>
           <div>
@@ -127,7 +136,10 @@ const dsTypeOptions = [
           <div v-if="testResults[ds.id]" class="flex items-center gap-2">
             <CheckCircle v-if="testResults[ds.id]?.success" class="h-4 w-4 text-success" />
             <XCircle v-else class="h-4 w-4 text-error" />
-            <span class="text-sm" :class="testResults[ds.id]?.success ? 'text-success' : 'text-error'">
+            <span
+              class="text-sm"
+              :class="testResults[ds.id]?.success ? 'text-success' : 'text-error'"
+            >
               {{ testResults[ds.id]?.success ? `${testResults[ds.id]?.latency_ms}ms` : 'Failed' }}
             </span>
           </div>

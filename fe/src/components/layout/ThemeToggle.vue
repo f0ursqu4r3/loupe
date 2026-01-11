@@ -52,9 +52,7 @@ onMounted(() => {
       :title="t.label"
       :class="[
         'p-2 rounded-md transition-colors focus-ring',
-        theme === t.value
-          ? 'bg-surface text-text shadow-sm'
-          : 'text-text-muted hover:text-text',
+        theme === t.value ? 'bg-surface text-text shadow-sm' : 'text-text-muted hover:text-text',
       ]"
       @click="setTheme(t.value)"
     >
