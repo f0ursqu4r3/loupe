@@ -557,6 +557,36 @@ impl Database {
         Ok(())
     }
 
+    pub async fn update_visualization(
+        &self,
+        id: Uuid,
+        org_id: Uuid,
+        name: Option<&str>,
+        chart_type: Option<ChartType>,
+        config: Option<&serde_json::Value>,
+    ) -> Result<Visualization> {
+        let viz = sqlx::query_as::<_, Visualization>(
+            r#"
+            UPDATE visualizations
+            SET name = COALESCE($3, name),
+                chart_type = COALESCE($4, chart_type),
+                config = COALESCE($5, config),
+                updated_at = NOW()
+            WHERE id = $1 AND org_id = $2
+            RETURNING *
+            "#,
+        )
+        .bind(id)
+        .bind(org_id)
+        .bind(name)
+        .bind(chart_type)
+        .bind(config)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(viz)
+    }
+
     // ==================== Dashboards ====================
 
     pub async fn create_dashboard(

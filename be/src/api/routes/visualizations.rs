@@ -1,7 +1,7 @@
 use crate::AppState;
 use crate::routes::auth::get_auth_context;
 use actix_web::{web, HttpRequest, HttpResponse};
-use loupe::models::{CreateVisualizationRequest, VisualizationResponse};
+use loupe::models::{CreateVisualizationRequest, UpdateVisualizationRequest, VisualizationResponse};
 use loupe::Error;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -12,6 +12,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .route("", web::get().to(list_visualizations))
             .route("", web::post().to(create_visualization))
             .route("/{id}", web::get().to(get_visualization))
+            .route("/{id}", web::put().to(update_visualization))
             .route("/{id}", web::delete().to(delete_visualization)),
     );
 }
@@ -77,4 +78,27 @@ async fn delete_visualization(
     let id = path.into_inner();
     state.db.delete_visualization(id, org_id).await?;
     Ok(HttpResponse::NoContent().finish())
+}
+
+async fn update_visualization(
+    state: web::Data<Arc<AppState>>,
+    req: HttpRequest,
+    path: web::Path<Uuid>,
+    body: web::Json<UpdateVisualizationRequest>,
+) -> Result<HttpResponse, Error> {
+    let (_, org_id) = get_auth_context(&req)?;
+    let id = path.into_inner();
+
+    let viz = state
+        .db
+        .update_visualization(
+            id,
+            org_id,
+            body.name.as_deref(),
+            body.chart_type,
+            body.config.as_ref(),
+        )
+        .await?;
+
+    Ok(HttpResponse::Ok().json(VisualizationResponse::from(viz)))
 }
