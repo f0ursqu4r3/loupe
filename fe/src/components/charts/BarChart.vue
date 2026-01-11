@@ -106,13 +106,16 @@ const chartOptions = computed<EChartsOption>(() => {
     },
     legend: {
       show: showLegend,
+      type: 'scroll',
       bottom: 0,
+      left: 'center',
+      width: '90%',
     },
     grid: {
       left: 50,
       right: 20,
       top: 20,
-      bottom: showLegend ? 40 : 20,
+      bottom: showLegend ? 50 : 20,
       containLabel: false,
     },
     xAxis: {
