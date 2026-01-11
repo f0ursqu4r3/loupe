@@ -19,7 +19,16 @@ import {
   GripHorizontal,
 } from 'lucide-vue-next'
 import { AppLayout } from '@/components/layout'
-import { LButton, LInput, LTextarea, LSelect, LCard, LSpinner, LBadge } from '@/components/ui'
+import {
+  LButton,
+  LInput,
+  LTextarea,
+  LSelect,
+  LCard,
+  LSpinner,
+  LBadge,
+  LTagsInput,
+} from '@/components/ui'
 import { SqlEditor } from '@/components/editor'
 import { QueryParameters, ParameterInputs } from '@/components/query'
 import { queriesApi, runsApi, datasourcesApi } from '@/services/api'
@@ -38,6 +47,7 @@ const query = ref<Partial<Query>>({
   sql: 'SELECT * FROM ',
   datasource_id: '',
   parameters: [],
+  tags: [],
   timeout_seconds: 30,
   max_rows: 10000,
 })
@@ -168,6 +178,7 @@ async function saveQuery() {
       sql: query.value.sql!,
       datasource_id: query.value.datasource_id!,
       parameters: query.value.parameters,
+      tags: query.value.tags,
       timeout_seconds: query.value.timeout_seconds,
       max_rows: query.value.max_rows,
     }
@@ -386,6 +397,16 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
             v-model="query.description"
             placeholder="Describe what this query does..."
             :rows="2"
+          />
+        </div>
+
+        <!-- Tags -->
+        <div class="mt-4">
+          <label class="block text-sm font-medium text-text mb-1.5">Tags</label>
+          <LTagsInput
+            :model-value="query.tags || []"
+            @update:model-value="query.tags = $event"
+            placeholder="Add tags for filtering..."
           />
         </div>
 

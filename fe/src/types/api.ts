@@ -82,6 +82,7 @@ export interface Query extends Timestamps {
   description?: string
   sql: string
   parameters: ParamDef[]
+  tags: string[]
   timeout_seconds: number
   max_rows: number
   created_by: UUID
@@ -93,6 +94,7 @@ export interface CreateQueryRequest {
   description?: string
   sql: string
   parameters?: ParamDef[]
+  tags?: string[]
   timeout_seconds?: number
   max_rows?: number
 }
@@ -102,6 +104,7 @@ export interface UpdateQueryRequest {
   description?: string
   sql?: string
   parameters?: ParamDef[]
+  tags?: string[]
   timeout_seconds?: number
   max_rows?: number
 }
@@ -149,6 +152,7 @@ export interface Visualization extends Timestamps {
   name: string
   chart_type: ChartType
   config: VisualizationConfig
+  tags: string[]
   created_by: UUID
 }
 
@@ -201,12 +205,14 @@ export interface CreateVisualizationRequest {
   name: string
   chart_type: ChartType
   config?: VisualizationConfig
+  tags?: string[]
 }
 
 export interface UpdateVisualizationRequest {
   name?: string
   chart_type?: ChartType
   config?: VisualizationConfig
+  tags?: string[]
 }
 
 // ===== Dashboard =====
@@ -216,6 +222,7 @@ export interface Dashboard extends Timestamps {
   name: string
   description?: string
   parameters: DashboardParameter[]
+  tags: string[]
   tiles: Tile[]
   created_by: UUID
 }
@@ -243,12 +250,14 @@ export interface CreateDashboardRequest {
   name: string
   description?: string
   parameters?: DashboardParameter[]
+  tags?: string[]
 }
 
 export interface UpdateDashboardRequest {
   name?: string
   description?: string
   parameters?: DashboardParameter[]
+  tags?: string[]
 }
 
 export interface CreateTileRequest {
@@ -278,6 +287,7 @@ export interface Schedule extends Timestamps {
   name: string
   cron_expression: string
   parameters: Record<string, unknown>
+  tags: string[]
   enabled: boolean
   last_run_at?: string
   next_run_at?: string
@@ -289,6 +299,7 @@ export interface CreateScheduleRequest {
   name: string
   cron_expression: string
   parameters?: Record<string, unknown>
+  tags?: string[]
   enabled?: boolean
 }
 
@@ -296,6 +307,7 @@ export interface UpdateScheduleRequest {
   name?: string
   cron_expression?: string
   parameters?: Record<string, unknown>
+  tags?: string[]
   enabled?: boolean
 }
 

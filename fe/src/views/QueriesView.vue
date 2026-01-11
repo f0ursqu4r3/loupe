@@ -1,9 +1,19 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Plus, Play, FileCode, Edit, Loader2, Clock, CheckCircle, XCircle } from 'lucide-vue-next'
+import {
+  Plus,
+  Play,
+  FileCode,
+  Edit,
+  Loader2,
+  Clock,
+  CheckCircle,
+  XCircle,
+  Tag,
+} from 'lucide-vue-next'
 import { AppLayout } from '@/components/layout'
-import { LButton, LCard, LBadge, LEmptyState, LSpinner } from '@/components/ui'
+import { LButton, LCard, LBadge, LEmptyState, LSpinner, LTagFilter } from '@/components/ui'
 import { ParameterInputs } from '@/components/query'
 import { queriesApi, runsApi } from '@/services/api'
 import type { Query, Run, RunStatus } from '@/types'
@@ -21,6 +31,28 @@ const paramValues = reactive<Record<string, Record<string, unknown>>>({})
 
 // Track running state per query
 const runningQueries = ref<Set<string>>(new Set())
+
+// Tag filtering
+const selectedTags = ref<string[]>([])
+
+// Get all unique tags across queries
+const allTags = computed(() => {
+  const tags = new Set<string>()
+  for (const query of queries.value) {
+    for (const tag of query.tags || []) {
+      tags.add(tag)
+    }
+  }
+  return Array.from(tags)
+})
+
+// Filter queries by selected tags
+const filteredQueries = computed(() => {
+  if (selectedTags.value.length === 0) return queries.value
+  return queries.value.filter((q) =>
+    selectedTags.value.every((tag) => (q.tags || []).includes(tag)),
+  )
+})
 
 async function loadQueries() {
   try {
@@ -176,8 +208,24 @@ function updateParamValues(queryId: string, values: Record<string, unknown>) {
 
     <!-- Queries list -->
     <div v-else class="space-y-4">
+      <!-- Tag filter -->
+      <LTagFilter
+        v-if="allTags.length > 0"
+        :all-tags="allTags"
+        :selected-tags="selectedTags"
+        @update:selected-tags="selectedTags = $event"
+      />
+
+      <!-- Empty filter result -->
+      <div
+        v-if="filteredQueries.length === 0 && selectedTags.length > 0"
+        class="text-center py-8 text-text-muted"
+      >
+        No queries match the selected tags
+      </div>
+
       <LCard
-        v-for="query in queries"
+        v-for="query in filteredQueries"
         :key="query.id"
         class="group hover:border-primary-500/50 transition-colors cursor-pointer"
         @click="openEditor(query.id)"
@@ -188,6 +236,13 @@ function updateParamValues(queryId: string, values: Record<string, unknown>) {
               <h3 class="font-medium text-text truncate">{{ query.name }}</h3>
               <LBadge v-if="query.parameters.length > 0" size="sm">
                 {{ query.parameters.length }} params
+              </LBadge>
+            </div>
+            <!-- Tags display -->
+            <div v-if="query.tags && query.tags.length > 0" class="flex flex-wrap gap-1 mb-2">
+              <LBadge v-for="tag in query.tags" :key="tag" size="sm">
+                <Tag class="h-3 w-3 mr-1" />
+                {{ tag }}
               </LBadge>
             </div>
             <p v-if="query.description" class="text-sm text-text-muted mb-3 line-clamp-2">

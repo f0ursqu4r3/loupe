@@ -16,7 +16,7 @@ import {
   PieChart as PieChartIcon,
 } from 'lucide-vue-next'
 import { AppLayout } from '@/components/layout'
-import { LButton, LInput, LSelect, LCard, LSpinner } from '@/components/ui'
+import { LButton, LInput, LSelect, LCard, LSpinner, LTagsInput } from '@/components/ui'
 import { VisualizationRenderer } from '@/components/charts'
 import { visualizationsApi, queriesApi, runsApi } from '@/services/api'
 import type {
@@ -41,6 +41,7 @@ const visualization = ref<Partial<Visualization>>({
   name: '',
   chart_type: 'table',
   config: {},
+  tags: [],
 })
 
 // Query and data
@@ -175,6 +176,7 @@ async function saveVisualization() {
         name: visualization.value.name!,
         chart_type: visualization.value.chart_type!,
         config: visualization.value.config,
+        tags: visualization.value.tags,
       }
       const created = await visualizationsApi.create(payload)
       router.replace({ name: 'visualization-editor', params: { id: created.id } })
@@ -184,6 +186,7 @@ async function saveVisualization() {
         name: visualization.value.name,
         chart_type: visualization.value.chart_type,
         config: visualization.value.config,
+        tags: visualization.value.tags,
       })
       visualization.value = updated
     }
@@ -315,6 +318,15 @@ watch(
                 :model-value="visualization.config?.label || ''"
                 @update:model-value="updateConfig('label', $event)"
                 placeholder="Chart label..."
+              />
+            </div>
+
+            <div>
+              <label class="block text-sm text-text-muted mb-1.5">Tags</label>
+              <LTagsInput
+                :model-value="visualization.tags || []"
+                @update:model-value="visualization.tags = $event"
+                placeholder="Add tags..."
               />
             </div>
           </div>

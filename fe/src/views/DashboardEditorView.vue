@@ -12,7 +12,7 @@ import {
   Trash2,
 } from 'lucide-vue-next'
 import { AppLayout } from '@/components/layout'
-import { LButton, LInput, LCard, LSpinner, LModal, LEmptyState } from '@/components/ui'
+import { LButton, LInput, LCard, LSpinner, LModal, LEmptyState, LTagsInput } from '@/components/ui'
 import { GridItem } from '@/components/dashboard'
 import { VisualizationRenderer } from '@/components/charts'
 import { dashboardsApi, visualizationsApi, runsApi } from '@/services/api'
@@ -37,6 +37,7 @@ const dashboard = ref<Partial<Dashboard>>({
   name: '',
   description: '',
   parameters: [],
+  tags: [],
   tiles: [],
 })
 
@@ -135,6 +136,7 @@ async function saveDashboard() {
       name: dashboard.value.name!,
       description: dashboard.value.description,
       parameters: dashboard.value.parameters,
+      tags: dashboard.value.tags,
     }
 
     if (isNew.value) {
@@ -443,6 +445,14 @@ watch(
             <label class="block text-sm font-medium text-text mb-1.5">Description (optional)</label>
             <LInput v-model="dashboard.description" placeholder="Dashboard description..." />
           </div>
+        </div>
+        <div class="mt-4">
+          <label class="block text-sm font-medium text-text mb-1.5">Tags</label>
+          <LTagsInput
+            :model-value="dashboard.tags || []"
+            @update:model-value="dashboard.tags = $event"
+            placeholder="Add tags for filtering..."
+          />
         </div>
       </LCard>
 

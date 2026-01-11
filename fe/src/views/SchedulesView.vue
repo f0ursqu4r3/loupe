@@ -1,14 +1,36 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { Plus, Play, Pause, Clock, Calendar as CalendarIcon } from 'lucide-vue-next'
+import { ref, computed, onMounted } from 'vue'
+import { Plus, Play, Pause, Clock, Calendar as CalendarIcon, Tag } from 'lucide-vue-next'
 import { AppLayout } from '@/components/layout'
-import { LButton, LCard, LBadge, LEmptyState, LSpinner } from '@/components/ui'
+import { LButton, LCard, LBadge, LEmptyState, LSpinner, LTagFilter } from '@/components/ui'
 import { schedulesApi } from '@/services/api'
 import type { Schedule } from '@/types'
 
 const schedules = ref<Schedule[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
+
+// Tag filtering
+const selectedTags = ref<string[]>([])
+
+// Get all unique tags across schedules
+const allTags = computed(() => {
+  const tags = new Set<string>()
+  for (const schedule of schedules.value) {
+    for (const tag of schedule.tags || []) {
+      tags.add(tag)
+    }
+  }
+  return Array.from(tags)
+})
+
+// Filter schedules by selected tags
+const filteredSchedules = computed(() => {
+  if (selectedTags.value.length === 0) return schedules.value
+  return schedules.value.filter((s) =>
+    selectedTags.value.every((tag) => (s.tags || []).includes(tag)),
+  )
+})
 
 async function loadSchedules() {
   try {
@@ -90,7 +112,23 @@ function formatDate(dateString: string | undefined): string {
 
     <!-- Schedules list -->
     <div v-else class="space-y-4">
-      <LCard v-for="schedule in schedules" :key="schedule.id">
+      <!-- Tag filter -->
+      <LTagFilter
+        v-if="allTags.length > 0"
+        :all-tags="allTags"
+        :selected-tags="selectedTags"
+        @update:selected-tags="selectedTags = $event"
+      />
+
+      <!-- Empty filter result -->
+      <div
+        v-if="filteredSchedules.length === 0 && selectedTags.length > 0"
+        class="text-center py-8 text-text-muted"
+      >
+        No schedules match the selected tags
+      </div>
+
+      <LCard v-for="schedule in filteredSchedules" :key="schedule.id">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-4">
             <div
@@ -111,6 +149,16 @@ function formatDate(dateString: string | undefined): string {
               <p class="text-sm text-text-muted font-mono">
                 {{ schedule.cron_expression }}
               </p>
+              <!-- Tags display -->
+              <div
+                v-if="schedule.tags && schedule.tags.length > 0"
+                class="flex flex-wrap gap-1 mt-1"
+              >
+                <LBadge v-for="tag in schedule.tags" :key="tag" size="sm">
+                  <Tag class="h-3 w-3 mr-1" />
+                  {{ tag }}
+                </LBadge>
+              </div>
             </div>
           </div>
 
