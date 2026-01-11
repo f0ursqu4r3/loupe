@@ -1,9 +1,11 @@
 use crate::AppState;
 use crate::routes::auth::get_auth_context;
 use actix_web::{HttpRequest, HttpResponse, web};
-use loupe::models::{CreateRunRequest, ExecuteAdHocRequest, ParamDef, RunResponse, RunResultResponse};
-use loupe::params::{bind_params, ParamSchema};
 use loupe::Error;
+use loupe::models::{
+    CreateRunRequest, ExecuteAdHocRequest, ParamDef, RunResponse, RunResultResponse,
+};
+use loupe::params::{ParamSchema, bind_params};
 use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -86,8 +88,12 @@ async fn create_run(
                 loupe::TypedValue::Number(n) => serde_json::json!({"type": "number", "value": n}),
                 loupe::TypedValue::Integer(i) => serde_json::json!({"type": "integer", "value": i}),
                 loupe::TypedValue::Boolean(b) => serde_json::json!({"type": "boolean", "value": b}),
-                loupe::TypedValue::Date(d) => serde_json::json!({"type": "date", "value": d.to_string()}),
-                loupe::TypedValue::DateTime(dt) => serde_json::json!({"type": "datetime", "value": dt.to_rfc3339()}),
+                loupe::TypedValue::Date(d) => {
+                    serde_json::json!({"type": "date", "value": d.to_string()})
+                }
+                loupe::TypedValue::DateTime(dt) => {
+                    serde_json::json!({"type": "datetime", "value": dt.to_rfc3339()})
+                }
                 loupe::TypedValue::Null => serde_json::json!({"type": "null", "value": null}),
             })
             .collect();
@@ -133,6 +139,7 @@ async fn execute_adhoc(
             None,
             &body.sql,
             &serde_json::json!([]),
+            &serde_json::json!([]), // empty tags for adhoc
             body.timeout_seconds,
             body.max_rows,
             user_id,
