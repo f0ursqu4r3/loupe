@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { Plus, BarChart3, Table, LineChart, Hash } from 'lucide-vue-next'
 import { AppLayout } from '@/components/layout'
-import { LButton, LCard, LBadge, LEmptyState, LSpinner } from '@/components/ui'
+import { LButton, LCard, LEmptyState, LSpinner } from '@/components/ui'
 import { visualizationsApi } from '@/services/api'
 import type { Visualization, ChartType } from '@/types'
 

@@ -2,7 +2,7 @@
 import { computed, type HTMLAttributes } from 'vue'
 
 interface Props {
-  variant?: 'default' | 'success' | 'warning' | 'error' | 'info'
+  variant?: 'default' | 'primary' | 'success' | 'warning' | 'error' | 'info'
   size?: 'sm' | 'md'
   class?: HTMLAttributes['class']
 }
@@ -16,6 +16,7 @@ const baseClasses = 'inline-flex items-center font-medium rounded-full'
 
 const variantClasses = {
   default: 'bg-surface-sunken text-text-muted',
+  primary: 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300',
   success: 'bg-success-muted text-success',
   warning: 'bg-warning-muted text-warning',
   error: 'bg-error-muted text-error',

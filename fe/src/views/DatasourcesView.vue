@@ -1,17 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { Plus, TestTube, CheckCircle, XCircle, Loader2 } from 'lucide-vue-next'
+import { Plus, TestTube, CheckCircle, XCircle } from 'lucide-vue-next'
 import { AppLayout } from '@/components/layout'
-import {
-  LButton,
-  LCard,
-  LBadge,
-  LEmptyState,
-  LSpinner,
-  LModal,
-  LInput,
-  LSelect,
-} from '@/components/ui'
+import { LButton, LCard, LEmptyState, LSpinner, LModal, LInput, LSelect } from '@/components/ui'
 import { datasourcesApi } from '@/services/api'
 import type { Datasource, ConnectionTestResult } from '@/types'
 

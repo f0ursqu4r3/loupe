@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { Sun, Moon, Monitor } from 'lucide-vue-next'
 
 type Theme = 'light' | 'dark' | 'system'

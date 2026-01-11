@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { computed } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import {
   LayoutDashboard,
@@ -79,7 +78,7 @@ function toggleCollapse() {
                 : 'text-text-muted hover:text-text hover:bg-surface-sunken',
             ]"
           >
-            <component :is="item.icon" class="h-5 w-5 flex-shrink-0" />
+            <component :is="item.icon" class="h-5 w-5 shrink-0" />
             <span v-if="!collapsed" class="text-sm font-medium">
               {{ item.label }}
             </span>
@@ -101,7 +100,7 @@ function toggleCollapse() {
                 : 'text-text-muted hover:text-text hover:bg-surface-sunken',
             ]"
           >
-            <component :is="item.icon" class="h-5 w-5 flex-shrink-0" />
+            <component :is="item.icon" class="h-5 w-5 shrink-0" />
             <span v-if="!collapsed" class="text-sm font-medium">
               {{ item.label }}
             </span>
@@ -119,7 +118,7 @@ function toggleCollapse() {
           ]"
           @click="toggleCollapse"
         >
-          <component :is="collapsed ? ChevronRight : ChevronLeft" class="h-5 w-5 flex-shrink-0" />
+          <component :is="collapsed ? ChevronRight : ChevronLeft" class="h-5 w-5 shrink-0" />
           <span v-if="!collapsed" class="text-sm font-medium">Collapse</span>
         </button>
       </div>

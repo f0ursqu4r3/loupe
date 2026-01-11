@@ -7,13 +7,16 @@ export interface Timestamps {
 }
 
 // ===== User & Auth =====
+export type UserRole = 'admin' | 'editor' | 'viewer'
+
 export interface User {
   id: UUID
   org_id: UUID
   email: string
   name: string
+  role: UserRole
   created_at: string
-  updated_at: string
+  updated_at?: string
 }
 
 export interface LoginRequest {

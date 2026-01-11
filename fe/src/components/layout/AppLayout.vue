@@ -18,11 +18,11 @@ const mainClasses = computed(() => [
 </script>
 
 <template>
-  <div class="min-h-screen bg-surface">
+  <div class="h-screen bg-surface overflow-hidden">
     <AppSidebar v-model:collapsed="sidebarCollapsed" />
 
     <div :class="mainClasses">
-      <AppHeader :title="title">
+      <AppHeader :title="title" class="sticky top-0 z-10">
         <template #left>
           <slot name="header-left" />
         </template>
@@ -31,7 +31,7 @@ const mainClasses = computed(() => [
         </template>
       </AppHeader>
 
-      <main class="p-6">
+      <main class="p-6 overflow-auto h-[calc(100vh-4rem)]">
         <slot />
       </main>
     </div>

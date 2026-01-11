@@ -37,7 +37,7 @@ const classes = computed(() => ['flex gap-3 p-4 rounded-lg border', variantClass
 
 <template>
   <div :class="classes" role="alert">
-    <component :is="icon" class="h-5 w-5 flex-shrink-0 mt-0.5" />
+    <component :is="icon" class="h-5 w-5 shrink-0 mt-0.5" />
     <div class="flex-1 min-w-0">
       <h3 v-if="title" class="font-medium mb-1">{{ title }}</h3>
       <div class="text-sm opacity-90">
@@ -47,7 +47,7 @@ const classes = computed(() => ['flex gap-3 p-4 rounded-lg border', variantClass
     <button
       v-if="dismissible"
       type="button"
-      class="flex-shrink-0 p-1 rounded hover:bg-black/10 transition-colors"
+      class="shrink-0 p-1 rounded hover:bg-black/10 transition-colors"
       @click="emit('dismiss')"
     >
       <X class="h-4 w-4" />

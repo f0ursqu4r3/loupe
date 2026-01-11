@@ -95,6 +95,10 @@ This repo uses “agents” as owned domains of work. Each agent corresponds to 
 
 - API endpoints for metadata, runs, results, and schedules
 
+### References (Frontend)
+
+- [STYLEGUIDE.md](./STYLEGUIDE.md) — Design system, component library, and UI patterns
+
 ## Agent: Storage & Migrations
 
 ### Owns (Storage & Migrations)

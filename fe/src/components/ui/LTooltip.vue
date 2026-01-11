@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, type HTMLAttributes } from 'vue'
+import { ref, onUnmounted, computed, type HTMLAttributes } from 'vue'
 
 interface Props {
   position?: 'top' | 'bottom' | 'left' | 'right'
