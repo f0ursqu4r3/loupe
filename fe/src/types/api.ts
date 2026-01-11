@@ -161,8 +161,8 @@ export interface VisualizationConfig {
 
   // Chart common
   x_axis?: string
-  y_axis?: string | string[]
-  group_by?: string
+  y_axis?: string
+  series_column?: string // Column to split data into multiple series (e.g., provider)
 
   // Line/Bar specific
   stacked?: boolean

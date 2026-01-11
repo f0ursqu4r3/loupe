@@ -339,15 +339,23 @@ watch(
             <div>
               <label class="block text-sm text-text-muted mb-1.5">Y-Axis Column</label>
               <LSelect
-                :model-value="
-                  Array.isArray(visualization.config?.y_axis)
-                    ? visualization.config?.y_axis[0]
-                    : visualization.config?.y_axis || ''
-                "
+                :model-value="visualization.config?.y_axis || ''"
                 @update:model-value="updateConfig('y_axis', $event)"
                 :options="columnOptions"
                 placeholder="Select column..."
               />
+            </div>
+            <div>
+              <label class="block text-sm text-text-muted mb-1.5">Series Column (optional)</label>
+              <LSelect
+                :model-value="visualization.config?.series_column || ''"
+                @update:model-value="updateConfig('series_column', $event || undefined)"
+                :options="[{ value: '', label: 'None' }, ...columnOptions]"
+                placeholder="Group by column..."
+              />
+              <p class="text-xs text-text-muted mt-1">
+                Split into multiple lines/bars by this column
+              </p>
             </div>
             <div v-if="visualization.chart_type === 'bar'" class="flex items-center gap-2">
               <input

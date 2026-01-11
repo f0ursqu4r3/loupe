@@ -17,53 +17,90 @@ const chartOptions = computed<EChartsOption>(() => {
   }
 
   const xAxisColumn = props.config.x_axis
-  const yAxisColumns = Array.isArray(props.config.y_axis)
-    ? props.config.y_axis
-    : props.config.y_axis
-      ? [props.config.y_axis]
-      : []
+  const yAxisColumn = props.config.y_axis
+  const seriesColumn = props.config.series_column
 
   // Find column indices
   const xIdx = props.data.columns.findIndex((c) => c.name === xAxisColumn)
-  const yIndices = yAxisColumns.map((col) => props.data.columns.findIndex((c) => c.name === col))
+  const yIdx = props.data.columns.findIndex((c) => c.name === yAxisColumn)
+  const seriesIdx = seriesColumn ? props.data.columns.findIndex((c) => c.name === seriesColumn) : -1
 
-  if (xIdx === -1 || yIndices.some((i) => i === -1)) {
+  if (xIdx === -1 || yIdx === -1) {
     return {}
   }
 
-  // Extract data - cast to string for category axis
-  const xData = props.data.rows.map((row) => String(row[xIdx] ?? ''))
-  const series = yAxisColumns.map((colName, i) => {
-    const yIdx = yIndices[i]!
-    return {
-      name: colName,
+  let xData: string[]
+  let series: Array<{
+    name: string
+    type: 'line'
+    data: (number | null)[]
+    smooth: boolean
+    symbol: string
+    symbolSize: number
+    lineStyle: { width: number }
+    emphasis: { focus: 'series' }
+  }>
+
+  if (seriesIdx !== -1) {
+    // Group data by series column
+    const seriesMap = new Map<string, Map<string, number>>()
+    const xValues = new Set<string>()
+
+    for (const row of props.data.rows) {
+      const seriesName = String(row[seriesIdx] ?? 'Unknown')
+      const xValue = String(row[xIdx] ?? '')
+      const yValue = row[yIdx] as number
+
+      xValues.add(xValue)
+      if (!seriesMap.has(seriesName)) {
+        seriesMap.set(seriesName, new Map())
+      }
+      seriesMap.get(seriesName)!.set(xValue, yValue)
+    }
+
+    xData = Array.from(xValues).sort()
+    series = Array.from(seriesMap.entries()).map(([name, dataMap]) => ({
+      name,
       type: 'line' as const,
-      data: props.data.rows.map((row) => row[yIdx] as number),
+      data: xData.map((x) => dataMap.get(x) ?? null),
       smooth: true,
       symbol: 'circle',
       symbolSize: 6,
-      lineStyle: {
-        width: 2,
+      lineStyle: { width: 2 },
+      emphasis: { focus: 'series' as const },
+    }))
+  } else {
+    // Single series - no grouping
+    xData = props.data.rows.map((row) => String(row[xIdx] ?? ''))
+    series = [
+      {
+        name: yAxisColumn || 'Value',
+        type: 'line' as const,
+        data: props.data.rows.map((row) => row[yIdx] as number),
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 6,
+        lineStyle: { width: 2 },
+        emphasis: { focus: 'series' as const },
       },
-      emphasis: {
-        focus: 'series' as const,
-      },
-    }
-  })
+    ]
+  }
+
+  const showLegend = series.length > 1
 
   return {
     tooltip: {
       trigger: 'axis',
     },
     legend: {
-      show: yAxisColumns.length > 1,
+      show: showLegend,
       bottom: 0,
     },
     grid: {
       left: 50,
       right: 20,
       top: 20,
-      bottom: yAxisColumns.length > 1 ? 40 : 20,
+      bottom: showLegend ? 40 : 20,
       containLabel: false,
     },
     xAxis: {
