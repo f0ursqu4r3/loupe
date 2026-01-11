@@ -14,6 +14,8 @@ pub struct Schedule {
     pub cron_expression: String,
     /// JSON object of parameter values to use
     pub parameters: serde_json::Value,
+    /// Tags for categorization
+    pub tags: serde_json::Value,
     pub enabled: bool,
     pub last_run_at: Option<DateTime<Utc>>,
     pub next_run_at: Option<DateTime<Utc>>,
@@ -30,6 +32,8 @@ pub struct CreateScheduleRequest {
     pub cron_expression: String,
     #[serde(default)]
     pub parameters: serde_json::Value,
+    #[serde(default)]
+    pub tags: Vec<String>,
     #[serde(default = "default_enabled")]
     pub enabled: bool,
 }
@@ -43,6 +47,7 @@ pub struct UpdateScheduleRequest {
     pub name: Option<String>,
     pub cron_expression: Option<String>,
     pub parameters: Option<serde_json::Value>,
+    pub tags: Option<Vec<String>>,
     pub enabled: Option<bool>,
 }
 
@@ -54,6 +59,7 @@ pub struct ScheduleResponse {
     pub name: String,
     pub cron_expression: String,
     pub parameters: serde_json::Value,
+    pub tags: Vec<String>,
     pub enabled: bool,
     pub last_run_at: Option<DateTime<Utc>>,
     pub next_run_at: Option<DateTime<Utc>>,
@@ -64,6 +70,7 @@ pub struct ScheduleResponse {
 
 impl From<Schedule> for ScheduleResponse {
     fn from(s: Schedule) -> Self {
+        let tags: Vec<String> = serde_json::from_value(s.tags).unwrap_or_default();
         Self {
             id: s.id,
             org_id: s.org_id,
@@ -71,6 +78,7 @@ impl From<Schedule> for ScheduleResponse {
             name: s.name,
             cron_expression: s.cron_expression,
             parameters: s.parameters,
+            tags,
             enabled: s.enabled,
             last_run_at: s.last_run_at,
             next_run_at: s.next_run_at,

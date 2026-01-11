@@ -33,12 +33,14 @@ async fn list_dashboards(
     let mut response = Vec::new();
     for dashboard in dashboards {
         let tiles = state.db.list_tiles(dashboard.id).await?;
+        let tags: Vec<String> = serde_json::from_value(dashboard.tags).unwrap_or_default();
         response.push(DashboardResponse {
             id: dashboard.id,
             org_id: dashboard.org_id,
             name: dashboard.name,
             description: dashboard.description,
             parameters: dashboard.parameters,
+            tags,
             tiles: tiles.into_iter().map(Into::into).collect(),
             created_by: dashboard.created_by,
             created_at: dashboard.created_at,
@@ -56,6 +58,8 @@ async fn create_dashboard(
 ) -> Result<HttpResponse, Error> {
     let (user_id, org_id) = get_auth_context(&req)?;
 
+    let tags_json = serde_json::to_value(&body.tags).unwrap_or_default();
+
     let dashboard = state
         .db
         .create_dashboard(
@@ -63,9 +67,12 @@ async fn create_dashboard(
             &body.name,
             body.description.as_deref(),
             &body.parameters,
+            &tags_json,
             user_id,
         )
         .await?;
+
+    let tags: Vec<String> = serde_json::from_value(dashboard.tags).unwrap_or_default();
 
     Ok(HttpResponse::Created().json(DashboardResponse {
         id: dashboard.id,
@@ -73,6 +80,7 @@ async fn create_dashboard(
         name: dashboard.name,
         description: dashboard.description,
         parameters: dashboard.parameters,
+        tags,
         tiles: vec![],
         created_by: dashboard.created_by,
         created_at: dashboard.created_at,
@@ -89,6 +97,7 @@ async fn get_dashboard(
     let id = path.into_inner();
     let dashboard = state.db.get_dashboard(id, org_id).await?;
     let tiles = state.db.list_tiles(dashboard.id).await?;
+    let tags: Vec<String> = serde_json::from_value(dashboard.tags).unwrap_or_default();
 
     Ok(HttpResponse::Ok().json(DashboardResponse {
         id: dashboard.id,
@@ -96,6 +105,7 @@ async fn get_dashboard(
         name: dashboard.name,
         description: dashboard.description,
         parameters: dashboard.parameters,
+        tags,
         tiles: tiles.into_iter().map(Into::into).collect(),
         created_by: dashboard.created_by,
         created_at: dashboard.created_at,
@@ -112,6 +122,11 @@ async fn update_dashboard(
     let (_, org_id) = get_auth_context(&req)?;
     let id = path.into_inner();
 
+    let tags = body
+        .tags
+        .as_ref()
+        .map(|t| serde_json::to_value(t).unwrap());
+
     let dashboard = state
         .db
         .update_dashboard(
@@ -120,9 +135,11 @@ async fn update_dashboard(
             body.name.as_deref(),
             body.description.as_deref(),
             body.parameters.as_ref(),
+            tags.as_ref(),
         )
         .await?;
     let tiles = state.db.list_tiles(dashboard.id).await?;
+    let tags: Vec<String> = serde_json::from_value(dashboard.tags).unwrap_or_default();
 
     Ok(HttpResponse::Ok().json(DashboardResponse {
         id: dashboard.id,
@@ -130,6 +147,7 @@ async fn update_dashboard(
         name: dashboard.name,
         description: dashboard.description,
         parameters: dashboard.parameters,
+        tags,
         tiles: tiles.into_iter().map(Into::into).collect(),
         created_by: dashboard.created_by,
         created_at: dashboard.created_at,

@@ -45,6 +45,8 @@ async fn create_visualization(
     // Verify query exists
     state.db.get_query(body.query_id, org_id).await?;
 
+    let tags = serde_json::to_value(&body.tags).unwrap_or_default();
+
     let viz = state
         .db
         .create_visualization(
@@ -53,6 +55,7 @@ async fn create_visualization(
             &body.name,
             body.chart_type,
             &body.config,
+            &tags,
             user_id,
         )
         .await?;
@@ -91,6 +94,11 @@ async fn update_visualization(
     let (_, org_id) = get_auth_context(&req)?;
     let id = path.into_inner();
 
+    let tags = body
+        .tags
+        .as_ref()
+        .map(|t| serde_json::to_value(t).unwrap());
+
     let viz = state
         .db
         .update_visualization(
@@ -99,6 +107,7 @@ async fn update_visualization(
             body.name.as_deref(),
             body.chart_type,
             body.config.as_ref(),
+            tags.as_ref(),
         )
         .await?;
 

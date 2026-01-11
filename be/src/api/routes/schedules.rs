@@ -33,6 +33,8 @@ async fn create_schedule(
     // Verify query exists
     state.db.get_query(body.query_id, org_id).await?;
 
+    let tags = serde_json::to_value(&body.tags).unwrap_or_default();
+
     let schedule = state
         .db
         .create_schedule(
@@ -41,6 +43,7 @@ async fn create_schedule(
             &body.name,
             &body.cron_expression,
             &body.parameters,
+            &tags,
             body.enabled,
             user_id,
         )

@@ -201,14 +201,15 @@ impl Database {
         description: Option<&str>,
         sql: &str,
         parameters: &serde_json::Value,
+        tags: &serde_json::Value,
         timeout_seconds: i32,
         max_rows: i32,
         created_by: Uuid,
     ) -> Result<Query> {
         let query = sqlx::query_as::<_, Query>(
             r#"
-            INSERT INTO queries (id, org_id, datasource_id, name, description, sql, parameters, timeout_seconds, max_rows, created_by, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+            INSERT INTO queries (id, org_id, datasource_id, name, description, sql, parameters, tags, timeout_seconds, max_rows, created_by, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
             RETURNING *
             "#,
         )
@@ -219,6 +220,7 @@ impl Database {
         .bind(description)
         .bind(sql)
         .bind(parameters)
+        .bind(tags)
         .bind(timeout_seconds)
         .bind(max_rows)
         .bind(created_by)
@@ -258,6 +260,7 @@ impl Database {
         description: Option<&str>,
         sql: Option<&str>,
         parameters: Option<&serde_json::Value>,
+        tags: Option<&serde_json::Value>,
         timeout_seconds: Option<i32>,
         max_rows: Option<i32>,
     ) -> Result<Query> {
@@ -268,8 +271,9 @@ impl Database {
                 description = COALESCE($4, description),
                 sql = COALESCE($5, sql),
                 parameters = COALESCE($6, parameters),
-                timeout_seconds = COALESCE($7, timeout_seconds),
-                max_rows = COALESCE($8, max_rows),
+                tags = COALESCE($7, tags),
+                timeout_seconds = COALESCE($8, timeout_seconds),
+                max_rows = COALESCE($9, max_rows),
                 updated_at = NOW()
             WHERE id = $1 AND org_id = $2
             RETURNING *
@@ -281,6 +285,7 @@ impl Database {
         .bind(description)
         .bind(sql)
         .bind(parameters)
+        .bind(tags)
         .bind(timeout_seconds)
         .bind(max_rows)
         .fetch_one(&self.pool)
@@ -489,12 +494,13 @@ impl Database {
         name: &str,
         chart_type: ChartType,
         config: &serde_json::Value,
+        tags: &serde_json::Value,
         created_by: Uuid,
     ) -> Result<Visualization> {
         let viz = sqlx::query_as::<_, Visualization>(
             r#"
-            INSERT INTO visualizations (id, org_id, query_id, name, chart_type, config, created_by, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+            INSERT INTO visualizations (id, org_id, query_id, name, chart_type, config, tags, created_by, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
             RETURNING *
             "#,
         )
@@ -504,6 +510,7 @@ impl Database {
         .bind(name)
         .bind(chart_type)
         .bind(config)
+        .bind(tags)
         .bind(created_by)
         .fetch_one(&self.pool)
         .await?;
@@ -565,6 +572,7 @@ impl Database {
         name: Option<&str>,
         chart_type: Option<ChartType>,
         config: Option<&serde_json::Value>,
+        tags: Option<&serde_json::Value>,
     ) -> Result<Visualization> {
         let viz = sqlx::query_as::<_, Visualization>(
             r#"
@@ -572,6 +580,7 @@ impl Database {
             SET name = COALESCE($3, name),
                 chart_type = COALESCE($4, chart_type),
                 config = COALESCE($5, config),
+                tags = COALESCE($6, tags),
                 updated_at = NOW()
             WHERE id = $1 AND org_id = $2
             RETURNING *
@@ -582,6 +591,7 @@ impl Database {
         .bind(name)
         .bind(chart_type)
         .bind(config)
+        .bind(tags)
         .fetch_one(&self.pool)
         .await?;
 
@@ -596,12 +606,13 @@ impl Database {
         name: &str,
         description: Option<&str>,
         parameters: &serde_json::Value,
+        tags: &serde_json::Value,
         created_by: Uuid,
     ) -> Result<Dashboard> {
         let dashboard = sqlx::query_as::<_, Dashboard>(
             r#"
-            INSERT INTO dashboards (id, org_id, name, description, parameters, created_by, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+            INSERT INTO dashboards (id, org_id, name, description, parameters, tags, created_by, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
             RETURNING *
             "#,
         )
@@ -610,6 +621,7 @@ impl Database {
         .bind(name)
         .bind(description)
         .bind(parameters)
+        .bind(tags)
         .bind(created_by)
         .fetch_one(&self.pool)
         .await?;
@@ -657,6 +669,7 @@ impl Database {
         name: Option<&str>,
         description: Option<&str>,
         parameters: Option<&serde_json::Value>,
+        tags: Option<&serde_json::Value>,
     ) -> Result<Dashboard> {
         let dashboard = sqlx::query_as::<_, Dashboard>(
             r#"
@@ -664,6 +677,7 @@ impl Database {
             SET name = COALESCE($3, name),
                 description = COALESCE($4, description),
                 parameters = COALESCE($5, parameters),
+                tags = COALESCE($6, tags),
                 updated_at = NOW()
             WHERE id = $1 AND org_id = $2
             RETURNING *
@@ -674,6 +688,7 @@ impl Database {
         .bind(name)
         .bind(description)
         .bind(parameters)
+        .bind(tags)
         .fetch_one(&self.pool)
         .await?;
 
@@ -784,13 +799,14 @@ impl Database {
         name: &str,
         cron_expression: &str,
         parameters: &serde_json::Value,
+        tags: &serde_json::Value,
         enabled: bool,
         created_by: Uuid,
     ) -> Result<Schedule> {
         let schedule = sqlx::query_as::<_, Schedule>(
             r#"
-            INSERT INTO schedules (id, org_id, query_id, name, cron_expression, parameters, enabled, created_by, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+            INSERT INTO schedules (id, org_id, query_id, name, cron_expression, parameters, tags, enabled, created_by, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
             RETURNING *
             "#,
         )
@@ -800,6 +816,7 @@ impl Database {
         .bind(name)
         .bind(cron_expression)
         .bind(parameters)
+        .bind(tags)
         .bind(enabled)
         .bind(created_by)
         .fetch_one(&self.pool)

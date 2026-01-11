@@ -38,6 +38,8 @@ pub struct Query {
     pub timeout_seconds: i32,
     /// Default max rows
     pub max_rows: i32,
+    /// JSON array of tag strings
+    pub tags: serde_json::Value,
     pub created_by: Uuid,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -56,6 +58,8 @@ pub struct CreateQueryRequest {
     pub timeout_seconds: i32,
     #[serde(default = "default_max_rows")]
     pub max_rows: i32,
+    #[serde(default)]
+    pub tags: Vec<String>,
 }
 
 fn default_timeout() -> i32 {
@@ -74,6 +78,7 @@ pub struct UpdateQueryRequest {
     pub parameters: Option<Vec<ParamDef>>,
     pub timeout_seconds: Option<i32>,
     pub max_rows: Option<i32>,
+    pub tags: Option<Vec<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -87,6 +92,7 @@ pub struct QueryResponse {
     pub parameters: Vec<ParamDef>,
     pub timeout_seconds: i32,
     pub max_rows: i32,
+    pub tags: Vec<String>,
     pub created_by: Uuid,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -96,6 +102,8 @@ impl From<Query> for QueryResponse {
     fn from(q: Query) -> Self {
         let parameters: Vec<ParamDef> =
             serde_json::from_value(q.parameters).unwrap_or_default();
+        let tags: Vec<String> =
+            serde_json::from_value(q.tags).unwrap_or_default();
         Self {
             id: q.id,
             org_id: q.org_id,
@@ -106,6 +114,7 @@ impl From<Query> for QueryResponse {
             parameters,
             timeout_seconds: q.timeout_seconds,
             max_rows: q.max_rows,
+            tags,
             created_by: q.created_by,
             created_at: q.created_at,
             updated_at: q.updated_at,

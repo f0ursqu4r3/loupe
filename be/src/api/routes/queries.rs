@@ -38,6 +38,7 @@ async fn create_query(
     state.db.get_datasource(body.datasource_id, org_id).await?;
 
     let parameters = serde_json::to_value(&body.parameters).unwrap_or_default();
+    let tags = serde_json::to_value(&body.tags).unwrap_or_default();
 
     let query = state
         .db
@@ -48,6 +49,7 @@ async fn create_query(
             body.description.as_deref(),
             &body.sql,
             &parameters,
+            &tags,
             body.timeout_seconds,
             body.max_rows,
             user_id,
@@ -82,6 +84,11 @@ async fn update_query(
         .as_ref()
         .map(|p| serde_json::to_value(p).unwrap());
 
+    let tags = body
+        .tags
+        .as_ref()
+        .map(|t| serde_json::to_value(t).unwrap());
+
     let query = state
         .db
         .update_query(
@@ -91,6 +98,7 @@ async fn update_query(
             body.description.as_deref(),
             body.sql.as_deref(),
             parameters.as_ref(),
+            tags.as_ref(),
             body.timeout_seconds,
             body.max_rows,
         )

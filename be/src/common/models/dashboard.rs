@@ -12,6 +12,8 @@ pub struct Dashboard {
     pub description: Option<String>,
     /// JSON array of global parameter bindings
     pub parameters: serde_json::Value,
+    /// JSON array of tag strings
+    pub tags: serde_json::Value,
     pub created_by: Uuid,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -45,6 +47,8 @@ pub struct CreateDashboardRequest {
     pub description: Option<String>,
     #[serde(default)]
     pub parameters: serde_json::Value,
+    #[serde(default)]
+    pub tags: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -52,6 +56,7 @@ pub struct UpdateDashboardRequest {
     pub name: Option<String>,
     pub description: Option<String>,
     pub parameters: Option<serde_json::Value>,
+    pub tags: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -120,6 +125,7 @@ pub struct DashboardResponse {
     pub name: String,
     pub description: Option<String>,
     pub parameters: serde_json::Value,
+    pub tags: Vec<String>,
     pub tiles: Vec<TileResponse>,
     pub created_by: Uuid,
     pub created_at: DateTime<Utc>,

@@ -24,6 +24,8 @@ pub struct Visualization {
     pub chart_type: ChartType,
     /// JSON config for chart (axes, colors, etc.)
     pub config: serde_json::Value,
+    /// JSON array of tag strings
+    pub tags: serde_json::Value,
     pub created_by: Uuid,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -37,6 +39,8 @@ pub struct CreateVisualizationRequest {
     pub chart_type: ChartType,
     #[serde(default)]
     pub config: serde_json::Value,
+    #[serde(default)]
+    pub tags: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -44,6 +48,7 @@ pub struct UpdateVisualizationRequest {
     pub name: Option<String>,
     pub chart_type: Option<ChartType>,
     pub config: Option<serde_json::Value>,
+    pub tags: Option<Vec<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -54,6 +59,7 @@ pub struct VisualizationResponse {
     pub name: String,
     pub chart_type: ChartType,
     pub config: serde_json::Value,
+    pub tags: Vec<String>,
     pub created_by: Uuid,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -61,6 +67,8 @@ pub struct VisualizationResponse {
 
 impl From<Visualization> for VisualizationResponse {
     fn from(v: Visualization) -> Self {
+        let tags: Vec<String> =
+            serde_json::from_value(v.tags).unwrap_or_default();
         Self {
             id: v.id,
             org_id: v.org_id,
@@ -68,6 +76,7 @@ impl From<Visualization> for VisualizationResponse {
             name: v.name,
             chart_type: v.chart_type,
             config: v.config,
+            tags,
             created_by: v.created_by,
             created_at: v.created_at,
             updated_at: v.updated_at,
