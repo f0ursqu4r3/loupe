@@ -11,15 +11,18 @@ import {
   CheckCircle,
   XCircle,
   Tag,
+  Download,
+  Upload,
 } from 'lucide-vue-next'
 import { AppLayout } from '@/components/layout'
 import { LButton, LCard, LBadge, LEmptyState, LSpinner, LTagFilter } from '@/components/ui'
 import { ParameterInputs } from '@/components/query'
-import { queriesApi, runsApi } from '@/services/api'
-import type { Query, Run, RunStatus } from '@/types'
+import { queriesApi, runsApi, datasourcesApi } from '@/services/api'
+import type { Query, Run, RunStatus, Datasource, QueryExport } from '@/types'
 
 const router = useRouter()
 const queries = ref<Query[]>([])
+const datasources = ref<Datasource[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
 
@@ -34,6 +37,16 @@ const runningQueries = ref<Set<string>>(new Set())
 
 // Tag filtering
 const selectedTags = ref<string[]>([])
+
+// Import modal state
+const showImportModal = ref(false)
+const importFile = ref<File | null>(null)
+const importDatasourceId = ref<string>('')
+const importSkipDuplicates = ref(true)
+const importing = ref(false)
+const importResult = ref<{ imported: number; skipped: number; skipped_names: string[] } | null>(
+  null,
+)
 
 // Get all unique tags across queries
 const allTags = computed(() => {
@@ -59,6 +72,12 @@ async function loadQueries() {
     loading.value = true
     error.value = null
     queries.value = await queriesApi.list()
+    datasources.value = await datasourcesApi.list()
+
+    // Set default datasource for import
+    if (datasources.value.length > 0 && !importDatasourceId.value) {
+      importDatasourceId.value = datasources.value[0]!.id
+    }
 
     // Load last run for each query
     for (const query of queries.value) {
@@ -173,15 +192,88 @@ async function runQuery(query: Query, event: Event) {
 function updateParamValues(queryId: string, values: Record<string, unknown>) {
   paramValues[queryId] = values
 }
+
+// Export queries to JSON file
+async function exportQueries() {
+  try {
+    const exports = await queriesApi.export()
+    const blob = new Blob([JSON.stringify(exports, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `queries-export-${new Date().toISOString().split('T')[0]}.json`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  } catch (e) {
+    console.error('Failed to export queries:', e)
+  }
+}
+
+// Handle file selection for import
+function handleFileSelect(event: Event) {
+  const input = event.target as HTMLInputElement
+  if (input.files && input.files.length > 0) {
+    importFile.value = input.files[0]!
+  }
+}
+
+// Import queries from JSON file
+async function importQueries() {
+  if (!importFile.value || !importDatasourceId.value) return
+
+  importing.value = true
+  importResult.value = null
+
+  try {
+    const text = await importFile.value.text()
+    const queriesData: QueryExport[] = JSON.parse(text)
+
+    const result = await queriesApi.import({
+      queries: queriesData,
+      datasource_id: importDatasourceId.value,
+      skip_duplicates: importSkipDuplicates.value,
+    })
+
+    importResult.value = result
+
+    // Reload queries if any were imported
+    if (result.imported > 0) {
+      await loadQueries()
+    }
+  } catch (e) {
+    console.error('Failed to import queries:', e)
+    error.value = e instanceof Error ? e.message : 'Failed to import queries'
+  } finally {
+    importing.value = false
+  }
+}
+
+function closeImportModal() {
+  showImportModal.value = false
+  importFile.value = null
+  importResult.value = null
+}
 </script>
 
 <template>
   <AppLayout title="Queries">
     <template #header-actions>
-      <LButton @click="openEditor()">
-        <Plus class="h-4 w-4" />
-        New Query
-      </LButton>
+      <div class="flex items-center gap-2">
+        <LButton variant="secondary" @click="exportQueries" :disabled="queries.length === 0">
+          <Download class="h-4 w-4" />
+          Export
+        </LButton>
+        <LButton variant="secondary" @click="showImportModal = true">
+          <Upload class="h-4 w-4" />
+          Import
+        </LButton>
+        <LButton @click="openEditor()">
+          <Plus class="h-4 w-4" />
+          New Query
+        </LButton>
+      </div>
     </template>
 
     <!-- Loading state -->
@@ -314,5 +406,97 @@ function updateParamValues(queryId: string, values: Record<string, unknown>) {
         </div>
       </LCard>
     </div>
+
+    <!-- Import Modal -->
+    <Teleport to="body">
+      <div
+        v-if="showImportModal"
+        class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+        @click.self="closeImportModal"
+      >
+        <div class="bg-surface rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+          <h2 class="text-lg font-semibold text-text mb-4">Import Queries</h2>
+
+          <!-- Import result -->
+          <div v-if="importResult" class="mb-4">
+            <div class="p-3 rounded bg-success/10 text-success" v-if="importResult.imported > 0">
+              Successfully imported {{ importResult.imported }} queries
+            </div>
+            <div
+              v-if="importResult.skipped > 0"
+              class="mt-2 p-3 rounded bg-warning/10 text-warning"
+            >
+              Skipped {{ importResult.skipped }} duplicate(s):
+              <ul class="text-sm mt-1">
+                <li v-for="name in importResult.skipped_names" :key="name">• {{ name }}</li>
+              </ul>
+            </div>
+            <div class="mt-4 flex justify-end">
+              <LButton @click="closeImportModal">Done</LButton>
+            </div>
+          </div>
+
+          <!-- Import form -->
+          <template v-else>
+            <div class="space-y-4">
+              <!-- File input -->
+              <div>
+                <label class="block text-sm font-medium text-text mb-1">JSON File</label>
+                <input
+                  type="file"
+                  accept=".json,application/json"
+                  @change="handleFileSelect"
+                  class="block w-full text-sm text-text-muted
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded file:border-0
+                    file:text-sm file:font-medium
+                    file:bg-primary-500 file:text-white
+                    hover:file:bg-primary-600
+                    cursor-pointer"
+                />
+              </div>
+
+              <!-- Datasource selector -->
+              <div>
+                <label class="block text-sm font-medium text-text mb-1">Target Datasource</label>
+                <select
+                  v-model="importDatasourceId"
+                  class="w-full px-3 py-2 bg-surface-sunken border border-border rounded text-text"
+                >
+                  <option v-for="ds in datasources" :key="ds.id" :value="ds.id">
+                    {{ ds.name }}
+                  </option>
+                </select>
+                <p class="text-xs text-text-muted mt-1">
+                  All imported queries will use this datasource
+                </p>
+              </div>
+
+              <!-- Skip duplicates toggle -->
+              <label class="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  v-model="importSkipDuplicates"
+                  class="rounded border-border"
+                />
+                <span class="text-sm text-text">Skip queries with duplicate names</span>
+              </label>
+            </div>
+
+            <div class="flex justify-end gap-2 mt-6">
+              <LButton variant="secondary" @click="closeImportModal">Cancel</LButton>
+              <LButton
+                @click="importQueries"
+                :disabled="!importFile || !importDatasourceId || importing"
+              >
+                <Loader2 v-if="importing" class="h-4 w-4 animate-spin" />
+                <Upload v-else class="h-4 w-4" />
+                Import
+              </LButton>
+            </div>
+          </template>
+        </div>
+      </div>
+    </Teleport>
   </AppLayout>
 </template>

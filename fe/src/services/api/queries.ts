@@ -1,5 +1,15 @@
 import { api } from './client'
-import type { Query, CreateQueryRequest, UpdateQueryRequest, Run, QueryResult, UUID } from '@/types'
+import type {
+  Query,
+  CreateQueryRequest,
+  UpdateQueryRequest,
+  Run,
+  QueryResult,
+  UUID,
+  QueryExport,
+  ImportQueriesRequest,
+  ImportQueriesResponse,
+} from '@/types'
 
 export interface CreateRunRequest {
   query_id: UUID
@@ -27,6 +37,14 @@ export const queriesApi = {
 
   delete(id: UUID): Promise<void> {
     return api.delete(`/queries/${id}`)
+  },
+
+  export(): Promise<QueryExport[]> {
+    return api.get<QueryExport[]>('/queries/export')
+  },
+
+  import(data: ImportQueriesRequest): Promise<ImportQueriesResponse> {
+    return api.post<ImportQueriesResponse>('/queries/import', data)
   },
 }
 

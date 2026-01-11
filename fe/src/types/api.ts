@@ -109,6 +109,30 @@ export interface UpdateQueryRequest {
   max_rows?: number
 }
 
+// Query import/export
+export interface QueryExport {
+  name: string
+  description?: string
+  sql: string
+  parameters: ParamDef[]
+  timeout_seconds: number
+  max_rows: number
+  tags: string[]
+  datasource_name?: string
+}
+
+export interface ImportQueriesRequest {
+  queries: QueryExport[]
+  datasource_id: UUID
+  skip_duplicates?: boolean
+}
+
+export interface ImportQueriesResponse {
+  imported: number
+  skipped: number
+  skipped_names: string[]
+}
+
 // ===== Run =====
 export type RunStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled' | 'timeout'
 
