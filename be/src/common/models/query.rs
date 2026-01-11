@@ -81,6 +81,43 @@ pub struct UpdateQueryRequest {
     pub tags: Option<Vec<String>>,
 }
 
+/// Export format for a query (excludes org-specific IDs)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QueryExport {
+    pub name: String,
+    pub description: Option<String>,
+    pub sql: String,
+    pub parameters: Vec<ParamDef>,
+    pub timeout_seconds: i32,
+    pub max_rows: i32,
+    pub tags: Vec<String>,
+    /// Datasource name for matching on import
+    pub datasource_name: Option<String>,
+}
+
+/// Request to import queries
+#[derive(Debug, Deserialize)]
+pub struct ImportQueriesRequest {
+    pub queries: Vec<QueryExport>,
+    /// Target datasource ID for all imported queries
+    pub datasource_id: Uuid,
+    /// Whether to skip queries that already exist (by name)
+    #[serde(default = "default_skip_duplicates")]
+    pub skip_duplicates: bool,
+}
+
+fn default_skip_duplicates() -> bool {
+    true
+}
+
+/// Response from import operation
+#[derive(Debug, Serialize)]
+pub struct ImportQueriesResponse {
+    pub imported: usize,
+    pub skipped: usize,
+    pub skipped_names: Vec<String>,
+}
+
 #[derive(Debug, Serialize)]
 pub struct QueryResponse {
     pub id: Uuid,
