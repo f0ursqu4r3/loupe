@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import LineChart from './LineChart.vue'
 import BarChart from './BarChart.vue'
+import PieChart from './PieChart.vue'
 import SingleStat from './SingleStat.vue'
 import DataTable from './DataTable.vue'
 import type { ChartType, VisualizationConfig, QueryResult } from '@/types'
@@ -20,6 +21,8 @@ const chartComponent = computed(() => {
       return LineChart
     case 'bar':
       return BarChart
+    case 'pie':
+      return PieChart
     case 'single_stat':
       return SingleStat
     case 'table':

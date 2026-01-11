@@ -156,7 +156,8 @@ function updateChart() {
     },
   }
 
-  chart.setOption(mergedOptions, true)
+  // Use notMerge=true to fully replace options including legend visibility
+  chart.setOption(mergedOptions, { notMerge: true, lazyUpdate: false })
 
   if (props.loading) {
     chart.showLoading({
@@ -205,9 +206,13 @@ onUnmounted(() => {
   chart?.dispose()
 })
 
-watch([() => props.options, () => props.loading, isDark], () => {
-  updateChart()
-})
+watch(
+  [() => props.options, () => props.loading, isDark],
+  () => {
+    updateChart()
+  },
+  { deep: true },
+)
 
 // Expose resize for parent components
 defineExpose({

@@ -140,7 +140,7 @@ export interface ColumnInfo {
 }
 
 // ===== Visualization =====
-export type ChartType = 'table' | 'line' | 'bar' | 'single_stat'
+export type ChartType = 'table' | 'line' | 'bar' | 'pie' | 'single_stat'
 
 export interface Visualization extends Timestamps {
   id: UUID
@@ -174,6 +174,10 @@ export interface VisualizationConfig {
   prefix?: string
   suffix?: string
   thresholds?: Threshold[]
+
+  // Pie chart
+  label_column?: string
+  donut?: boolean
 
   // Colors
   colors?: string[]

@@ -3,7 +3,16 @@ import { computed, type HTMLAttributes } from 'vue'
 
 interface Props {
   modelValue?: string | number
-  type?: 'text' | 'email' | 'password' | 'number' | 'search' | 'url' | 'tel'
+  type?:
+    | 'text'
+    | 'email'
+    | 'password'
+    | 'number'
+    | 'search'
+    | 'url'
+    | 'tel'
+    | 'date'
+    | 'datetime-local'
   placeholder?: string
   disabled?: boolean
   error?: boolean

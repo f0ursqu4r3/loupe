@@ -13,6 +13,7 @@ import {
   LineChart as LineChartIcon,
   BarChart3,
   Hash,
+  PieChart as PieChartIcon,
 } from 'lucide-vue-next'
 import { AppLayout } from '@/components/layout'
 import { LButton, LInput, LSelect, LCard, LSpinner } from '@/components/ui'
@@ -58,6 +59,7 @@ const chartTypeOptions = [
   { value: 'table', label: 'Table', icon: Table },
   { value: 'line', label: 'Line Chart', icon: LineChartIcon },
   { value: 'bar', label: 'Bar Chart', icon: BarChart3 },
+  { value: 'pie', label: 'Pie Chart', icon: PieChartIcon },
   { value: 'single_stat', label: 'Single Stat', icon: Hash },
 ]
 
@@ -367,6 +369,16 @@ watch(
               />
               <label for="stacked" class="text-sm text-text-muted">Stacked bars</label>
             </div>
+            <div class="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="show_legend_chart"
+                :checked="visualization.config?.show_legend ?? true"
+                @change="updateConfig('show_legend', ($event.target as HTMLInputElement).checked)"
+                class="rounded border-border"
+              />
+              <label for="show_legend_chart" class="text-sm text-text-muted">Show legend</label>
+            </div>
           </div>
 
           <!-- Single stat config -->
@@ -397,6 +409,48 @@ watch(
                   placeholder="%"
                 />
               </div>
+            </div>
+          </div>
+
+          <!-- Pie chart config -->
+          <div v-if="visualization.chart_type === 'pie'" class="space-y-4">
+            <div>
+              <label class="block text-sm text-text-muted mb-1.5">Label Column</label>
+              <LSelect
+                :model-value="visualization.config?.label_column || ''"
+                @update:model-value="updateConfig('label_column', $event)"
+                :options="columnOptions"
+                placeholder="Select column for labels..."
+              />
+            </div>
+            <div>
+              <label class="block text-sm text-text-muted mb-1.5">Value Column</label>
+              <LSelect
+                :model-value="visualization.config?.value_column || ''"
+                @update:model-value="updateConfig('value_column', $event)"
+                :options="columnOptions"
+                placeholder="Select column for values..."
+              />
+            </div>
+            <div class="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="donut"
+                :checked="visualization.config?.donut"
+                @change="updateConfig('donut', ($event.target as HTMLInputElement).checked)"
+                class="rounded border-border"
+              />
+              <label for="donut" class="text-sm text-text-muted">Donut style (hollow center)</label>
+            </div>
+            <div class="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="show_legend_pie"
+                :checked="visualization.config?.show_legend ?? true"
+                @change="updateConfig('show_legend', ($event.target as HTMLInputElement).checked)"
+                class="rounded border-border"
+              />
+              <label for="show_legend_pie" class="text-sm text-text-muted">Show legend</label>
             </div>
           </div>
         </LCard>

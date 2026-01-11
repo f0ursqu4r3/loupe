@@ -20,6 +20,7 @@ import {
 import { AppLayout } from '@/components/layout'
 import { LButton, LInput, LTextarea, LSelect, LCard, LSpinner, LBadge } from '@/components/ui'
 import { SqlEditor } from '@/components/editor'
+import { QueryParameters, ParameterInputs } from '@/components/query'
 import { queriesApi, runsApi, datasourcesApi } from '@/services/api'
 import type { Query, Datasource, Run, QueryResult, CreateQueryRequest } from '@/types'
 
@@ -64,6 +65,12 @@ const currentRun = ref<Run | null>(null)
 const result = ref<QueryResult | null>(null)
 const resultError = ref<string | null>(null)
 const showResults = ref(false)
+
+// Parameter values for running
+const parameterValues = ref<Record<string, unknown>>({})
+
+// Show parameters section
+const showParameters = ref(false)
 
 // Load datasources
 async function loadDatasources() {
@@ -163,7 +170,7 @@ async function runQuery() {
     const queryIdToRun = query.value.id || queryId.value!
     currentRun.value = await runsApi.create({
       query_id: queryIdToRun,
-      parameters: {},
+      parameters: parameterValues.value,
     })
 
     // Poll for completion
@@ -339,7 +346,39 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
             :rows="2"
           />
         </div>
+
+        <!-- Parameters section -->
+        <div class="mt-4">
+          <button
+            type="button"
+            class="flex items-center gap-2 text-sm font-medium text-text hover:text-primary-600 transition-colors"
+            @click="showParameters = !showParameters"
+          >
+            <ChevronDown
+              class="h-4 w-4 transition-transform"
+              :class="{ '-rotate-90': !showParameters }"
+            />
+            Parameters
+            <span v-if="query.parameters?.length" class="text-xs text-text-muted">
+              ({{ query.parameters.length }})
+            </span>
+          </button>
+          <div v-if="showParameters" class="mt-3">
+            <QueryParameters
+              :model-value="query.parameters || []"
+              @update:model-value="query.parameters = $event"
+              :sql="query.sql || ''"
+            />
+          </div>
+        </div>
       </LCard>
+
+      <!-- Parameter inputs for running -->
+      <ParameterInputs
+        v-if="query.parameters?.length"
+        :parameters="query.parameters"
+        v-model="parameterValues"
+      />
 
       <!-- SQL Editor -->
       <LCard padding="none">

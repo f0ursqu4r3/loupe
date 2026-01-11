@@ -95,7 +95,9 @@ const chartOptions = computed<EChartsOption>(() => {
     }
   }
 
-  const showLegend = series.length > 1
+  // Show legend: explicit config takes precedence, otherwise auto-show for multi-series
+  const configShowLegend = props.config.show_legend
+  const showLegend = configShowLegend !== undefined ? configShowLegend : series.length > 1
 
   return {
     tooltip: {

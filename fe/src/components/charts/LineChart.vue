@@ -122,7 +122,10 @@ const chartOptions = computed<EChartsOption>(() => {
     ]
   }
 
-  const showLegend = series.length > 1 && !isSparkline.value
+  // Show legend: explicit config takes precedence, otherwise auto-show for multi-series
+  const configShowLegend = props.config.show_legend
+  const showLegend =
+    !isSparkline.value && (configShowLegend !== undefined ? configShowLegend : series.length > 1)
 
   // Sparkline mode: minimal chrome, just the line
   if (isSparkline.value) {

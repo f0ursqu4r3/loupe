@@ -116,7 +116,7 @@ const sizeClasses = {
           <!-- Footer -->
           <div
             v-if="$slots.footer"
-            class="px-6 py-4 border-t border-border bg-surface-sunken rounded-b-xl"
+            class="px-6 py-4 border-t border-border bg-surface-sunken rounded-b-xl flex justify-end gap-2"
           >
             <slot name="footer" />
           </div>
