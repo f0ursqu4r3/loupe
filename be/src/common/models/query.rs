@@ -100,10 +100,8 @@ pub struct QueryResponse {
 
 impl From<Query> for QueryResponse {
     fn from(q: Query) -> Self {
-        let parameters: Vec<ParamDef> =
-            serde_json::from_value(q.parameters).unwrap_or_default();
-        let tags: Vec<String> =
-            serde_json::from_value(q.tags).unwrap_or_default();
+        let parameters: Vec<ParamDef> = serde_json::from_value(q.parameters).unwrap_or_default();
+        let tags: Vec<String> = serde_json::from_value(q.tags).unwrap_or_default();
         Self {
             id: q.id,
             org_id: q.org_id,

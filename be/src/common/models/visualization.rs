@@ -67,8 +67,7 @@ pub struct VisualizationResponse {
 
 impl From<Visualization> for VisualizationResponse {
     fn from(v: Visualization) -> Self {
-        let tags: Vec<String> =
-            serde_json::from_value(v.tags).unwrap_or_default();
+        let tags: Vec<String> = serde_json::from_value(v.tags).unwrap_or_default();
         Self {
             id: v.id,
             org_id: v.org_id,
