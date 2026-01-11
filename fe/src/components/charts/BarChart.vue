@@ -36,7 +36,7 @@ const chartOptions = computed<EChartsOption>(() => {
     data: (number | null)[]
     barMaxWidth: number
     stack: string | undefined
-    emphasis: { focus: 'series' }
+    emphasis: { disabled: boolean }
     itemStyle: { borderRadius: [number, number, number, number] }
   }>
 
@@ -64,7 +64,7 @@ const chartOptions = computed<EChartsOption>(() => {
       data: xData.map((x) => dataMap.get(x) ?? null),
       barMaxWidth: 50,
       stack: props.config.stacked ? 'total' : undefined,
-      emphasis: { focus: 'series' as const },
+      emphasis: { disabled: true },
       itemStyle: {
         borderRadius: props.config.stacked
           ? ([0, 0, 0, 0] as [number, number, number, number])
@@ -81,7 +81,7 @@ const chartOptions = computed<EChartsOption>(() => {
         data: props.data.rows.map((row) => row[yIdx] as number),
         barMaxWidth: 50,
         stack: props.config.stacked ? 'total' : undefined,
-        emphasis: { focus: 'series' as const },
+        emphasis: { disabled: true },
         itemStyle: { borderRadius: [4, 4, 0, 0] as [number, number, number, number] },
       },
     ]
@@ -100,6 +100,8 @@ const chartOptions = computed<EChartsOption>(() => {
   return {
     tooltip: {
       trigger: 'axis',
+      appendToBody: true,
+      confine: false,
       axisPointer: {
         type: 'shadow',
       },
