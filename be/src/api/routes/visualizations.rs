@@ -1,8 +1,10 @@
 use crate::AppState;
 use crate::routes::auth::get_auth_context;
-use actix_web::{web, HttpRequest, HttpResponse};
-use loupe::models::{CreateVisualizationRequest, UpdateVisualizationRequest, VisualizationResponse};
+use actix_web::{HttpRequest, HttpResponse, web};
 use loupe::Error;
+use loupe::models::{
+    CreateVisualizationRequest, UpdateVisualizationRequest, VisualizationResponse,
+};
 use std::sync::Arc;
 use uuid::Uuid;
 

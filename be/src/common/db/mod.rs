@@ -1,7 +1,7 @@
 use crate::error::{Error, Result};
 use crate::models::*;
-use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
+use sqlx::postgres::PgPoolOptions;
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -47,12 +47,10 @@ impl Database {
     }
 
     pub async fn get_organization(&self, id: Uuid) -> Result<Organization> {
-        let org = sqlx::query_as::<_, Organization>(
-            "SELECT * FROM organizations WHERE id = $1",
-        )
-        .bind(id)
-        .fetch_one(&self.pool)
-        .await?;
+        let org = sqlx::query_as::<_, Organization>("SELECT * FROM organizations WHERE id = $1")
+            .bind(id)
+            .fetch_one(&self.pool)
+            .await?;
 
         Ok(org)
     }
@@ -474,11 +472,10 @@ impl Database {
     }
 
     pub async fn get_run_result(&self, run_id: Uuid) -> Result<RunResult> {
-        let result =
-            sqlx::query_as::<_, RunResult>("SELECT * FROM run_results WHERE run_id = $1")
-                .bind(run_id)
-                .fetch_one(&self.pool)
-                .await?;
+        let result = sqlx::query_as::<_, RunResult>("SELECT * FROM run_results WHERE run_id = $1")
+            .bind(run_id)
+            .fetch_one(&self.pool)
+            .await?;
 
         Ok(result)
     }
@@ -526,7 +523,11 @@ impl Database {
         Ok(viz)
     }
 
-    pub async fn list_visualizations(&self, org_id: Uuid, query_id: Option<Uuid>) -> Result<Vec<Visualization>> {
+    pub async fn list_visualizations(
+        &self,
+        org_id: Uuid,
+        query_id: Option<Uuid>,
+    ) -> Result<Vec<Visualization>> {
         let vizs = if let Some(qid) = query_id {
             sqlx::query_as::<_, Visualization>(
                 "SELECT * FROM visualizations WHERE org_id = $1 AND query_id = $2 ORDER BY created_at DESC",
@@ -759,7 +760,11 @@ impl Database {
         Ok(schedules)
     }
 
-    pub async fn update_schedule_last_run(&self, id: Uuid, next_run_at: chrono::DateTime<chrono::Utc>) -> Result<()> {
+    pub async fn update_schedule_last_run(
+        &self,
+        id: Uuid,
+        next_run_at: chrono::DateTime<chrono::Utc>,
+    ) -> Result<()> {
         sqlx::query(
             "UPDATE schedules SET last_run_at = NOW(), next_run_at = $2, updated_at = NOW() WHERE id = $1",
         )
