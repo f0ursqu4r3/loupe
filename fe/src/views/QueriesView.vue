@@ -14,6 +14,7 @@ import {
   Download,
   Upload,
 } from 'lucide-vue-next'
+import { format as formatSql } from 'sql-formatter'
 import { AppLayout } from '@/components/layout'
 import { LButton, LCard, LBadge, LEmptyState, LSpinner, LTagFilter } from '@/components/ui'
 import { ParameterInputs } from '@/components/query'
@@ -43,6 +44,7 @@ const showImportModal = ref(false)
 const importFile = ref<File | null>(null)
 const importDatasourceId = ref<string>('')
 const importSkipDuplicates = ref(true)
+const importFormatSql = ref(false)
 const importing = ref(false)
 const importResult = ref<{ imported: number; skipped: number; skipped_names: string[] } | null>(
   null,
@@ -118,14 +120,6 @@ function getDefaultForType(type: string): unknown {
 }
 
 onMounted(loadQueries)
-
-function formatDate(dateString: string): string {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(new Date(dateString))
-}
 
 function formatDateTime(dateString: string): string {
   return new Intl.DateTimeFormat('en-US', {
@@ -228,7 +222,20 @@ async function importQueries() {
 
   try {
     const text = await importFile.value.text()
-    const queriesData: QueryExport[] = JSON.parse(text)
+    let queriesData: QueryExport[] = JSON.parse(text)
+
+    // Format SQL if option is enabled
+    if (importFormatSql.value) {
+      queriesData = queriesData.map((q) => ({
+        ...q,
+        sql: formatSql(q.sql, {
+          language: 'postgresql',
+          tabWidth: 2,
+          keywordCase: 'upper',
+          linesBetweenQueries: 2,
+        }),
+      }))
+    }
 
     const result = await queriesApi.import({
       queries: queriesData,
@@ -446,13 +453,7 @@ function closeImportModal() {
                   type="file"
                   accept=".json,application/json"
                   @change="handleFileSelect"
-                  class="block w-full text-sm text-text-muted
-                    file:mr-4 file:py-2 file:px-4
-                    file:rounded file:border-0
-                    file:text-sm file:font-medium
-                    file:bg-primary-500 file:text-white
-                    hover:file:bg-primary-600
-                    cursor-pointer"
+                  class="block w-full text-sm text-text-muted file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-medium file:bg-primary-500 file:text-white hover:file:bg-primary-600 cursor-pointer"
                 />
               </div>
 
@@ -480,6 +481,12 @@ function closeImportModal() {
                   class="rounded border-border"
                 />
                 <span class="text-sm text-text">Skip queries with duplicate names</span>
+              </label>
+
+              <!-- Format SQL toggle -->
+              <label class="flex items-center gap-2">
+                <input type="checkbox" v-model="importFormatSql" class="rounded border-border" />
+                <span class="text-sm text-text">Format SQL on import</span>
               </label>
             </div>
 

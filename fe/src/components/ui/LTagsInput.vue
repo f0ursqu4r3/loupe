@@ -2,7 +2,6 @@
 import { ref, computed } from 'vue'
 import { X, Plus } from 'lucide-vue-next'
 import LBadge from './LBadge.vue'
-import LInput from './LInput.vue'
 import LButton from './LButton.vue'
 
 const props = defineProps<{
@@ -52,7 +51,7 @@ function handleKeydown(e: KeyboardEvent) {
 
 <template>
   <div
-    class="flex flex-wrap items-center gap-1.5 min-h-[36px] p-1.5 border border-border rounded-lg bg-surface"
+    class="flex flex-wrap items-center gap-1.5 min-h-9 p-1.5 border border-border rounded-lg bg-surface"
   >
     <LBadge v-for="tag in tags" :key="tag" size="sm" class="gap-1">
       {{ tag }}
@@ -65,7 +64,7 @@ function handleKeydown(e: KeyboardEvent) {
         <X class="h-3 w-3" />
       </button>
     </LBadge>
-    <div v-if="!disabled" class="flex items-center gap-1 flex-1 min-w-[80px]">
+    <div v-if="!disabled" class="flex items-center gap-1 flex-1 min-w-20">
       <input
         v-model="newTag"
         :placeholder="placeholder || 'Add tag...'"
