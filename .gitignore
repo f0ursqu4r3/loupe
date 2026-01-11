@@ -1,0 +1,54 @@
+# ===================
+# OS / Editor
+# ===================
+.DS_Store
+.idea
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ===================
+# Frontend (Vue/Node)
+# ===================
+node_modules
+dist
+dist-ssr
+coverage
+*.local
+*.tsbuildinfo
+.eslintcache
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Cypress
+fe/cypress/videos/
+fe/cypress/screenshots/
+
+# Vitest
+__screenshots__/
+
+# ===================
+# Backend (Rust)
+# ===================
+/be/target/
+*.rs.bk
+Cargo.lock
+
+# ===================
+# Environment
+# ===================
+.env
+.env.local
+.env.*.local
