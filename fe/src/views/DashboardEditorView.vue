@@ -213,14 +213,149 @@ async function deleteTile(tileId: string) {
 // Update tile position/size
 async function updateTile(tile: Tile, updates: Partial<Tile>) {
   try {
-    const updated = await dashboardsApi.updateTile(dashboardId.value!, tile.id, updates)
-    const idx = dashboard.value.tiles?.findIndex((t) => t.id === tile.id)
-    if (idx !== undefined && idx >= 0 && dashboard.value.tiles) {
-      dashboard.value.tiles[idx] = updated
+    // Apply collision resolution before saving
+    const resolvedTiles = resolveCollisions(tile.id, updates)
+
+    // Update all affected tiles
+    for (const resolved of resolvedTiles) {
+      if (resolved.id === tile.id) {
+        const updated = await dashboardsApi.updateTile(dashboardId.value!, tile.id, updates)
+        const idx = dashboard.value.tiles?.findIndex((t) => t.id === tile.id)
+        if (idx !== undefined && idx >= 0 && dashboard.value.tiles) {
+          dashboard.value.tiles[idx] = updated
+        }
+      } else {
+        // Update other tiles that were pushed
+        const updated = await dashboardsApi.updateTile(dashboardId.value!, resolved.id, {
+          pos_x: resolved.pos_x,
+          pos_y: resolved.pos_y,
+        })
+        const idx = dashboard.value.tiles?.findIndex((t) => t.id === resolved.id)
+        if (idx !== undefined && idx >= 0 && dashboard.value.tiles) {
+          dashboard.value.tiles[idx] = updated
+        }
+      }
     }
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to update tile'
   }
+}
+
+// Track tile being dragged for collision preview
+const draggingTileId = ref<string | null>(null)
+const tileOffsets = ref<Record<string, { x: number; y: number }>>({})
+
+// Check if two tiles overlap
+function tilesOverlap(
+  a: { pos_x: number; pos_y: number; width: number; height: number },
+  b: { pos_x: number; pos_y: number; width: number; height: number },
+): boolean {
+  return !(
+    a.pos_x + a.width <= b.pos_x ||
+    b.pos_x + b.width <= a.pos_x ||
+    a.pos_y + a.height <= b.pos_y ||
+    b.pos_y + b.height <= a.pos_y
+  )
+}
+
+// Preview collision handling during drag/resize
+function handleTilePreview(
+  tileId: string,
+  newX: number,
+  newY: number,
+  newWidth: number,
+  newHeight: number,
+) {
+  draggingTileId.value = tileId
+  const tiles = dashboard.value.tiles || []
+
+  const movingTile = {
+    pos_x: newX,
+    pos_y: newY,
+    width: newWidth,
+    height: newHeight,
+  }
+
+  // Calculate offsets for tiles that would collide
+  const newOffsets: Record<string, { x: number; y: number }> = {}
+
+  for (const tile of tiles) {
+    if (tile.id === tileId) continue
+
+    const staticTile = {
+      pos_x: tile.pos_x,
+      pos_y: tile.pos_y,
+      width: tile.width,
+      height: tile.height,
+    }
+
+    if (tilesOverlap(movingTile, staticTile)) {
+      // Push tile down below the moving tile
+      const pushY = movingTile.pos_y + movingTile.height - tile.pos_y
+      newOffsets[tile.id] = { x: 0, y: pushY }
+    }
+  }
+
+  tileOffsets.value = newOffsets
+}
+
+// Clear preview offsets when drag ends
+function clearTilePreview() {
+  draggingTileId.value = null
+  tileOffsets.value = {}
+}
+
+// Resolve collisions and return all tiles that need updates
+function resolveCollisions(
+  movedTileId: string,
+  updates: Partial<Tile>,
+): Array<{ id: string; pos_x: number; pos_y: number }> {
+  const tiles = dashboard.value.tiles || []
+  const result: Array<{ id: string; pos_x: number; pos_y: number }> = []
+
+  const movedTile = tiles.find((t) => t.id === movedTileId)
+  if (!movedTile) return result
+
+  const moving = {
+    pos_x: updates.pos_x ?? movedTile.pos_x,
+    pos_y: updates.pos_y ?? movedTile.pos_y,
+    width: updates.width ?? movedTile.width,
+    height: updates.height ?? movedTile.height,
+  }
+
+  result.push({ id: movedTileId, pos_x: moving.pos_x, pos_y: moving.pos_y })
+
+  // Find and push colliding tiles down
+  for (const tile of tiles) {
+    if (tile.id === movedTileId) continue
+
+    const staticTile = {
+      pos_x: tile.pos_x,
+      pos_y: tile.pos_y,
+      width: tile.width,
+      height: tile.height,
+    }
+
+    if (tilesOverlap(moving, staticTile)) {
+      // Push tile down
+      const newY = moving.pos_y + moving.height
+      result.push({ id: tile.id, pos_x: tile.pos_x, pos_y: newY })
+    }
+  }
+
+  return result
+}
+
+// Get effective tile position (with preview offset applied)
+function getEffectiveTilePosition(tile: Tile) {
+  const offset = tileOffsets.value[tile.id]
+  if (offset && draggingTileId.value && tile.id !== draggingTileId.value) {
+    return {
+      x: tile.pos_x + offset.x,
+      y: tile.pos_y + offset.y,
+    }
+  }
+  return { x: tile.pos_x, y: tile.pos_y }
 }
 
 // Get visualization info for a tile
@@ -351,8 +486,8 @@ watch(
         <GridItem
           v-for="tile in dashboard.tiles"
           :key="tile.id"
-          :x="tile.pos_x"
-          :y="tile.pos_y"
+          :x="getEffectiveTilePosition(tile).x"
+          :y="getEffectiveTilePosition(tile).y"
           :width="tile.width"
           :height="tile.height"
           :grid-cols="GRID_COLS"
@@ -360,7 +495,16 @@ watch(
           :gap="16"
           :min-width="2"
           :min-height="2"
-          @change="(x, y, w, h) => updateTile(tile, { pos_x: x, pos_y: y, width: w, height: h })"
+          :class="{ 'transition-all duration-200': tileOffsets[tile.id] }"
+          @preview="(x, y, w, h) => handleTilePreview(tile.id, x, y, w, h)"
+          @change="
+            (x, y, w, h) => {
+              clearTilePreview()
+              updateTile(tile, { pos_x: x, pos_y: y, width: w, height: h })
+            }
+          "
+          @drag-end="clearTilePreview"
+          @resize-end="clearTilePreview"
         >
           <LCard padding="none" class="h-full overflow-hidden">
             <!-- Tile header -->

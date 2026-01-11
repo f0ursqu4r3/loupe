@@ -21,6 +21,7 @@ const emit = defineEmits<{
   'update:position': [x: number, y: number]
   'update:size': [width: number, height: number]
   change: [x: number, y: number, width: number, height: number]
+  preview: [x: number, y: number, width: number, height: number]
   dragStart: []
   dragEnd: []
   resizeStart: []
@@ -114,6 +115,9 @@ function onDrag(e: MouseEvent | TouchEvent) {
 
   tempX.value = newX
   tempY.value = newY
+
+  // Emit preview so parent can handle collisions
+  emit('preview', newX, newY, props.width, props.height)
 }
 
 function endDrag() {
@@ -217,6 +221,9 @@ function onResize(e: MouseEvent | TouchEvent) {
     tempHeight.value = newHeight
     tempY.value = newY
   }
+
+  // Emit preview so parent can handle collisions
+  emit('preview', tempX.value, tempY.value, tempWidth.value, tempHeight.value)
 }
 
 function endResize() {

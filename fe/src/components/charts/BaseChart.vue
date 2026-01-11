@@ -173,13 +173,25 @@ function handleResize() {
   chart?.resize()
 }
 
+// Use ResizeObserver to detect container size changes
+let resizeObserver: ResizeObserver | null = null
+
 onMounted(() => {
   initChart()
   window.addEventListener('resize', handleResize)
+
+  // Observe container for size changes (e.g., when grid item resizes)
+  if (chartRef.value) {
+    resizeObserver = new ResizeObserver(() => {
+      handleResize()
+    })
+    resizeObserver.observe(chartRef.value)
+  }
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
+  resizeObserver?.disconnect()
   chart?.dispose()
 })
 
