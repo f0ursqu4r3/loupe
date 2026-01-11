@@ -107,19 +107,16 @@ export interface UpdateQueryRequest {
 }
 
 // ===== Run =====
-export type RunStatus = 'pending' | 'running' | 'success' | 'error' | 'timeout' | 'cancelled'
+export type RunStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled' | 'timeout'
 
-export interface Run extends Timestamps {
+export interface Run {
   id: UUID
-  org_id: UUID
   query_id: UUID
   status: RunStatus
-  parameters: Record<string, unknown>
   started_at?: string
-  finished_at?: string
-  row_count?: number
+  completed_at?: string
   error_message?: string
-  triggered_by: UUID
+  created_at: string
 }
 
 export interface ExecuteQueryRequest {
@@ -129,16 +126,17 @@ export interface ExecuteQueryRequest {
 }
 
 export interface QueryResult {
+  run_id?: string
   columns: ColumnInfo[]
-  rows: Record<string, unknown>[]
+  rows: unknown[][]
   row_count: number
   execution_time_ms: number
-  truncated: boolean
+  truncated?: boolean
 }
 
 export interface ColumnInfo {
   name: string
-  type: string
+  data_type: string
 }
 
 // ===== Visualization =====

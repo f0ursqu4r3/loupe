@@ -65,8 +65,9 @@ async function loadDatasources() {
   try {
     datasources.value = await datasourcesApi.list()
     // Auto-select first datasource for new queries
-    if (isNew.value && datasources.value.length > 0 && !query.value.datasource_id) {
-      query.value.datasource_id = datasources.value[0].id
+    const firstDatasource = datasources.value[0]
+    if (isNew.value && firstDatasource && !query.value.datasource_id) {
+      query.value.datasource_id = firstDatasource.id
     }
   } catch (e) {
     console.error('Failed to load datasources:', e)
@@ -143,11 +144,9 @@ async function runQuery() {
     return
   }
 
-  // For new queries, we need to save first
-  if (isNew.value) {
-    await saveQuery()
-    if (error.value) return
-  }
+  // Always save before running to ensure latest changes are executed
+  await saveQuery()
+  if (error.value) return
 
   try {
     running.value = true
@@ -155,8 +154,10 @@ async function runQuery() {
     result.value = null
     showResults.value = true
 
-    // Execute the query
-    currentRun.value = await queriesApi.execute(query.value.id || queryId.value!, {
+    // Execute the query via runs API
+    const queryIdToRun = query.value.id || queryId.value!
+    currentRun.value = await runsApi.create({
+      query_id: queryIdToRun,
       parameters: {},
     })
 
@@ -180,12 +181,16 @@ async function pollRunStatus() {
       const run = await runsApi.get(currentRun.value.id)
       currentRun.value = run
 
-      if (run.status === 'succeeded') {
+      if (run.status === 'completed') {
         // Fetch results
         result.value = await runsApi.getResult(run.id)
         running.value = false
         return
-      } else if (run.status === 'failed' || run.status === 'canceled') {
+      } else if (
+        run.status === 'failed' ||
+        run.status === 'cancelled' ||
+        run.status === 'timeout'
+      ) {
         resultError.value = run.error_message || `Query ${run.status}`
         running.value = false
         return
@@ -205,10 +210,18 @@ async function pollRunStatus() {
   running.value = false
 }
 
-// Format duration
+// Format duration from ms
 function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms}ms`
   return `${(ms / 1000).toFixed(2)}s`
+}
+
+// Compute duration from run timestamps
+function getRunDuration(run: Run): number | null {
+  if (run.started_at && run.completed_at) {
+    return new Date(run.completed_at).getTime() - new Date(run.started_at).getTime()
+  }
+  return null
 }
 
 onMounted(() => {
@@ -255,7 +268,7 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
         v-if="error"
         class="flex items-center gap-3 p-3 bg-error-muted text-error rounded-lg text-sm"
       >
-        <AlertCircle class="h-5 w-5 flex-shrink-0" />
+        <AlertCircle class="h-5 w-5 shrink-0" />
         <span class="flex-1">{{ error }}</span>
         <button @click="error = null" class="p-1 hover:bg-error/20 rounded">
           <X class="h-4 w-4" />
@@ -267,7 +280,7 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
         v-if="saveSuccess"
         class="flex items-center gap-3 p-3 bg-success-muted text-success rounded-lg text-sm"
       >
-        <CheckCircle class="h-5 w-5 flex-shrink-0" />
+        <CheckCircle class="h-5 w-5 shrink-0" />
         <span>Query saved successfully</span>
       </div>
 
@@ -329,7 +342,12 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
           <span class="text-sm font-medium text-text">SQL</span>
           <span class="text-xs text-text-subtle">Press ⌘+Enter to run</span>
         </div>
-        <SqlEditor v-model="query.sql" height="300px" @run="runQuery" />
+        <SqlEditor
+          :model-value="query.sql ?? ''"
+          @update:model-value="query.sql = $event"
+          height="300px"
+          @run="runQuery"
+        />
       </LCard>
 
       <!-- Results panel -->
@@ -341,11 +359,11 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
           <div class="flex items-center gap-3">
             <span class="text-sm font-medium text-text">Results</span>
             <template v-if="currentRun && !running">
-              <LBadge :variant="currentRun.status === 'succeeded' ? 'success' : 'error'" size="sm">
+              <LBadge :variant="currentRun.status === 'completed' ? 'success' : 'error'" size="sm">
                 {{ currentRun.status }}
               </LBadge>
-              <span v-if="currentRun.duration_ms" class="text-xs text-text-muted">
-                {{ formatDuration(currentRun.duration_ms) }}
+              <span v-if="getRunDuration(currentRun)" class="text-xs text-text-muted">
+                {{ formatDuration(getRunDuration(currentRun)!) }}
               </span>
               <span v-if="result" class="text-xs text-text-muted">
                 {{ result.rows.length.toLocaleString() }} rows
@@ -368,7 +386,7 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
           <!-- Error state -->
           <div v-else-if="resultError" class="p-4 bg-error-muted text-error text-sm">
             <div class="flex items-start gap-2">
-              <AlertCircle class="h-5 w-5 flex-shrink-0 mt-0.5" />
+              <AlertCircle class="h-5 w-5 shrink-0 mt-0.5" />
               <pre class="whitespace-pre-wrap font-mono text-xs">{{ resultError }}</pre>
             </div>
           </div>
@@ -385,24 +403,24 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
                   >
                     <div class="flex flex-col">
                       <span>{{ col.name }}</span>
-                      <span class="text-xs font-normal text-text-subtle">{{ col.type }}</span>
+                      <span class="text-xs font-normal text-text-subtle">{{ col.data_type }}</span>
                     </div>
                   </th>
                 </tr>
               </thead>
               <tbody>
                 <tr
-                  v-for="(row, idx) in result.rows"
-                  :key="idx"
+                  v-for="(row, rowIdx) in result.rows"
+                  :key="rowIdx"
                   class="border-b border-border hover:bg-surface-sunken/50"
                 >
                   <td
-                    v-for="col in result.columns"
-                    :key="col.name"
+                    v-for="(cell, colIdx) in row"
+                    :key="colIdx"
                     class="px-4 py-2 text-text whitespace-nowrap max-w-xs truncate"
                   >
-                    <span v-if="row[col.name] === null" class="text-text-subtle italic">null</span>
-                    <span v-else>{{ row[col.name] }}</span>
+                    <span v-if="cell === null" class="text-text-subtle italic">null</span>
+                    <span v-else>{{ cell }}</span>
                   </td>
                 </tr>
               </tbody>

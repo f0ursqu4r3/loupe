@@ -1,13 +1,12 @@
 import { api } from './client'
-import type {
-  Query,
-  CreateQueryRequest,
-  UpdateQueryRequest,
-  ExecuteQueryRequest,
-  Run,
-  QueryResult,
-  UUID,
-} from '@/types'
+import type { Query, CreateQueryRequest, UpdateQueryRequest, Run, QueryResult, UUID } from '@/types'
+
+export interface CreateRunRequest {
+  query_id: UUID
+  parameters?: Record<string, unknown>
+  timeout_seconds?: number
+  max_rows?: number
+}
 
 export const queriesApi = {
   list(): Promise<Query[]> {
@@ -23,19 +22,11 @@ export const queriesApi = {
   },
 
   update(id: UUID, data: UpdateQueryRequest): Promise<Query> {
-    return api.patch<Query>(`/queries/${id}`, data)
+    return api.put<Query>(`/queries/${id}`, data)
   },
 
   delete(id: UUID): Promise<void> {
     return api.delete(`/queries/${id}`)
-  },
-
-  execute(id: UUID, data?: ExecuteQueryRequest): Promise<Run> {
-    return api.post<Run>(`/queries/${id}/execute`, data)
-  },
-
-  preview(id: UUID, data?: ExecuteQueryRequest): Promise<QueryResult> {
-    return api.post<QueryResult>(`/queries/${id}/preview`, data)
   },
 }
 
@@ -50,6 +41,10 @@ export const runsApi = {
 
   getResult(id: UUID): Promise<QueryResult> {
     return api.get<QueryResult>(`/runs/${id}/result`)
+  },
+
+  create(data: CreateRunRequest): Promise<Run> {
+    return api.post<Run>('/runs', data)
   },
 
   cancel(id: UUID): Promise<Run> {
