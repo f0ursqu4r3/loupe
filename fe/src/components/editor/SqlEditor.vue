@@ -229,7 +229,7 @@ defineExpose({
 <template>
   <div
     ref="containerRef"
-    class="rounded-md border border-border overflow-hidden"
-    :style="{ height }"
+    class="h-full w-full rounded-md border border-border overflow-hidden"
+    :style="height ? { height } : undefined"
   />
 </template>
