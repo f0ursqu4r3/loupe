@@ -4,6 +4,7 @@ pub use postgres::PostgresConnector;
 
 use crate::error::Result;
 use crate::models::ColumnDef;
+use crate::params::TypedValue;
 use async_trait::async_trait;
 use std::time::Duration;
 
@@ -22,10 +23,19 @@ pub trait Connector: Send + Sync {
     /// Test if the connection is valid
     async fn test_connection(&self) -> Result<Duration>;
 
-    /// Execute a query and return results
+    /// Execute a query and return results (no parameters)
     async fn execute(
         &self,
         sql: &str,
+        timeout: Duration,
+        max_rows: usize,
+    ) -> Result<QueryOutput>;
+
+    /// Execute a query with bound parameters
+    async fn execute_with_params(
+        &self,
+        sql: &str,
+        params: &[TypedValue],
         timeout: Duration,
         max_rows: usize,
     ) -> Result<QueryOutput>;

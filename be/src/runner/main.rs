@@ -1,5 +1,6 @@
 use loupe::connectors::{Connector, PostgresConnector};
 use loupe::models::DatasourceType;
+use loupe::params::TypedValue;
 use loupe::Database;
 use std::time::Duration;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -90,7 +91,19 @@ async fn execute_run(db: &Database, run: &loupe::models::Run) -> anyhow::Result<
     let timeout = Duration::from_secs(run.timeout_seconds as u64);
     let max_rows = run.max_rows as usize;
 
-    match connector.execute(&run.executed_sql, timeout, max_rows).await {
+    // Parse bound parameters from run.parameters
+    let params = parse_bound_params(&run.parameters)?;
+
+    // Execute with or without parameters
+    let result = if params.is_empty() {
+        connector.execute(&run.executed_sql, timeout, max_rows).await
+    } else {
+        connector
+            .execute_with_params(&run.executed_sql, &params, timeout, max_rows)
+            .await
+    };
+
+    match result {
         Ok(output) => {
             let execution_time_ms = start.elapsed().as_millis() as i64;
 
@@ -136,4 +149,52 @@ async fn execute_run(db: &Database, run: &loupe::models::Run) -> anyhow::Result<
     }
 
     Ok(())
+}
+
+/// Parse bound parameters from JSON array stored in run.parameters
+fn parse_bound_params(params_json: &serde_json::Value) -> anyhow::Result<Vec<TypedValue>> {
+    let arr = match params_json.as_array() {
+        Some(a) => a,
+        None => return Ok(vec![]), // Empty or object = no bound params
+    };
+
+    let mut params = Vec::with_capacity(arr.len());
+    for item in arr {
+        let type_str = item
+            .get("type")
+            .and_then(|t| t.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Parameter missing 'type' field"))?;
+
+        let value = item.get("value");
+
+        let typed = match type_str {
+            "string" => TypedValue::String(
+                value
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+            ),
+            "number" => TypedValue::Number(value.and_then(|v| v.as_f64()).unwrap_or(0.0)),
+            "integer" => TypedValue::Integer(value.and_then(|v| v.as_i64()).unwrap_or(0)),
+            "boolean" => TypedValue::Boolean(value.and_then(|v| v.as_bool()).unwrap_or(false)),
+            "date" => {
+                let s = value.and_then(|v| v.as_str()).unwrap_or("");
+                let date = chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d")
+                    .map_err(|e| anyhow::anyhow!("Invalid date '{}': {}", s, e))?;
+                TypedValue::Date(date)
+            }
+            "datetime" => {
+                let s = value.and_then(|v| v.as_str()).unwrap_or("");
+                let dt = chrono::DateTime::parse_from_rfc3339(s)
+                    .map_err(|e| anyhow::anyhow!("Invalid datetime '{}': {}", s, e))?;
+                TypedValue::DateTime(dt.with_timezone(&chrono::Utc))
+            }
+            "null" => TypedValue::Null,
+            other => return Err(anyhow::anyhow!("Unknown parameter type: {}", other)),
+        };
+
+        params.push(typed);
+    }
+
+    Ok(params)
 }

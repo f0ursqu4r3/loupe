@@ -1,9 +1,10 @@
 use super::{ColumnSchema, Connector, QueryOutput, TableSchema};
 use crate::error::{Error, Result};
 use crate::models::ColumnDef;
+use crate::params::TypedValue;
 use async_trait::async_trait;
-use sqlx::postgres::PgPoolOptions;
-use sqlx::{Column, PgPool, Row, TypeInfo};
+use sqlx::postgres::{PgArguments, PgPoolOptions};
+use sqlx::{Arguments, Column, PgPool, Row, TypeInfo};
 use std::time::{Duration, Instant};
 
 pub struct PostgresConnector {
@@ -53,6 +54,91 @@ impl Connector for PostgresConnector {
             .await
             .map_err(|_| Error::Timeout(format!("Query timed out after {:?}", timeout)))?
             .map_err(|e| Error::QueryExecution(e.to_string()))?;
+
+        let execution_time = start.elapsed();
+
+        if rows.is_empty() {
+            return Ok(QueryOutput {
+                columns: vec![],
+                rows: vec![],
+                row_count: 0,
+                execution_time,
+            });
+        }
+
+        // Extract column information
+        let columns: Vec<ColumnDef> = rows[0]
+            .columns()
+            .iter()
+            .map(|c| ColumnDef {
+                name: c.name().to_string(),
+                data_type: c.type_info().name().to_string(),
+            })
+            .collect();
+
+        // Extract row data
+        let result_rows: Vec<Vec<serde_json::Value>> = rows
+            .iter()
+            .map(|row| {
+                columns
+                    .iter()
+                    .enumerate()
+                    .map(|(i, col)| pg_value_to_json(row, i, &col.data_type))
+                    .collect()
+            })
+            .collect();
+
+        let row_count = result_rows.len();
+
+        Ok(QueryOutput {
+            columns,
+            rows: result_rows,
+            row_count,
+            execution_time,
+        })
+    }
+
+    async fn execute_with_params(
+        &self,
+        sql: &str,
+        params: &[TypedValue],
+        timeout: Duration,
+        max_rows: usize,
+    ) -> Result<QueryOutput> {
+        let start = Instant::now();
+
+        // Wrap query with limit
+        let limited_sql = format!(
+            "SELECT * FROM ({}) AS _q LIMIT {}",
+            sql.trim().trim_end_matches(';'),
+            max_rows
+        );
+
+        // Build arguments
+        let mut args = PgArguments::default();
+        for param in params {
+            match param {
+                TypedValue::String(s) => args.add(s.as_str()).map_err(|e| Error::BadRequest(e.to_string()))?,
+                TypedValue::Number(n) => args.add(*n).map_err(|e| Error::BadRequest(e.to_string()))?,
+                TypedValue::Integer(i) => args.add(*i).map_err(|e| Error::BadRequest(e.to_string()))?,
+                TypedValue::Boolean(b) => args.add(*b).map_err(|e| Error::BadRequest(e.to_string()))?,
+                TypedValue::Date(d) => args.add(*d).map_err(|e| Error::BadRequest(e.to_string()))?,
+                TypedValue::DateTime(dt) => args.add(*dt).map_err(|e| Error::BadRequest(e.to_string()))?,
+                TypedValue::Null => {
+                    // For null, we need to bind as Option<String>
+                    let null_val: Option<String> = None;
+                    args.add(null_val).map_err(|e| Error::BadRequest(e.to_string()))?;
+                }
+            }
+        }
+
+        let rows = tokio::time::timeout(
+            timeout,
+            sqlx::query_with(&limited_sql, args).fetch_all(&self.pool),
+        )
+        .await
+        .map_err(|_| Error::Timeout(format!("Query timed out after {:?}", timeout)))?
+        .map_err(|e| Error::QueryExecution(e.to_string()))?;
 
         let execution_time = start.elapsed();
 

@@ -1,8 +1,10 @@
 use crate::AppState;
 use crate::routes::auth::get_auth_context;
 use actix_web::{HttpRequest, HttpResponse, web};
+use loupe::models::{CreateRunRequest, ExecuteAdHocRequest, ParamDef, RunResponse, RunResultResponse};
+use loupe::params::{bind_params, ParamSchema};
 use loupe::Error;
-use loupe::models::{CreateRunRequest, ExecuteAdHocRequest, RunResponse, RunResultResponse};
+use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -47,6 +49,51 @@ async fn create_run(
     let timeout = body.timeout_seconds.unwrap_or(query.timeout_seconds);
     let max_rows = body.max_rows.unwrap_or(query.max_rows);
 
+    // Parse query's parameter schema
+    let param_defs: Vec<ParamDef> =
+        serde_json::from_value(query.parameters.clone()).unwrap_or_default();
+
+    // Convert to ParamSchema for binding
+    let schema: Vec<ParamSchema> = param_defs
+        .iter()
+        .map(|p| ParamSchema {
+            name: p.name.clone(),
+            param_type: p.param_type.clone(),
+            required: p.required,
+            default: p.default.clone(),
+        })
+        .collect();
+
+    // Convert request params (JSON object) to HashMap
+    let param_values: HashMap<String, serde_json::Value> = body
+        .parameters
+        .as_object()
+        .map(|obj| obj.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
+        .unwrap_or_default();
+
+    // Bind parameters: validate types and convert $name to $1, $2, ...
+    let (executed_sql, bound_values) = if schema.is_empty() {
+        // No parameters, use SQL as-is
+        (query.sql.clone(), serde_json::json!([]))
+    } else {
+        let bound = bind_params(&query.sql, &schema, &param_values)?;
+        // Store the typed values in order for the runner
+        let values_json: Vec<serde_json::Value> = bound
+            .values
+            .iter()
+            .map(|tv| match tv {
+                loupe::TypedValue::String(s) => serde_json::json!({"type": "string", "value": s}),
+                loupe::TypedValue::Number(n) => serde_json::json!({"type": "number", "value": n}),
+                loupe::TypedValue::Integer(i) => serde_json::json!({"type": "integer", "value": i}),
+                loupe::TypedValue::Boolean(b) => serde_json::json!({"type": "boolean", "value": b}),
+                loupe::TypedValue::Date(d) => serde_json::json!({"type": "date", "value": d.to_string()}),
+                loupe::TypedValue::DateTime(dt) => serde_json::json!({"type": "datetime", "value": dt.to_rfc3339()}),
+                loupe::TypedValue::Null => serde_json::json!({"type": "null", "value": null}),
+            })
+            .collect();
+        (bound.sql, serde_json::json!(values_json))
+    };
+
     // Create the run (status = queued)
     let run = state
         .db
@@ -54,8 +101,8 @@ async fn create_run(
             org_id,
             query.id,
             query.datasource_id,
-            &query.sql,
-            &body.parameters,
+            &executed_sql,
+            &bound_values,
             timeout,
             max_rows,
             user_id,
@@ -75,6 +122,7 @@ async fn execute_adhoc(
     // Verify datasource exists
     let datasource = state.db.get_datasource(body.datasource_id, org_id).await?;
 
+    // For ad-hoc queries, no parameter schema is defined (raw SQL only)
     // Create an ephemeral query
     let query = state
         .db
@@ -91,7 +139,7 @@ async fn execute_adhoc(
         )
         .await?;
 
-    // Create the run
+    // Create the run with raw SQL (no parameter binding for ad-hoc)
     let run = state
         .db
         .create_run(
@@ -99,7 +147,7 @@ async fn execute_adhoc(
             query.id,
             datasource.id,
             &body.sql,
-            &body.parameters,
+            &serde_json::json!([]), // Empty params array
             body.timeout_seconds,
             body.max_rows,
             user_id,
