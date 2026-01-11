@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue'
+import { GripVertical } from 'lucide-vue-next'
 
 const props = defineProps<{
   x: number
