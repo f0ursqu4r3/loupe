@@ -47,6 +47,18 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/visualizations/new',
+      name: 'visualization-new',
+      component: () => import('@/views/VisualizationEditorView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/visualizations/:id',
+      name: 'visualization-editor',
+      component: () => import('@/views/VisualizationEditorView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/schedules',
       name: 'schedules',
       component: () => import('@/views/SchedulesView.vue'),

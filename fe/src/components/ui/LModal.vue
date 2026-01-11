@@ -4,6 +4,8 @@ import { X } from 'lucide-vue-next'
 
 interface Props {
   modelValue?: boolean
+  /** Alias for modelValue for convenience */
+  open?: boolean
   title?: string
   size?: 'sm' | 'md' | 'lg' | 'xl' | 'full'
   closable?: boolean
@@ -12,7 +14,8 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  modelValue: false,
+  modelValue: undefined,
+  open: undefined,
   size: 'md',
   closable: true,
   closeOnOverlay: true,
@@ -21,14 +24,16 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
+  close: []
 }>()
 
-const isOpen = ref(props.modelValue)
+// Support both modelValue and open props
+const isOpen = ref(props.modelValue ?? props.open ?? false)
 
 watch(
-  () => props.modelValue,
+  () => props.modelValue ?? props.open,
   (value) => {
-    isOpen.value = value
+    isOpen.value = value ?? false
   },
 )
 
@@ -36,6 +41,7 @@ function close() {
   if (props.closable) {
     isOpen.value = false
     emit('update:modelValue', false)
+    emit('close')
   }
 }
 

@@ -20,7 +20,7 @@ export const visualizationsApi = {
   },
 
   update(id: UUID, data: UpdateVisualizationRequest): Promise<Visualization> {
-    return api.patch<Visualization>(`/visualizations/${id}`, data)
+    return api.put<Visualization>(`/visualizations/${id}`, data)
   },
 
   delete(id: UUID): Promise<void> {

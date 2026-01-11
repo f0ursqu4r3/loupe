@@ -15,6 +15,7 @@ import {
   CheckCircle,
   X,
   WandSparkles,
+  BarChart3,
 } from 'lucide-vue-next'
 import { AppLayout } from '@/components/layout'
 import { LButton, LInput, LTextarea, LSelect, LCard, LSpinner, LBadge } from '@/components/ui'
@@ -386,8 +387,21 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
               </span>
             </template>
           </div>
-          <ChevronUp v-if="showResults" class="h-4 w-4 text-text-muted" />
-          <ChevronDown v-else class="h-4 w-4 text-text-muted" />
+          <div class="flex items-center gap-2">
+            <LButton
+              v-if="result && !isNew"
+              variant="ghost"
+              size="sm"
+              @click.stop="
+                router.push({ name: 'visualization-new', query: { query_id: query.id || queryId } })
+              "
+            >
+              <BarChart3 class="h-4 w-4" />
+              Visualize
+            </LButton>
+            <ChevronUp v-if="showResults" class="h-4 w-4 text-text-muted" />
+            <ChevronDown v-else class="h-4 w-4 text-text-muted" />
+          </div>
         </button>
 
         <div v-if="showResults" class="max-h-96 overflow-auto">
