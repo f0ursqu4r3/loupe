@@ -50,6 +50,7 @@ CREATE TABLE
         description TEXT,
         SQL TEXT NOT NULL,
         parameters JSONB NOT NULL DEFAULT '[]',
+        tags JSONB NOT NULL DEFAULT '[]',
         timeout_seconds INTEGER NOT NULL DEFAULT 30,
         max_rows INTEGER NOT NULL DEFAULT 10000,
         created_by UUID NOT NULL REFERENCES users (id),
@@ -60,6 +61,8 @@ CREATE TABLE
 CREATE INDEX idx_queries_org_id ON queries (org_id);
 
 CREATE INDEX idx_queries_datasource_id ON queries (datasource_id);
+
+CREATE INDEX idx_queries_tags ON queries USING GIN (tags);
 
 -- Runs
 CREATE TABLE
@@ -114,8 +117,9 @@ CREATE TABLE
         org_id UUID NOT NULL REFERENCES organizations (id) ON DELETE CASCADE,
         query_id UUID NOT NULL REFERENCES queries (id) ON DELETE CASCADE,
         name TEXT NOT NULL,
-        chart_type TEXT NOT NULL CHECK (chart_type IN ('table', 'line', 'bar', 'single_stat')),
+        chart_type TEXT NOT NULL CHECK (chart_type IN ('table', 'line', 'bar', 'pie', 'single_stat')),
         config JSONB NOT NULL DEFAULT '{}',
+        tags JSONB NOT NULL DEFAULT '[]',
         created_by UUID NOT NULL REFERENCES users (id),
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW ()
@@ -125,6 +129,8 @@ CREATE INDEX idx_visualizations_org_id ON visualizations (org_id);
 
 CREATE INDEX idx_visualizations_query_id ON visualizations (query_id);
 
+CREATE INDEX idx_visualizations_tags ON visualizations USING GIN (tags);
+
 -- Dashboards
 CREATE TABLE
     dashboards (
@@ -133,12 +139,15 @@ CREATE TABLE
         name TEXT NOT NULL,
         description TEXT,
         parameters JSONB NOT NULL DEFAULT '[]',
+        tags JSONB NOT NULL DEFAULT '[]',
         created_by UUID NOT NULL REFERENCES users (id),
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW ()
     );
 
 CREATE INDEX idx_dashboards_org_id ON dashboards (org_id);
+
+CREATE INDEX idx_dashboards_tags ON dashboards USING GIN (tags);
 
 -- Tiles
 CREATE TABLE
@@ -167,6 +176,7 @@ CREATE TABLE
         name TEXT NOT NULL,
         cron_expression TEXT NOT NULL,
         parameters JSONB NOT NULL DEFAULT '{}',
+        tags JSONB NOT NULL DEFAULT '[]',
         enabled BOOLEAN NOT NULL DEFAULT TRUE,
         last_run_at TIMESTAMPTZ,
         next_run_at TIMESTAMPTZ,
@@ -180,3 +190,5 @@ CREATE INDEX idx_schedules_org_id ON schedules (org_id);
 CREATE INDEX idx_schedules_enabled ON schedules (enabled);
 
 CREATE INDEX idx_schedules_next_run_at ON schedules (next_run_at);
+
+CREATE INDEX idx_schedules_tags ON schedules USING GIN (tags);
