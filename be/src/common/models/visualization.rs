@@ -45,6 +45,7 @@ pub struct CreateVisualizationRequest {
 
 #[derive(Debug, Deserialize)]
 pub struct UpdateVisualizationRequest {
+    pub query_id: Option<Uuid>,
     pub name: Option<String>,
     pub chart_type: Option<ChartType>,
     pub config: Option<serde_json::Value>,

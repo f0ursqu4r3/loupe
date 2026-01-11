@@ -94,16 +94,19 @@ async fn update_visualization(
     let (_, org_id) = get_auth_context(&req)?;
     let id = path.into_inner();
 
-    let tags = body
-        .tags
-        .as_ref()
-        .map(|t| serde_json::to_value(t).unwrap());
+    // If changing query, verify the new query exists and belongs to org
+    if let Some(query_id) = body.query_id {
+        state.db.get_query(query_id, org_id).await?;
+    }
+
+    let tags = body.tags.as_ref().map(|t| serde_json::to_value(t).unwrap());
 
     let viz = state
         .db
         .update_visualization(
             id,
             org_id,
+            body.query_id,
             body.name.as_deref(),
             body.chart_type,
             body.config.as_ref(),

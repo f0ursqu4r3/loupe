@@ -569,6 +569,7 @@ impl Database {
         &self,
         id: Uuid,
         org_id: Uuid,
+        query_id: Option<Uuid>,
         name: Option<&str>,
         chart_type: Option<ChartType>,
         config: Option<&serde_json::Value>,
@@ -577,10 +578,11 @@ impl Database {
         let viz = sqlx::query_as::<_, Visualization>(
             r#"
             UPDATE visualizations
-            SET name = COALESCE($3, name),
-                chart_type = COALESCE($4, chart_type),
-                config = COALESCE($5, config),
-                tags = COALESCE($6, tags),
+            SET query_id = COALESCE($3, query_id),
+                name = COALESCE($4, name),
+                chart_type = COALESCE($5, chart_type),
+                config = COALESCE($6, config),
+                tags = COALESCE($7, tags),
                 updated_at = NOW()
             WHERE id = $1 AND org_id = $2
             RETURNING *
@@ -588,6 +590,7 @@ impl Database {
         )
         .bind(id)
         .bind(org_id)
+        .bind(query_id)
         .bind(name)
         .bind(chart_type)
         .bind(config)
