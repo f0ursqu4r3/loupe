@@ -10,6 +10,8 @@ import {
   X,
   Plus,
   Trash2,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-vue-next'
 import { AppLayout } from '@/components/layout'
 import { LButton, LInput, LCard, LSpinner, LModal, LEmptyState, LTagsInput } from '@/components/ui'
@@ -52,6 +54,9 @@ const showAddTileModal = ref(false)
 const visualizations = ref<Visualization[]>([])
 const selectedVisualizationId = ref<string | null>(null)
 const addingTile = ref(false)
+
+// Settings panel collapsed state
+const settingsCollapsed = ref(false)
 
 // Tile data cache - stores query results for each visualization
 const tileData = ref<Record<string, QueryResult | null>>({})
@@ -436,23 +441,48 @@ watch(
 
       <!-- Dashboard metadata -->
       <LCard padding="sm">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-text mb-1.5">Name</label>
-            <LInput v-model="dashboard.name" placeholder="My Dashboard" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-text mb-1.5">Description (optional)</label>
-            <LInput v-model="dashboard.description" placeholder="Dashboard description..." />
-          </div>
+        <!-- Collapsed view: just name -->
+        <div
+          v-if="settingsCollapsed"
+          class="flex items-center gap-3 cursor-pointer"
+          @click="settingsCollapsed = false"
+        >
+          <ChevronRight class="h-4 w-4 text-text-muted" />
+          <span class="font-medium text-text">{{ dashboard.name || 'Untitled Dashboard' }}</span>
+          <span v-if="dashboard.description" class="text-sm text-text-muted truncate">
+            — {{ dashboard.description }}
+          </span>
         </div>
-        <div class="mt-4">
-          <label class="block text-sm font-medium text-text mb-1.5">Tags</label>
-          <LTagsInput
-            :model-value="dashboard.tags || []"
-            @update:model-value="dashboard.tags = $event"
-            placeholder="Add tags for filtering..."
-          />
+
+        <!-- Expanded view: all fields -->
+        <div v-else>
+          <div
+            class="flex items-center gap-2 mb-4 cursor-pointer"
+            @click="settingsCollapsed = true"
+          >
+            <ChevronDown class="h-4 w-4 text-text-muted" />
+            <span class="text-sm text-text-muted">Settings</span>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-text mb-1.5">Name</label>
+              <LInput v-model="dashboard.name" placeholder="My Dashboard" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-text mb-1.5"
+                >Description (optional)</label
+              >
+              <LInput v-model="dashboard.description" placeholder="Dashboard description..." />
+            </div>
+          </div>
+          <div class="mt-4">
+            <label class="block text-sm font-medium text-text mb-1.5">Tags</label>
+            <LTagsInput
+              :model-value="dashboard.tags || []"
+              @update:model-value="dashboard.tags = $event"
+              placeholder="Add tags for filtering..."
+            />
+          </div>
         </div>
       </LCard>
 
