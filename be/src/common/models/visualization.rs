@@ -10,6 +10,7 @@ pub enum ChartType {
     Table,
     Line,
     Bar,
+    Pie,
     SingleStat,
 }
 
