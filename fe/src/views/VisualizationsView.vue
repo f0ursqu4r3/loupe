@@ -1,7 +1,17 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Plus, BarChart3, Table, LineChart, Hash, Trash2, PieChart } from 'lucide-vue-next'
+import {
+  Plus,
+  BarChart3,
+  Table,
+  LineChart,
+  Hash,
+  Trash2,
+  PieChart,
+  LayoutGrid,
+  List,
+} from 'lucide-vue-next'
 import { AppLayout } from '@/components/layout'
 import { LButton, LCard, LEmptyState, LSpinner, LModal } from '@/components/ui'
 import { visualizationsApi, queriesApi } from '@/services/api'
@@ -13,6 +23,9 @@ const visualizations = ref<Visualization[]>([])
 const queries = ref<Query[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
+
+// View mode: 'grid' or 'list'
+const viewMode = ref<'grid' | 'list'>('grid')
 
 // Modal state
 const showNewModal = ref(false)
@@ -88,6 +101,35 @@ async function deleteVisualization(id: string, event: Event) {
 <template>
   <AppLayout title="Visualizations">
     <template #header-actions>
+      <!-- View toggle -->
+      <div class="flex items-center border border-border rounded-lg overflow-hidden mr-2">
+        <button
+          type="button"
+          class="p-2 transition-colors"
+          :class="
+            viewMode === 'grid'
+              ? 'bg-primary-100 dark:bg-primary-900 text-primary-600'
+              : 'text-text-muted hover:text-text hover:bg-surface-sunken'
+          "
+          @click="viewMode = 'grid'"
+          title="Grid view"
+        >
+          <LayoutGrid class="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          class="p-2 transition-colors"
+          :class="
+            viewMode === 'list'
+              ? 'bg-primary-100 dark:bg-primary-900 text-primary-600'
+              : 'text-text-muted hover:text-text hover:bg-surface-sunken'
+          "
+          @click="viewMode = 'list'"
+          title="List view"
+        >
+          <List class="h-4 w-4" />
+        </button>
+      </div>
       <LButton @click="showNewModal = true">
         <Plus class="h-4 w-4" />
         New Visualization
@@ -117,8 +159,15 @@ async function deleteVisualization(id: string, event: Event) {
     </LEmptyState>
 
     <!-- Visualizations grid -->
-    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div
+      v-else
+      :class="
+        viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-3'
+      "
+    >
+      <!-- Grid view card -->
       <LCard
+        v-if="viewMode === 'grid'"
         v-for="viz in visualizations"
         :key="viz.id"
         class="group hover:border-primary-500/50 transition-colors cursor-pointer"
@@ -127,7 +176,7 @@ async function deleteVisualization(id: string, event: Event) {
         <div class="flex items-start justify-between mb-3">
           <div class="flex items-center gap-3">
             <div
-              class="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center"
+              class="w-10 h-10 shrink-0 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center"
             >
               <component :is="chartTypeIcons[viz.chart_type]" class="h-5 w-5 text-primary-600" />
             </div>
@@ -154,6 +203,43 @@ async function deleteVisualization(id: string, event: Event) {
         </div>
 
         <div class="text-xs text-text-subtle">Updated {{ formatDate(viz.updated_at) }}</div>
+      </LCard>
+
+      <!-- List view row -->
+      <LCard
+        v-if="viewMode === 'list'"
+        v-for="viz in visualizations"
+        :key="viz.id"
+        padding="sm"
+        class="group hover:border-primary-500/50 transition-colors cursor-pointer"
+        @click="openVisualization(viz)"
+      >
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div
+              class="w-10 h-10 shrink-0 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center"
+            >
+              <component :is="chartTypeIcons[viz.chart_type]" class="h-5 w-5 text-primary-600" />
+            </div>
+            <div>
+              <h3 class="font-medium text-text group-hover:text-primary-600 transition-colors">
+                {{ viz.name }}
+              </h3>
+              <span class="text-xs text-text-muted">{{ chartTypeLabels[viz.chart_type] }}</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-4">
+            <span class="text-xs text-text-subtle">Updated {{ formatDate(viz.updated_at) }}</span>
+            <button
+              type="button"
+              class="opacity-0 group-hover:opacity-100 p-1.5 rounded hover:bg-error-muted text-text-muted hover:text-error transition-all"
+              @click="deleteVisualization(viz.id, $event)"
+              :disabled="deleting === viz.id"
+            >
+              <Trash2 class="h-4 w-4" />
+            </button>
+          </div>
+        </div>
       </LCard>
     </div>
 
