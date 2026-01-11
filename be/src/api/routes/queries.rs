@@ -1,7 +1,8 @@
 use crate::AppState;
-use actix_web::{web, HttpResponse};
-use loupe::models::{CreateQueryRequest, QueryResponse, UpdateQueryRequest};
+use crate::routes::auth::get_auth_context;
+use actix_web::{HttpRequest, HttpResponse, web};
 use loupe::Error;
+use loupe::models::{CreateQueryRequest, QueryResponse, UpdateQueryRequest};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -16,15 +17,11 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     );
 }
 
-fn get_current_user() -> (Uuid, Uuid) {
-    (
-        Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
-        Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
-    )
-}
-
-async fn list_queries(state: web::Data<Arc<AppState>>) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_current_user();
+async fn list_queries(
+    state: web::Data<Arc<AppState>>,
+    req: HttpRequest,
+) -> Result<HttpResponse, Error> {
+    let (_, org_id) = get_auth_context(&req)?;
     let queries = state.db.list_queries(org_id).await?;
     let response: Vec<QueryResponse> = queries.into_iter().map(Into::into).collect();
     Ok(HttpResponse::Ok().json(response))
@@ -32,26 +29,27 @@ async fn list_queries(state: web::Data<Arc<AppState>>) -> Result<HttpResponse, E
 
 async fn create_query(
     state: web::Data<Arc<AppState>>,
-    req: web::Json<CreateQueryRequest>,
+    req: HttpRequest,
+    body: web::Json<CreateQueryRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (user_id, org_id) = get_current_user();
+    let (user_id, org_id) = get_auth_context(&req)?;
 
     // Verify datasource exists and belongs to org
-    state.db.get_datasource(req.datasource_id, org_id).await?;
+    state.db.get_datasource(body.datasource_id, org_id).await?;
 
-    let parameters = serde_json::to_value(&req.parameters).unwrap_or_default();
+    let parameters = serde_json::to_value(&body.parameters).unwrap_or_default();
 
     let query = state
         .db
         .create_query(
             org_id,
-            req.datasource_id,
-            &req.name,
-            req.description.as_deref(),
-            &req.sql,
+            body.datasource_id,
+            &body.name,
+            body.description.as_deref(),
+            &body.sql,
             &parameters,
-            req.timeout_seconds,
-            req.max_rows,
+            body.timeout_seconds,
+            body.max_rows,
             user_id,
         )
         .await?;
@@ -61,9 +59,10 @@ async fn create_query(
 
 async fn get_query(
     state: web::Data<Arc<AppState>>,
+    req: HttpRequest,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_current_user();
+    let (_, org_id) = get_auth_context(&req)?;
     let id = path.into_inner();
     let query = state.db.get_query(id, org_id).await?;
     Ok(HttpResponse::Ok().json(QueryResponse::from(query)))
@@ -71,25 +70,29 @@ async fn get_query(
 
 async fn update_query(
     state: web::Data<Arc<AppState>>,
+    req: HttpRequest,
     path: web::Path<Uuid>,
-    req: web::Json<UpdateQueryRequest>,
+    body: web::Json<UpdateQueryRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_current_user();
+    let (_, org_id) = get_auth_context(&req)?;
     let id = path.into_inner();
 
-    let parameters = req.parameters.as_ref().map(|p| serde_json::to_value(p).unwrap());
+    let parameters = body
+        .parameters
+        .as_ref()
+        .map(|p| serde_json::to_value(p).unwrap());
 
     let query = state
         .db
         .update_query(
             id,
             org_id,
-            req.name.as_deref(),
-            req.description.as_deref(),
-            req.sql.as_deref(),
+            body.name.as_deref(),
+            body.description.as_deref(),
+            body.sql.as_deref(),
             parameters.as_ref(),
-            req.timeout_seconds,
-            req.max_rows,
+            body.timeout_seconds,
+            body.max_rows,
         )
         .await?;
 
@@ -98,9 +101,10 @@ async fn update_query(
 
 async fn delete_query(
     state: web::Data<Arc<AppState>>,
+    req: HttpRequest,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_current_user();
+    let (_, org_id) = get_auth_context(&req)?;
     let id = path.into_inner();
     state.db.delete_query(id, org_id).await?;
     Ok(HttpResponse::NoContent().finish())

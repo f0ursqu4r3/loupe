@@ -1,7 +1,8 @@
 use crate::AppState;
-use actix_web::{web, HttpResponse};
-use loupe::models::{CreateRunRequest, ExecuteAdHocRequest, RunResponse, RunResultResponse};
+use crate::routes::auth::get_auth_context;
+use actix_web::{HttpRequest, HttpResponse, web};
 use loupe::Error;
+use loupe::models::{CreateRunRequest, ExecuteAdHocRequest, RunResponse, RunResultResponse};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -16,13 +17,6 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     );
 }
 
-fn get_current_user() -> (Uuid, Uuid) {
-    (
-        Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
-        Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
-    )
-}
-
 #[derive(serde::Deserialize)]
 pub struct ListRunsQuery {
     query_id: Option<Uuid>,
@@ -30,9 +24,10 @@ pub struct ListRunsQuery {
 
 async fn list_runs(
     state: web::Data<Arc<AppState>>,
+    req: HttpRequest,
     query: web::Query<ListRunsQuery>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_current_user();
+    let (_, org_id) = get_auth_context(&req)?;
     let runs = state.db.list_runs(org_id, query.query_id).await?;
     let response: Vec<RunResponse> = runs.into_iter().map(Into::into).collect();
     Ok(HttpResponse::Ok().json(response))
@@ -40,16 +35,17 @@ async fn list_runs(
 
 async fn create_run(
     state: web::Data<Arc<AppState>>,
-    req: web::Json<CreateRunRequest>,
+    req: HttpRequest,
+    body: web::Json<CreateRunRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (user_id, org_id) = get_current_user();
+    let (user_id, org_id) = get_auth_context(&req)?;
 
     // Get the query
-    let query = state.db.get_query(req.query_id, org_id).await?;
+    let query = state.db.get_query(body.query_id, org_id).await?;
 
     // Use query defaults or request overrides
-    let timeout = req.timeout_seconds.unwrap_or(query.timeout_seconds);
-    let max_rows = req.max_rows.unwrap_or(query.max_rows);
+    let timeout = body.timeout_seconds.unwrap_or(query.timeout_seconds);
+    let max_rows = body.max_rows.unwrap_or(query.max_rows);
 
     // Create the run (status = queued)
     let run = state
@@ -59,7 +55,7 @@ async fn create_run(
             query.id,
             query.datasource_id,
             &query.sql,
-            &req.parameters,
+            &body.parameters,
             timeout,
             max_rows,
             user_id,
@@ -71,12 +67,13 @@ async fn create_run(
 
 async fn execute_adhoc(
     state: web::Data<Arc<AppState>>,
-    req: web::Json<ExecuteAdHocRequest>,
+    req: HttpRequest,
+    body: web::Json<ExecuteAdHocRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (user_id, org_id) = get_current_user();
+    let (user_id, org_id) = get_auth_context(&req)?;
 
     // Verify datasource exists
-    let datasource = state.db.get_datasource(req.datasource_id, org_id).await?;
+    let datasource = state.db.get_datasource(body.datasource_id, org_id).await?;
 
     // Create an ephemeral query
     let query = state
@@ -86,10 +83,10 @@ async fn execute_adhoc(
             datasource.id,
             "_adhoc",
             None,
-            &req.sql,
+            &body.sql,
             &serde_json::json!([]),
-            req.timeout_seconds,
-            req.max_rows,
+            body.timeout_seconds,
+            body.max_rows,
             user_id,
         )
         .await?;
@@ -101,10 +98,10 @@ async fn execute_adhoc(
             org_id,
             query.id,
             datasource.id,
-            &req.sql,
-            &req.parameters,
-            req.timeout_seconds,
-            req.max_rows,
+            &body.sql,
+            &body.parameters,
+            body.timeout_seconds,
+            body.max_rows,
             user_id,
         )
         .await?;
@@ -114,9 +111,10 @@ async fn execute_adhoc(
 
 async fn get_run(
     state: web::Data<Arc<AppState>>,
+    req: HttpRequest,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_current_user();
+    let (_, org_id) = get_auth_context(&req)?;
     let id = path.into_inner();
     let run = state.db.get_run(id, org_id).await?;
     Ok(HttpResponse::Ok().json(RunResponse::from(run)))

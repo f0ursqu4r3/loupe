@@ -1,12 +1,12 @@
 use crate::AppState;
 use crate::routes::auth::get_auth_context;
-use actix_web::{web, HttpRequest, HttpResponse};
+use actix_web::{HttpRequest, HttpResponse, web};
+use loupe::Error;
 use loupe::connectors::{Connector, PostgresConnector};
 use loupe::models::{
     ConnectionTestResult, CreateDatasourceRequest, DatasourceResponse, DatasourceType,
     UpdateDatasourceRequest,
 };
-use loupe::Error;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -105,27 +105,25 @@ async fn test_connection(
     let conn_str = &datasource.connection_string_encrypted;
 
     match datasource.ds_type {
-        DatasourceType::Postgres => {
-            match PostgresConnector::new(conn_str).await {
-                Ok(connector) => match connector.test_connection().await {
-                    Ok(latency) => Ok(HttpResponse::Ok().json(ConnectionTestResult {
-                        success: true,
-                        message: "Connection successful".to_string(),
-                        latency_ms: Some(latency.as_millis() as u64),
-                    })),
-                    Err(e) => Ok(HttpResponse::Ok().json(ConnectionTestResult {
-                        success: false,
-                        message: e.to_string(),
-                        latency_ms: None,
-                    })),
-                },
+        DatasourceType::Postgres => match PostgresConnector::new(conn_str).await {
+            Ok(connector) => match connector.test_connection().await {
+                Ok(latency) => Ok(HttpResponse::Ok().json(ConnectionTestResult {
+                    success: true,
+                    message: "Connection successful".to_string(),
+                    latency_ms: Some(latency.as_millis() as u64),
+                })),
                 Err(e) => Ok(HttpResponse::Ok().json(ConnectionTestResult {
                     success: false,
                     message: e.to_string(),
                     latency_ms: None,
                 })),
-            }
-        }
+            },
+            Err(e) => Ok(HttpResponse::Ok().json(ConnectionTestResult {
+                success: false,
+                message: e.to_string(),
+                latency_ms: None,
+            })),
+        },
     }
 }
 

@@ -1,5 +1,6 @@
 use crate::AppState;
-use actix_web::{web, HttpResponse};
+use crate::routes::auth::get_auth_context;
+use actix_web::{web, HttpRequest, HttpResponse};
 use loupe::models::{
     CreateDashboardRequest, CreateTileRequest, DashboardResponse, TileResponse,
     UpdateDashboardRequest,
@@ -21,15 +22,11 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     );
 }
 
-fn get_current_user() -> (Uuid, Uuid) {
-    (
-        Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
-        Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
-    )
-}
-
-async fn list_dashboards(state: web::Data<Arc<AppState>>) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_current_user();
+async fn list_dashboards(
+    state: web::Data<Arc<AppState>>,
+    req: HttpRequest,
+) -> Result<HttpResponse, Error> {
+    let (_, org_id) = get_auth_context(&req)?;
     let dashboards = state.db.list_dashboards(org_id).await?;
 
     let mut response = Vec::new();
@@ -53,17 +50,18 @@ async fn list_dashboards(state: web::Data<Arc<AppState>>) -> Result<HttpResponse
 
 async fn create_dashboard(
     state: web::Data<Arc<AppState>>,
-    req: web::Json<CreateDashboardRequest>,
+    req: HttpRequest,
+    body: web::Json<CreateDashboardRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (user_id, org_id) = get_current_user();
+    let (user_id, org_id) = get_auth_context(&req)?;
 
     let dashboard = state
         .db
         .create_dashboard(
             org_id,
-            &req.name,
-            req.description.as_deref(),
-            &req.parameters,
+            &body.name,
+            body.description.as_deref(),
+            &body.parameters,
             user_id,
         )
         .await?;
@@ -83,9 +81,10 @@ async fn create_dashboard(
 
 async fn get_dashboard(
     state: web::Data<Arc<AppState>>,
+    req: HttpRequest,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_current_user();
+    let (_, org_id) = get_auth_context(&req)?;
     let id = path.into_inner();
     let dashboard = state.db.get_dashboard(id, org_id).await?;
     let tiles = state.db.list_tiles(dashboard.id).await?;
@@ -105,10 +104,11 @@ async fn get_dashboard(
 
 async fn update_dashboard(
     state: web::Data<Arc<AppState>>,
+    req: HttpRequest,
     path: web::Path<Uuid>,
-    _req: web::Json<UpdateDashboardRequest>,
+    _body: web::Json<UpdateDashboardRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_current_user();
+    let (_, org_id) = get_auth_context(&req)?;
     let id = path.into_inner();
     
     // For now, just return the existing dashboard
@@ -131,9 +131,10 @@ async fn update_dashboard(
 
 async fn delete_dashboard(
     state: web::Data<Arc<AppState>>,
+    req: HttpRequest,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_current_user();
+    let (_, org_id) = get_auth_context(&req)?;
     let id = path.into_inner();
     state.db.delete_dashboard(id, org_id).await?;
     Ok(HttpResponse::NoContent().finish())
@@ -141,29 +142,30 @@ async fn delete_dashboard(
 
 async fn create_tile(
     state: web::Data<Arc<AppState>>,
+    req: HttpRequest,
     path: web::Path<Uuid>,
-    req: web::Json<CreateTileRequest>,
+    body: web::Json<CreateTileRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_current_user();
+    let (_, org_id) = get_auth_context(&req)?;
     let dashboard_id = path.into_inner();
 
     // Verify dashboard exists
     state.db.get_dashboard(dashboard_id, org_id).await?;
 
     // Verify visualization exists
-    state.db.get_visualization(req.visualization_id, org_id).await?;
+    state.db.get_visualization(body.visualization_id, org_id).await?;
 
     let tile = state
         .db
         .create_tile(
             dashboard_id,
-            req.visualization_id,
-            req.title.as_deref(),
-            req.pos_x,
-            req.pos_y,
-            req.width,
-            req.height,
-            &req.parameter_bindings,
+            body.visualization_id,
+            body.title.as_deref(),
+            body.pos_x,
+            body.pos_y,
+            body.width,
+            body.height,
+            &body.parameter_bindings,
         )
         .await?;
 
