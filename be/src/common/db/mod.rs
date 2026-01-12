@@ -881,8 +881,11 @@ impl Database {
     pub async fn update_schedule_last_run(
         &self,
         id: Uuid,
-        next_run_at: chrono::DateTime<chrono::Utc>,
+        cron_expression: &str,
+        enabled: bool,
     ) -> Result<()> {
+        let next_run_at = Self::calculate_next_run(cron_expression, enabled);
+
         sqlx::query(
             "UPDATE schedules SET last_run_at = NOW(), next_run_at = $2, updated_at = NOW() WHERE id = $1",
         )

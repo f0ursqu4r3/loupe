@@ -165,7 +165,12 @@ async fn trigger_schedule(
         )
         .await?;
 
-    // Note: In production, this would notify the runner service to execute
+    // Update last_run_at and calculate next_run_at
+    state
+        .db
+        .update_schedule_last_run(id, &schedule.cron_expression, schedule.enabled)
+        .await?;
+
     Ok(HttpResponse::Ok().json(serde_json::json!({
         "run_id": run.id,
         "message": "Schedule triggered successfully"
