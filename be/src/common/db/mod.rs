@@ -796,6 +796,7 @@ impl Database {
     // ==================== Schedules ====================
 
     /// Calculate the next run time from a cron expression
+    /// Handles both 5-part (standard cron) and 6-part (with seconds) expressions
     fn calculate_next_run(
         cron_expression: &str,
         enabled: bool,
@@ -805,7 +806,18 @@ impl Database {
         }
 
         use std::str::FromStr;
-        let schedule = cron::Schedule::from_str(cron_expression).ok()?;
+
+        // The cron crate expects 6 or 7 parts (with seconds)
+        // Standard cron uses 5 parts: minute hour day-of-month month day-of-week
+        // Convert 5-part to 6-part by prepending "0 " for seconds
+        let parts: Vec<&str> = cron_expression.split_whitespace().collect();
+        let expr = if parts.len() == 5 {
+            format!("0 {}", cron_expression)
+        } else {
+            cron_expression.to_string()
+        };
+
+        let schedule = cron::Schedule::from_str(&expr).ok()?;
         schedule.upcoming(chrono::Utc).next()
     }
 
