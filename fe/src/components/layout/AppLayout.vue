@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import AppSidebar from './AppSidebar.vue'
 import AppHeader from './AppHeader.vue'
 
@@ -9,7 +9,24 @@ interface Props {
 
 defineProps<Props>()
 
-const sidebarCollapsed = ref(false)
+const SIDEBAR_STORAGE_KEY = 'loupe-sidebar-collapsed'
+
+function getSavedSidebarState(): boolean {
+  if (typeof window === 'undefined') return false
+  const saved = localStorage.getItem(SIDEBAR_STORAGE_KEY)
+  return saved === 'true'
+}
+
+function saveSidebarState(value: boolean) {
+  if (typeof window === 'undefined') return
+  localStorage.setItem(SIDEBAR_STORAGE_KEY, value ? 'true' : 'false')
+}
+
+const sidebarCollapsed = ref(getSavedSidebarState())
+
+watch(sidebarCollapsed, (value) => {
+  saveSidebarState(value)
+})
 
 const mainClasses = computed(() => [
   'min-h-screen transition-all duration-300',
