@@ -115,6 +115,48 @@ function formatDate(dateString: string | undefined): string {
     minute: '2-digit',
   }).format(new Date(dateString))
 }
+
+// Human-readable cron description
+function describeCron(expr: string): string {
+  // Common presets
+  const presets: Record<string, string> = {
+    '* * * * *': 'Every minute',
+    '*/5 * * * *': 'Every 5 minutes',
+    '*/15 * * * *': 'Every 15 minutes',
+    '*/30 * * * *': 'Every 30 minutes',
+    '0 * * * *': 'Every hour',
+    '0 */6 * * *': 'Every 6 hours',
+    '0 */12 * * *': 'Every 12 hours',
+    '0 0 * * *': 'Daily at midnight',
+    '0 9 * * *': 'Daily at 9am',
+    '0 0 * * 1': 'Weekly on Monday',
+    '0 0 1 * *': 'Monthly on the 1st',
+  }
+
+  if (presets[expr]) return presets[expr]
+
+  // Parse basic cron
+  const parts = expr.split(' ')
+  if (parts.length !== 5) return expr
+
+  const [min, hour, dayOfMonth, month, dayOfWeek] = parts
+
+  // Very basic descriptions
+  if (min === '*' && hour === '*') return 'Every minute'
+  if (min?.startsWith('*/')) return `Every ${min.slice(2)} minutes`
+  if (hour?.startsWith('*/') && min === '0') return `Every ${hour.slice(2)} hours`
+  if (hour === '*' && min === '0') return 'Every hour'
+  if (dayOfMonth === '*' && month === '*' && dayOfWeek === '*') {
+    if (hour !== '*' && hour !== undefined && min !== '*' && min !== undefined) {
+      const h = parseInt(hour)
+      const ampm = h >= 12 ? 'pm' : 'am'
+      const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h
+      return `Daily at ${h12}:${min.padStart(2, '0')}${ampm}`
+    }
+  }
+
+  return expr
+}
 </script>
 
 <template>
@@ -189,8 +231,11 @@ function formatDate(dateString: string | undefined): string {
                   {{ schedule.enabled ? 'Active' : 'Paused' }}
                 </LBadge>
               </div>
-              <p class="text-sm text-text-muted font-mono">
-                {{ schedule.cron_expression }}
+              <p class="text-sm text-text-muted">
+                {{ describeCron(schedule.cron_expression) }}
+                <span class="font-mono text-text-subtle text-xs ml-1"
+                  >({{ schedule.cron_expression }})</span
+                >
               </p>
               <!-- Tags display -->
               <div
