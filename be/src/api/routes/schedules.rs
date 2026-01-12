@@ -147,11 +147,25 @@ async fn trigger_schedule(
     // Get the query
     let query = state.db.get_query(schedule.query_id, org_id).await?;
 
-    // Create a run for this query with the schedule's parameters
-    let run = state.db.create_run(query.id, org_id, user_id).await?;
+    // Merge schedule parameters with query defaults
+    let parameters = schedule.parameters;
 
-    // Execute the query in background (simplified - just queue it)
-    // In production, this would go through the runner service
+    // Create a run for this query with the schedule's parameters
+    let run = state
+        .db
+        .create_run(
+            org_id,
+            query.id,
+            query.datasource_id,
+            &query.sql,
+            &parameters,
+            query.timeout_seconds,
+            query.max_rows,
+            user_id,
+        )
+        .await?;
+
+    // Note: In production, this would notify the runner service to execute
     Ok(HttpResponse::Ok().json(serde_json::json!({
         "run_id": run.id,
         "message": "Schedule triggered successfully"
