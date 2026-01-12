@@ -17,6 +17,7 @@ import {
   WandSparkles,
   BarChart3,
   GripHorizontal,
+  CalendarClock,
 } from 'lucide-vue-next'
 import { AppLayout } from '@/components/layout'
 import {
@@ -31,8 +32,8 @@ import {
 } from '@/components/ui'
 import { SqlEditor } from '@/components/editor'
 import { QueryParameters, ParameterInputs } from '@/components/query'
-import { queriesApi, runsApi, datasourcesApi } from '@/services/api'
-import type { Query, Datasource, Run, QueryResult, CreateQueryRequest } from '@/types'
+import { queriesApi, runsApi, datasourcesApi, schedulesApi } from '@/services/api'
+import type { Query, Datasource, Run, QueryResult, CreateQueryRequest, Schedule } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -70,6 +71,10 @@ const datasourceOptions = computed(() =>
     label: ds.name,
   })),
 )
+
+// Schedules for this query
+const schedules = ref<Schedule[]>([])
+const showSchedules = ref(false)
 
 // Run results
 const currentRun = ref<Run | null>(null)
@@ -146,10 +151,24 @@ async function loadQuery() {
     loading.value = true
     const data = await queriesApi.get(queryId.value!)
     query.value = data
+    // Load schedules for this query
+    await loadSchedules()
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load query'
   } finally {
     loading.value = false
+  }
+}
+
+// Load schedules for this query
+async function loadSchedules() {
+  if (isNew.value || !queryId.value) return
+
+  try {
+    const allSchedules = await schedulesApi.list()
+    schedules.value = allSchedules.filter((s) => s.query_id === queryId.value)
+  } catch (e) {
+    console.error('Failed to load schedules:', e)
   }
 }
 
@@ -310,6 +329,15 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
     </template>
 
     <template #header-actions>
+      <LButton
+        v-if="!isNew"
+        variant="ghost"
+        @click="router.push({ name: 'schedule-new', query: { query_id: query.id || queryId } })"
+        title="Schedule this query"
+      >
+        <CalendarClock class="h-4 w-4" />
+        Schedule
+      </LButton>
       <LButton variant="secondary" :disabled="saving" @click="saveQuery">
         <Loader2 v-if="saving" class="h-4 w-4 animate-spin" />
         <Save v-else class="h-4 w-4" />
@@ -432,6 +460,61 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
               @update:model-value="query.parameters = $event"
               :sql="query.sql || ''"
             />
+          </div>
+        </div>
+
+        <!-- Schedules section -->
+        <div v-if="!isNew" class="mt-4">
+          <button
+            type="button"
+            class="flex items-center gap-2 text-sm font-medium text-text hover:text-primary-600 transition-colors"
+            @click="showSchedules = !showSchedules"
+          >
+            <ChevronDown
+              class="h-4 w-4 transition-transform"
+              :class="{ '-rotate-90': !showSchedules }"
+            />
+            <CalendarClock class="h-4 w-4" />
+            Schedules
+            <span v-if="schedules.length" class="text-xs text-text-muted">
+              ({{ schedules.length }})
+            </span>
+          </button>
+          <div v-if="showSchedules" class="mt-3 space-y-2">
+            <div
+              v-for="sched in schedules"
+              :key="sched.id"
+              class="flex items-center justify-between p-2 bg-surface-sunken rounded-lg text-sm"
+            >
+              <div class="flex items-center gap-3">
+                <LBadge :variant="sched.enabled ? 'success' : 'default'" size="sm">
+                  {{ sched.enabled ? 'Active' : 'Paused' }}
+                </LBadge>
+                <span class="text-text">{{ sched.name }}</span>
+                <span class="text-text-muted font-mono text-xs">{{ sched.cron_expression }}</span>
+              </div>
+              <LButton
+                variant="ghost"
+                size="sm"
+                @click="router.push({ name: 'schedule-editor', params: { id: sched.id } })"
+              >
+                Edit
+              </LButton>
+            </div>
+            <div v-if="schedules.length === 0" class="text-sm text-text-muted py-2">
+              No schedules configured for this query.
+            </div>
+            <LButton
+              variant="ghost"
+              size="sm"
+              class="mt-2"
+              @click="
+                router.push({ name: 'schedule-new', query: { query_id: query.id || queryId } })
+              "
+            >
+              <CalendarClock class="h-4 w-4" />
+              Add Schedule
+            </LButton>
           </div>
         </div>
       </LCard>
