@@ -15,6 +15,10 @@ path = "src/api/main.rs"
 name = "loupe-runner"
 path = "src/runner/main.rs"
 
+[[bin]]
+name = "loupe-scheduler"
+path = "src/scheduler/main.rs"
+
 [dependencies]
 # Web framework
 actix-web = "4"
