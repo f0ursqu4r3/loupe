@@ -15,6 +15,7 @@ const props = defineProps<{
   rowHeight?: number
   gap?: number
   disabled?: boolean
+  showHandle?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -274,6 +275,9 @@ onUnmounted(() => {
   document.removeEventListener('touchmove', onResize)
   document.removeEventListener('touchend', endResize)
 })
+
+// Expose startDrag for parent components to trigger dragging
+defineExpose({ startDrag })
 </script>
 
 <template>
@@ -287,9 +291,9 @@ onUnmounted(() => {
     }"
     :style="itemStyle"
   >
-    <!-- Drag handle -->
+    <!-- Drag handle (can be hidden if parent provides its own) -->
     <div
-      v-if="!disabled"
+      v-if="!disabled && (showHandle ?? true)"
       class="absolute top-2 left-2 z-20 p-1 rounded bg-surface/80 cursor-move opacity-0 group-hover:opacity-100 transition-opacity hover:bg-surface-sunken"
       @mousedown="startDrag"
       @touchstart="startDrag"

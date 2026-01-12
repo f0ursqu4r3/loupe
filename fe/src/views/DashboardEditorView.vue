@@ -10,8 +10,8 @@ import {
   X,
   Plus,
   Trash2,
-  ChevronDown,
-  ChevronRight,
+  Settings,
+  GripVertical,
 } from 'lucide-vue-next'
 import { AppLayout } from '@/components/layout'
 import { LButton, LInput, LCard, LSpinner, LModal, LEmptyState, LTagsInput } from '@/components/ui'
@@ -55,12 +55,15 @@ const visualizations = ref<Visualization[]>([])
 const selectedVisualizationId = ref<string | null>(null)
 const addingTile = ref(false)
 
-// Settings panel collapsed state
-const settingsCollapsed = ref(false)
+// Settings panel collapsed state (default collapsed for existing dashboards)
+const settingsCollapsed = ref(true)
 
 // Tile data cache - stores query results for each visualization
 const tileData = ref<Record<string, QueryResult | null>>({})
 const tileLoading = ref<Record<string, boolean>>({})
+
+// Refs to GridItem components for triggering drag
+const tileRefs = ref<Record<string, InstanceType<typeof GridItem>>>({})
 
 // Grid settings
 const GRID_COLS = 12
@@ -68,7 +71,11 @@ const GRID_ROW_HEIGHT = 80
 
 // Load dashboard
 async function loadDashboard() {
-  if (isNew.value) return
+  if (isNew.value) {
+    // Show settings for new dashboards so user can enter name
+    settingsCollapsed.value = false
+    return
+  }
 
   try {
     loading.value = true
@@ -401,6 +408,15 @@ watch(
     </template>
 
     <template #header-actions>
+      <LButton
+        variant="ghost"
+        size="sm"
+        @click="settingsCollapsed = !settingsCollapsed"
+        :class="{ 'text-primary-500': !settingsCollapsed }"
+        title="Toggle settings"
+      >
+        <Settings class="h-4 w-4" />
+      </LButton>
       <LButton v-if="!isNew" variant="secondary" @click="openAddTileModal">
         <Plus class="h-4 w-4" />
         Add Tile
@@ -439,50 +455,25 @@ watch(
         <span>Dashboard saved successfully</span>
       </div>
 
-      <!-- Dashboard metadata -->
-      <LCard padding="sm">
-        <!-- Collapsed view: just name -->
-        <div
-          v-if="settingsCollapsed"
-          class="flex items-center gap-3 cursor-pointer"
-          @click="settingsCollapsed = false"
-        >
-          <ChevronRight class="h-4 w-4 text-text-muted" />
-          <span class="font-medium text-text">{{ dashboard.name || 'Untitled Dashboard' }}</span>
-          <span v-if="dashboard.description" class="text-sm text-text-muted truncate">
-            — {{ dashboard.description }}
-          </span>
+      <!-- Dashboard metadata (only shown when settings expanded) -->
+      <LCard v-if="!settingsCollapsed" padding="sm">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-text mb-1.5">Name</label>
+            <LInput v-model="dashboard.name" placeholder="My Dashboard" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-text mb-1.5">Description (optional)</label>
+            <LInput v-model="dashboard.description" placeholder="Dashboard description..." />
+          </div>
         </div>
-
-        <!-- Expanded view: all fields -->
-        <div v-else>
-          <div
-            class="flex items-center gap-2 mb-4 cursor-pointer"
-            @click="settingsCollapsed = true"
-          >
-            <ChevronDown class="h-4 w-4 text-text-muted" />
-            <span class="text-sm text-text-muted">Settings</span>
-          </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-medium text-text mb-1.5">Name</label>
-              <LInput v-model="dashboard.name" placeholder="My Dashboard" />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-text mb-1.5"
-                >Description (optional)</label
-              >
-              <LInput v-model="dashboard.description" placeholder="Dashboard description..." />
-            </div>
-          </div>
-          <div class="mt-4">
-            <label class="block text-sm font-medium text-text mb-1.5">Tags</label>
-            <LTagsInput
-              :model-value="dashboard.tags || []"
-              @update:model-value="dashboard.tags = $event"
-              placeholder="Add tags for filtering..."
-            />
-          </div>
+        <div class="mt-4">
+          <label class="block text-sm font-medium text-text mb-1.5">Tags</label>
+          <LTagsInput
+            :model-value="dashboard.tags || []"
+            @update:model-value="dashboard.tags = $event"
+            placeholder="Add tags for filtering..."
+          />
         </div>
       </LCard>
 
@@ -526,6 +517,11 @@ watch(
         <GridItem
           v-for="tile in dashboard.tiles"
           :key="tile.id"
+          :ref="
+            (el) => {
+              if (el) tileRefs[tile.id] = el
+            }
+          "
           :x="getEffectiveTilePosition(tile).x"
           :y="getEffectiveTilePosition(tile).y"
           :width="tile.width"
@@ -535,6 +531,7 @@ watch(
           :gap="16"
           :min-width="2"
           :min-height="2"
+          :show-handle="false"
           :class="{ 'transition-all duration-200': tileOffsets[tile.id] }"
           @preview="(x, y, w, h) => handleTilePreview(tile.id, x, y, w, h)"
           @change="
@@ -547,22 +544,30 @@ watch(
           @resize-end="clearTilePreview"
         >
           <LCard padding="none" class="h-full overflow-hidden">
-            <!-- Tile header -->
+            <!-- Tile header with integrated drag handle -->
             <div
-              class="absolute top-0 left-8 right-0 flex items-center justify-between px-3 py-2 bg-linear-to-b from-surface/90 to-transparent z-10 opacity-0 group-hover:opacity-100 transition-opacity"
+              class="absolute top-0 left-0 right-0 flex items-center justify-between px-2 py-1.5 bg-surface/95 backdrop-blur-sm border-b border-border/50 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
             >
-              <span class="text-sm font-medium text-text truncate">
-                {{ tile.title || vizCache[tile.visualization_id]?.name || 'Untitled' }}
-              </span>
-              <div class="flex items-center gap-1">
+              <div class="flex items-center gap-1 min-w-0">
                 <button
                   type="button"
-                  class="p-1 rounded hover:bg-surface-sunken text-text-muted hover:text-error transition-colors"
-                  @click="deleteTile(tile.id)"
+                  class="p-1 rounded cursor-move hover:bg-surface-sunken text-text-muted transition-colors shrink-0"
+                  @mousedown="tileRefs[tile.id]?.startDrag($event)"
+                  @touchstart="tileRefs[tile.id]?.startDrag($event)"
                 >
-                  <Trash2 class="h-4 w-4" />
+                  <GripVertical class="h-4 w-4" />
                 </button>
+                <span class="text-sm font-medium text-text truncate">
+                  {{ tile.title || vizCache[tile.visualization_id]?.name || 'Untitled' }}
+                </span>
               </div>
+              <button
+                type="button"
+                class="p-1 rounded hover:bg-surface-sunken text-text-muted hover:text-error transition-colors shrink-0"
+                @click="deleteTile(tile.id)"
+              >
+                <Trash2 class="h-4 w-4" />
+              </button>
             </div>
 
             <!-- Tile content -->
