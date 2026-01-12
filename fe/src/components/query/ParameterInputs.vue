@@ -33,6 +33,78 @@ watch(
   { immediate: true },
 )
 
+function formatDateInputValue(value: unknown): string {
+  if (value instanceof Date) return toDateInputValue(value)
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (!trimmed) return ''
+    const direct = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+    if (direct) return `${direct[1]}-${direct[2]}-${direct[3]}`
+    const parsed = new Date(trimmed)
+    if (Number.isNaN(parsed.getTime())) return ''
+    return toDateInputValue(parsed)
+  }
+  return ''
+}
+
+function formatDateTimeInputValue(value: unknown): string {
+  if (value instanceof Date) return toDateTimeInputValue(value)
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (!trimmed) return ''
+    const direct = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/)
+    if (direct && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(trimmed)) {
+      return `${direct[1]}-${direct[2]}-${direct[3]}T${direct[4]}:${direct[5]}`
+    }
+    const parsed = new Date(trimmed)
+    if (Number.isNaN(parsed.getTime())) return ''
+    return toDateTimeInputValue(parsed)
+  }
+  return ''
+}
+
+function toDateInputValue(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function toDateTimeInputValue(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${day}T${hours}:${minutes}`
+}
+
+function coerceDateTimeValue(value: unknown): string {
+  if (value instanceof Date) return value.toISOString()
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (!trimmed) return ''
+    const direct = trimmed.match(
+      /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?$/,
+    )
+    if (direct) {
+      const date = new Date(
+        Number(direct[1]),
+        Number(direct[2]) - 1,
+        Number(direct[3]),
+        Number(direct[4]),
+        Number(direct[5]),
+        Number(direct[6] || 0),
+      )
+      return date.toISOString()
+    }
+    const parsed = new Date(trimmed)
+    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString()
+    return trimmed
+  }
+  return ''
+}
+
 function getDefaultForType(type: ParamType): unknown {
   switch (type) {
     case 'number':
@@ -40,8 +112,9 @@ function getDefaultForType(type: ParamType): unknown {
     case 'boolean':
       return false
     case 'date':
+      return toDateInputValue(new Date())
     case 'datetime':
-      return new Date().toISOString().split('T')[0]
+      return new Date().toISOString()
     default:
       return ''
   }
@@ -55,6 +128,8 @@ function updateValue(name: string, value: unknown, type: ParamType) {
     coerced = Number(value) || 0
   } else if (type === 'boolean') {
     coerced = value === true || value === 'true'
+  } else if (type === 'datetime') {
+    coerced = coerceDateTimeValue(value)
   }
 
   emit('update:modelValue', {
@@ -92,14 +167,14 @@ const boolOptions = [
       <LInput
         v-else-if="param.param_type === 'date'"
         type="date"
-        :model-value="String(modelValue[param.name] ?? '')"
+        :model-value="formatDateInputValue(modelValue[param.name])"
         @update:model-value="updateValue(param.name, $event, param.param_type)"
       />
 
       <LInput
         v-else-if="param.param_type === 'datetime'"
         type="datetime-local"
-        :model-value="String(modelValue[param.name] ?? '')"
+        :model-value="formatDateTimeInputValue(modelValue[param.name])"
         @update:model-value="updateValue(param.name, $event, param.param_type)"
       />
 
