@@ -864,4 +864,121 @@ impl Database {
 
         Ok(())
     }
+
+    pub async fn get_schedule(&self, id: Uuid, org_id: Uuid) -> Result<Schedule> {
+        let schedule =
+            sqlx::query_as::<_, Schedule>("SELECT * FROM schedules WHERE id = $1 AND org_id = $2")
+                .bind(id)
+                .bind(org_id)
+                .fetch_optional(&self.pool)
+                .await?
+                .ok_or_else(|| Error::NotFound("Schedule not found".into()))?;
+
+        Ok(schedule)
+    }
+
+    pub async fn update_schedule(
+        &self,
+        id: Uuid,
+        org_id: Uuid,
+        name: Option<&str>,
+        cron_expression: Option<&str>,
+        parameters: Option<&serde_json::Value>,
+        tags: Option<&serde_json::Value>,
+        enabled: Option<bool>,
+    ) -> Result<Schedule> {
+        // Build dynamic update query
+        let mut updates = vec!["updated_at = NOW()".to_string()];
+        let mut param_idx = 3; // Start after id and org_id
+
+        if name.is_some() {
+            updates.push(format!("name = ${}", param_idx));
+            param_idx += 1;
+        }
+        if cron_expression.is_some() {
+            updates.push(format!("cron_expression = ${}", param_idx));
+            param_idx += 1;
+        }
+        if parameters.is_some() {
+            updates.push(format!("parameters = ${}", param_idx));
+            param_idx += 1;
+        }
+        if tags.is_some() {
+            updates.push(format!("tags = ${}", param_idx));
+            param_idx += 1;
+        }
+        if enabled.is_some() {
+            updates.push(format!("enabled = ${}", param_idx));
+        }
+
+        let query = format!(
+            "UPDATE schedules SET {} WHERE id = $1 AND org_id = $2 RETURNING *",
+            updates.join(", ")
+        );
+
+        let mut q = sqlx::query_as::<_, Schedule>(&query).bind(id).bind(org_id);
+
+        if let Some(n) = name {
+            q = q.bind(n);
+        }
+        if let Some(c) = cron_expression {
+            q = q.bind(c);
+        }
+        if let Some(p) = parameters {
+            q = q.bind(p);
+        }
+        if let Some(t) = tags {
+            q = q.bind(t);
+        }
+        if let Some(e) = enabled {
+            q = q.bind(e);
+        }
+
+        let schedule = q
+            .fetch_optional(&self.pool)
+            .await?
+            .ok_or_else(|| Error::NotFound("Schedule not found".into()))?;
+
+        Ok(schedule)
+    }
+
+    pub async fn delete_schedule(&self, id: Uuid, org_id: Uuid) -> Result<()> {
+        let result = sqlx::query("DELETE FROM schedules WHERE id = $1 AND org_id = $2")
+            .bind(id)
+            .bind(org_id)
+            .execute(&self.pool)
+            .await?;
+
+        if result.rows_affected() == 0 {
+            return Err(Error::NotFound("Schedule not found".into()));
+        }
+
+        Ok(())
+    }
+
+    pub async fn enable_schedule(&self, id: Uuid, org_id: Uuid) -> Result<Schedule> {
+        let schedule = sqlx::query_as::<_, Schedule>(
+            "UPDATE schedules SET enabled = true, updated_at = NOW() WHERE id = $1 AND org_id = $2 RETURNING *",
+        )
+        .bind(id)
+        .bind(org_id)
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or_else(|| Error::NotFound("Schedule not found".into()))?;
+
+        Ok(schedule)
+    }
+
+    pub async fn disable_schedule(&self, id: Uuid, org_id: Uuid) -> Result<Schedule> {
+        let schedule = sqlx::query_as::<_, Schedule>(
+            "UPDATE schedules SET enabled = false, updated_at = NOW() WHERE id = $1 AND org_id = $2 RETURNING *",
+        )
+        .bind(id)
+        .bind(org_id)
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or_else(|| Error::NotFound("Schedule not found".into()))?;
+
+        Ok(schedule)
+    }
 }
