@@ -1,10 +1,10 @@
 //! Database layer integration tests
-//! 
+//!
 //! These tests use testcontainers to spin up a real PostgreSQL instance.
 
 use loupe::db::Database;
 use loupe::models::*;
-use testcontainers::{runners::AsyncRunner, ContainerAsync};
+use testcontainers::{ContainerAsync, runners::AsyncRunner};
 use testcontainers_modules::postgres::Postgres;
 use uuid::Uuid;
 
@@ -30,9 +30,7 @@ impl TestDb {
             .await
             .expect("Failed to connect to test database");
 
-        db.run_migrations()
-            .await
-            .expect("Failed to run migrations");
+        db.run_migrations().await.expect("Failed to run migrations");
 
         Self { db, container }
     }
@@ -83,7 +81,11 @@ mod user_tests {
 
     async fn setup() -> (TestDb, Organization) {
         let test_db = TestDb::new().await;
-        let org = test_db.database().create_organization("Test Org").await.unwrap();
+        let org = test_db
+            .database()
+            .create_organization("Test Org")
+            .await
+            .unwrap();
         (test_db, org)
     }
 
@@ -115,7 +117,13 @@ mod user_tests {
         let db = test_db.database();
 
         let created = db
-            .create_user(org.id, "lookup@example.com", "hash", "Lookup User", OrgRole::Viewer)
+            .create_user(
+                org.id,
+                "lookup@example.com",
+                "hash",
+                "Lookup User",
+                OrgRole::Viewer,
+            )
             .await
             .unwrap();
 
@@ -123,7 +131,10 @@ mod user_tests {
         assert!(found.is_some());
         assert_eq!(found.unwrap().id, created.id);
 
-        let not_found = db.get_user_by_email("nonexistent@example.com").await.unwrap();
+        let not_found = db
+            .get_user_by_email("nonexistent@example.com")
+            .await
+            .unwrap();
         assert!(not_found.is_none());
     }
 
@@ -133,7 +144,13 @@ mod user_tests {
         let db = test_db.database();
 
         let created = db
-            .create_user(org.id, "byid@example.com", "hash", "ById User", OrgRole::Editor)
+            .create_user(
+                org.id,
+                "byid@example.com",
+                "hash",
+                "ById User",
+                OrgRole::Editor,
+            )
             .await
             .unwrap();
 
@@ -147,12 +164,24 @@ mod user_tests {
         let (test_db, org) = setup().await;
         let db = test_db.database();
 
-        db.create_user(org.id, "duplicate@example.com", "hash", "User 1", OrgRole::Viewer)
-            .await
-            .unwrap();
+        db.create_user(
+            org.id,
+            "duplicate@example.com",
+            "hash",
+            "User 1",
+            OrgRole::Viewer,
+        )
+        .await
+        .unwrap();
 
         let result = db
-            .create_user(org.id, "duplicate@example.com", "hash", "User 2", OrgRole::Viewer)
+            .create_user(
+                org.id,
+                "duplicate@example.com",
+                "hash",
+                "User 2",
+                OrgRole::Viewer,
+            )
             .await;
 
         assert!(result.is_err());
@@ -217,7 +246,13 @@ mod datasource_tests {
         let db = test_db.database();
 
         let ds = db
-            .create_datasource(org.id, "Original", DatasourceType::Postgres, "conn", user.id)
+            .create_datasource(
+                org.id,
+                "Original",
+                DatasourceType::Postgres,
+                "conn",
+                user.id,
+            )
             .await
             .unwrap();
 
@@ -236,7 +271,13 @@ mod datasource_tests {
         let db = test_db.database();
 
         let ds = db
-            .create_datasource(org.id, "ToDelete", DatasourceType::Postgres, "conn", user.id)
+            .create_datasource(
+                org.id,
+                "ToDelete",
+                DatasourceType::Postgres,
+                "conn",
+                user.id,
+            )
             .await
             .unwrap();
 
@@ -253,7 +294,13 @@ mod datasource_tests {
         let org2 = db.create_organization("Other Org").await.unwrap();
 
         let ds = db
-            .create_datasource(org1.id, "Org1 DS", DatasourceType::Postgres, "conn", user.id)
+            .create_datasource(
+                org1.id,
+                "Org1 DS",
+                DatasourceType::Postgres,
+                "conn",
+                user.id,
+            )
             .await
             .unwrap();
 
@@ -298,8 +345,9 @@ mod query_tests {
                 Some("Count of active users"),
                 "SELECT COUNT(*) FROM users WHERE active = true",
                 &serde_json::json!([]),
-                30,
+                &serde_json::json!({}),
                 10000,
+                30,
                 user.id,
             )
             .await
@@ -323,9 +371,16 @@ mod query_tests {
 
         let query = db
             .create_query(
-                org.id, ds.id, "Parameterized Query", None,
+                org.id,
+                ds.id,
+                "Parameterized Query",
+                None,
                 "SELECT * FROM events WHERE date > $1 LIMIT $2",
-                &params, 60, 5000, user.id,
+                &params,
+                &serde_json::json!([]),
+                60,
+                5000,
+                user.id,
             )
             .await
             .unwrap();
@@ -340,19 +395,31 @@ mod query_tests {
 
         let query = db
             .create_query(
-                org.id, ds.id, "Original Name", None,
-                "SELECT 1", &serde_json::json!([]), 30, 10000, user.id,
+                org.id,
+                ds.id,
+                "Original Name",
+                None,
+                "SELECT 1",
+                &serde_json::json!([]),
+                &serde_json::json!([]),
+                30,
+                10000,
+                user.id,
             )
             .await
             .unwrap();
 
         let updated = db
             .update_query(
-                query.id, org.id,
+                query.id,
+                org.id,
                 Some("New Name"),
                 Some("Added description"),
                 Some("SELECT 2"),
-                None, Some(60), None,
+                None,
+                None,
+                Some(60),
+                None,
             )
             .await
             .unwrap();
@@ -371,8 +438,16 @@ mod query_tests {
 
         let query = db
             .create_query(
-                org.id, ds.id, "ToDelete", None,
-                "SELECT 1", &serde_json::json!([]), 30, 10000, user.id,
+                org.id,
+                ds.id,
+                "ToDelete",
+                None,
+                "SELECT 1",
+                &serde_json::json!([]),
+                &serde_json::json!([]),
+                30,
+                10000,
+                user.id,
             )
             .await
             .unwrap();
@@ -401,8 +476,16 @@ mod run_tests {
             .unwrap();
         let query = db
             .create_query(
-                org.id, ds.id, "Test Query", None,
-                "SELECT 1", &serde_json::json!([]), 30, 10000, user.id,
+                org.id,
+                ds.id,
+                "Test Query",
+                None,
+                "SELECT 1",
+                &serde_json::json!([]),
+                &serde_json::json!([]),
+                30,
+                10000,
+                user.id,
             )
             .await
             .unwrap();
@@ -440,8 +523,14 @@ mod run_tests {
 
         let run = db
             .create_run(
-                org.id, query.id, ds.id,
-                "SELECT 1", &serde_json::json!({}), 30, 10000, user.id,
+                org.id,
+                query.id,
+                ds.id,
+                "SELECT 1",
+                &serde_json::json!({}),
+                30,
+                10000,
+                user.id,
             )
             .await
             .unwrap();
@@ -472,8 +561,14 @@ mod run_tests {
 
         let run = db
             .create_run(
-                org.id, query.id, ds.id,
-                "SELECT 1", &serde_json::json!({}), 30, 10000, user.id,
+                org.id,
+                query.id,
+                ds.id,
+                "SELECT 1",
+                &serde_json::json!({}),
+                30,
+                10000,
+                user.id,
             )
             .await
             .unwrap();
@@ -482,17 +577,19 @@ mod run_tests {
         db.claim_run("runner-1").await.unwrap();
 
         // Store a result
-        let result = db.create_run_result(
-            run.id,
-            &serde_json::json!([{"name": "col", "data_type": "INT4"}]),
-            &serde_json::json!([[1]]),
-            1, 4, 5
-        ).await.unwrap();
-
-        let completed = db
-            .complete_run(run.id, result.id)
+        let result = db
+            .create_run_result(
+                run.id,
+                &serde_json::json!([{"name": "col", "data_type": "INT4"}]),
+                &serde_json::json!([[1]]),
+                1,
+                4,
+                5,
+            )
             .await
             .unwrap();
+
+        let completed = db.complete_run(run.id, result.id).await.unwrap();
 
         assert_eq!(completed.status, RunStatus::Completed);
         assert!(completed.completed_at.is_some());
@@ -505,8 +602,14 @@ mod run_tests {
 
         let run = db
             .create_run(
-                org.id, query.id, ds.id,
-                "SELECT 1", &serde_json::json!({}), 30, 10000, user.id,
+                org.id,
+                query.id,
+                ds.id,
+                "SELECT 1",
+                &serde_json::json!({}),
+                30,
+                10000,
+                user.id,
             )
             .await
             .unwrap();
@@ -514,10 +617,7 @@ mod run_tests {
         // Claim it first
         db.claim_run("runner-1").await.unwrap();
 
-        let failed = db
-            .fail_run(run.id, "Connection refused")
-            .await
-            .unwrap();
+        let failed = db.fail_run(run.id, "Connection refused").await.unwrap();
 
         assert_eq!(failed.status, RunStatus::Failed);
         assert_eq!(failed.error_message.as_deref(), Some("Connection refused"));
@@ -541,15 +641,29 @@ mod run_result_tests {
             .unwrap();
         let query = db
             .create_query(
-                org.id, ds.id, "Test Query", None,
-                "SELECT 1", &serde_json::json!([]), 30, 10000, user.id,
+                org.id,
+                ds.id,
+                "Test Query",
+                None,
+                "SELECT 1",
+                &serde_json::json!([]),
+                &serde_json::json!([]),
+                30,
+                10000,
+                user.id,
             )
             .await
             .unwrap();
         let run = db
             .create_run(
-                org.id, query.id, ds.id,
-                "SELECT 1 as num", &serde_json::json!({}), 30, 10000, user.id,
+                org.id,
+                query.id,
+                ds.id,
+                "SELECT 1 as num",
+                &serde_json::json!({}),
+                30,
+                10000,
+                user.id,
             )
             .await
             .unwrap();
@@ -577,7 +691,7 @@ mod run_result_tests {
 
     #[tokio::test]
     async fn test_get_run_result() {
-        let (test_db, org, run) = setup_with_run().await;
+        let (test_db, _org, run) = setup_with_run().await;
         let db = test_db.database();
 
         let columns = serde_json::json!([{"name": "id", "data_type": "INT8"}]);
@@ -610,8 +724,16 @@ mod visualization_tests {
             .unwrap();
         let query = db
             .create_query(
-                org.id, ds.id, "Test Query", None,
-                "SELECT date, count FROM metrics", &serde_json::json!([]), 30, 10000, user.id,
+                org.id,
+                ds.id,
+                "Test Query",
+                None,
+                "SELECT date, count FROM metrics",
+                &serde_json::json!([]),
+                &serde_json::json!([]),
+                30,
+                10000,
+                user.id,
             )
             .await
             .unwrap();
@@ -631,6 +753,7 @@ mod visualization_tests {
                 "Daily Metrics",
                 ChartType::Line,
                 &config,
+                &serde_json::json!([]),
                 user.id,
             )
             .await
@@ -646,12 +769,33 @@ mod visualization_tests {
         let (test_db, org, user, query) = setup().await;
         let db = test_db.database();
 
-        db.create_visualization(org.id, query.id, "Table View", ChartType::Table, &serde_json::json!({}), user.id)
-            .await.unwrap();
-        db.create_visualization(org.id, query.id, "Line Chart", ChartType::Line, &serde_json::json!({}), user.id)
-            .await.unwrap();
+        db.create_visualization(
+            org.id,
+            query.id,
+            "Table View",
+            ChartType::Table,
+            &serde_json::json!({}),
+            &serde_json::json!([]),
+            user.id,
+        )
+        .await
+        .unwrap();
+        db.create_visualization(
+            org.id,
+            query.id,
+            "Line Chart",
+            ChartType::Line,
+            &serde_json::json!({}),
+            &serde_json::json!([]),
+            user.id,
+        )
+        .await
+        .unwrap();
 
-        let list = db.list_visualizations(org.id, Some(query.id)).await.unwrap();
+        let list = db
+            .list_visualizations(org.id, Some(query.id))
+            .await
+            .unwrap();
         assert_eq!(list.len(), 2);
     }
 
@@ -661,8 +805,17 @@ mod visualization_tests {
         let db = test_db.database();
 
         let viz = db
-            .create_visualization(org.id, query.id, "My Viz", ChartType::Bar, &serde_json::json!({}), user.id)
-            .await.unwrap();
+            .create_visualization(
+                org.id,
+                query.id,
+                "My Viz",
+                ChartType::Bar,
+                &serde_json::json!({}),
+                &serde_json::json!([]),
+                user.id,
+            )
+            .await
+            .unwrap();
 
         let fetched = db.get_visualization(viz.id, org.id).await.unwrap();
         assert_eq!(fetched.name, "My Viz");
@@ -675,12 +828,24 @@ mod visualization_tests {
         let db = test_db.database();
 
         let viz = db
-            .create_visualization(org.id, query.id, "To Delete", ChartType::Table, &serde_json::json!({}), user.id)
-            .await.unwrap();
+            .create_visualization(
+                org.id,
+                query.id,
+                "To Delete",
+                ChartType::Table,
+                &serde_json::json!({}),
+                &serde_json::json!([]),
+                user.id,
+            )
+            .await
+            .unwrap();
 
         db.delete_visualization(viz.id, org.id).await.unwrap();
 
-        let list = db.list_visualizations(org.id, Some(query.id)).await.unwrap();
+        let list = db
+            .list_visualizations(org.id, Some(query.id))
+            .await
+            .unwrap();
         assert!(list.is_empty());
     }
 }
@@ -694,19 +859,39 @@ mod dashboard_tests {
         let org = db.create_organization("Test Org").await.unwrap();
         let user = db
             .create_user(org.id, "admin@example.com", "hash", "Admin", OrgRole::Admin)
-            .await.unwrap();
+            .await
+            .unwrap();
         let ds = db
             .create_datasource(org.id, "Test DS", DatasourceType::Postgres, "conn", user.id)
-            .await.unwrap();
+            .await
+            .unwrap();
         let query = db
             .create_query(
-                org.id, ds.id, "Test Query", None,
-                "SELECT 1", &serde_json::json!([]), 30, 10000, user.id,
+                org.id,
+                ds.id,
+                "Test Query",
+                None,
+                "SELECT 1",
+                &serde_json::json!([]),
+                &serde_json::json!([]),
+                30,
+                10000,
+                user.id,
             )
-            .await.unwrap();
+            .await
+            .unwrap();
         let viz = db
-            .create_visualization(org.id, query.id, "Test Viz", ChartType::Table, &serde_json::json!({}), user.id)
-            .await.unwrap();
+            .create_visualization(
+                org.id,
+                query.id,
+                "Test Viz",
+                ChartType::Table,
+                &serde_json::json!({}),
+                &serde_json::json!([]),
+                user.id,
+            )
+            .await
+            .unwrap();
         (test_db, org, user, viz)
     }
 
@@ -716,8 +901,16 @@ mod dashboard_tests {
         let db = test_db.database();
 
         let dash = db
-            .create_dashboard(org.id, "Executive Dashboard", Some("Weekly metrics"), &serde_json::json!({}), user.id)
-            .await.unwrap();
+            .create_dashboard(
+                org.id,
+                "Executive Dashboard",
+                Some("Weekly metrics"),
+                &serde_json::json!({}),
+                &serde_json::json!([]),
+                user.id,
+            )
+            .await
+            .unwrap();
 
         assert_eq!(dash.name, "Executive Dashboard");
         assert_eq!(dash.description.as_deref(), Some("Weekly metrics"));
@@ -729,18 +922,30 @@ mod dashboard_tests {
         let db = test_db.database();
 
         let dash = db
-            .create_dashboard(org.id, "Test Dashboard", None, &serde_json::json!({}), user.id)
-            .await.unwrap();
+            .create_dashboard(
+                org.id,
+                "Test Dashboard",
+                None,
+                &serde_json::json!({}),
+                &serde_json::json!([]),
+                user.id,
+            )
+            .await
+            .unwrap();
 
         let tile = db
             .create_tile(
                 dash.id,
                 viz.id,
                 Some("My Widget"),
-                0, 0, 6, 4,
+                0,
+                0,
+                6,
+                4,
                 &serde_json::json!({}),
             )
-            .await.unwrap();
+            .await
+            .unwrap();
 
         assert_eq!(tile.dashboard_id, dash.id);
         assert_eq!(tile.visualization_id, viz.id);
@@ -754,10 +959,42 @@ mod dashboard_tests {
         let (test_db, org, user, viz) = setup().await;
         let db = test_db.database();
 
-        let dash = db.create_dashboard(org.id, "Multi-tile Dashboard", None, &serde_json::json!({}), user.id).await.unwrap();
+        let dash = db
+            .create_dashboard(
+                org.id,
+                "Multi-tile Dashboard",
+                None,
+                &serde_json::json!({}),
+                &serde_json::json!([]),
+                user.id,
+            )
+            .await
+            .unwrap();
 
-        db.create_tile(dash.id, viz.id, Some("Tile 1"), 0, 0, 6, 4, &serde_json::json!({})).await.unwrap();
-        db.create_tile(dash.id, viz.id, Some("Tile 2"), 6, 0, 6, 4, &serde_json::json!({})).await.unwrap();
+        db.create_tile(
+            dash.id,
+            viz.id,
+            Some("Tile 1"),
+            0,
+            0,
+            6,
+            4,
+            &serde_json::json!({}),
+        )
+        .await
+        .unwrap();
+        db.create_tile(
+            dash.id,
+            viz.id,
+            Some("Tile 2"),
+            6,
+            0,
+            6,
+            4,
+            &serde_json::json!({}),
+        )
+        .await
+        .unwrap();
 
         let tiles = db.list_tiles(dash.id).await.unwrap();
         assert_eq!(tiles.len(), 2);
@@ -768,8 +1005,21 @@ mod dashboard_tests {
         let (test_db, org, user, viz) = setup().await;
         let db = test_db.database();
 
-        let dash = db.create_dashboard(org.id, "Dashboard", None, &serde_json::json!({}), user.id).await.unwrap();
-        let tile = db.create_tile(dash.id, viz.id, None, 0, 0, 4, 4, &serde_json::json!({})).await.unwrap();
+        let dash = db
+            .create_dashboard(
+                org.id,
+                "Dashboard",
+                None,
+                &serde_json::json!({}),
+                &serde_json::json!([]),
+                user.id,
+            )
+            .await
+            .unwrap();
+        let tile = db
+            .create_tile(dash.id, viz.id, None, 0, 0, 4, 4, &serde_json::json!({}))
+            .await
+            .unwrap();
 
         db.delete_tile(tile.id, dash.id).await.unwrap();
 
@@ -782,7 +1032,17 @@ mod dashboard_tests {
         let (test_db, org, user, _viz) = setup().await;
         let db = test_db.database();
 
-        let dash = db.create_dashboard(org.id, "To Delete", None, &serde_json::json!({}), user.id).await.unwrap();
+        let dash = db
+            .create_dashboard(
+                org.id,
+                "To Delete",
+                None,
+                &serde_json::json!({}),
+                &serde_json::json!([]),
+                user.id,
+            )
+            .await
+            .unwrap();
 
         db.delete_dashboard(dash.id, org.id).await.unwrap();
 
@@ -793,7 +1053,6 @@ mod dashboard_tests {
 
 mod schedule_tests {
     use super::*;
-    use chrono::{Duration, Utc};
 
     async fn setup() -> (TestDb, Organization, User, Query) {
         let test_db = TestDb::new().await;
@@ -801,16 +1060,27 @@ mod schedule_tests {
         let org = db.create_organization("Test Org").await.unwrap();
         let user = db
             .create_user(org.id, "admin@example.com", "hash", "Admin", OrgRole::Admin)
-            .await.unwrap();
+            .await
+            .unwrap();
         let ds = db
             .create_datasource(org.id, "Test DS", DatasourceType::Postgres, "conn", user.id)
-            .await.unwrap();
+            .await
+            .unwrap();
         let query = db
             .create_query(
-                org.id, ds.id, "Scheduled Query", None,
-                "SELECT NOW()", &serde_json::json!([]), 30, 10000, user.id,
+                org.id,
+                ds.id,
+                "Scheduled Query",
+                None,
+                "SELECT NOW()",
+                &serde_json::json!([]),
+                &serde_json::json!([]),
+                30,
+                10000,
+                user.id,
             )
-            .await.unwrap();
+            .await
+            .unwrap();
         (test_db, org, user, query)
     }
 
@@ -826,10 +1096,12 @@ mod schedule_tests {
                 "Every Hour",
                 "0 * * * *",
                 &serde_json::json!({}),
+                &serde_json::json!([]),
                 true,
                 user.id,
             )
-            .await.unwrap();
+            .await
+            .unwrap();
 
         assert_eq!(schedule.name, "Every Hour");
         assert_eq!(schedule.cron_expression, "0 * * * *");
@@ -841,8 +1113,30 @@ mod schedule_tests {
         let (test_db, org, user, query) = setup().await;
         let db = test_db.database();
 
-        db.create_schedule(org.id, query.id, "Hourly", "0 * * * *", &serde_json::json!({}), true, user.id).await.unwrap();
-        db.create_schedule(org.id, query.id, "Daily", "0 0 * * *", &serde_json::json!({}), false, user.id).await.unwrap();
+        db.create_schedule(
+            org.id,
+            query.id,
+            "Hourly",
+            "0 * * * *",
+            &serde_json::json!({}),
+            &serde_json::json!([]),
+            true,
+            user.id,
+        )
+        .await
+        .unwrap();
+        db.create_schedule(
+            org.id,
+            query.id,
+            "Daily",
+            "0 0 * * *",
+            &serde_json::json!({}),
+            &serde_json::json!([]),
+            false,
+            user.id,
+        )
+        .await
+        .unwrap();
 
         let schedules = db.list_schedules(org.id).await.unwrap();
         assert_eq!(schedules.len(), 2);
@@ -854,16 +1148,28 @@ mod schedule_tests {
         let db = test_db.database();
 
         let schedule = db
-            .create_schedule(org.id, query.id, "To Track", "0 * * * *", &serde_json::json!({}), true, user.id)
-            .await.unwrap();
+            .create_schedule(
+                org.id,
+                query.id,
+                "To Track",
+                "0 * * * *",
+                &serde_json::json!({}),
+                &serde_json::json!([]),
+                true,
+                user.id,
+            )
+            .await
+            .unwrap();
 
-        let next_run = Utc::now() + Duration::hours(1);
-        db.update_schedule_last_run(schedule.id, next_run).await.unwrap();
+        db.update_schedule_last_run(schedule.id, "0 * * * *", true)
+            .await
+            .unwrap();
 
         // Verify by re-listing (since we don't have get_schedule)
         let schedules = db.list_schedules(org.id).await.unwrap();
         let updated = schedules.iter().find(|s| s.id == schedule.id).unwrap();
         assert!(updated.last_run_at.is_some());
+        assert!(updated.next_run_at.is_some()); // Next run should be calculated
     }
 
     #[tokio::test]
@@ -872,10 +1178,32 @@ mod schedule_tests {
         let db = test_db.database();
 
         // Create an enabled schedule with null next_run_at (should be due)
-        db.create_schedule(org.id, query.id, "Should Be Due", "0 * * * *", &serde_json::json!({}), true, user.id).await.unwrap();
-        
+        db.create_schedule(
+            org.id,
+            query.id,
+            "Should Be Due",
+            "0 * * * *",
+            &serde_json::json!({}),
+            &serde_json::json!([]),
+            true,
+            user.id,
+        )
+        .await
+        .unwrap();
+
         // Create a disabled schedule (should not be due)
-        db.create_schedule(org.id, query.id, "Disabled", "0 * * * *", &serde_json::json!({}), false, user.id).await.unwrap();
+        db.create_schedule(
+            org.id,
+            query.id,
+            "Disabled",
+            "0 * * * *",
+            &serde_json::json!({}),
+            &serde_json::json!([]),
+            false,
+            user.id,
+        )
+        .await
+        .unwrap();
 
         let due = db.get_due_schedules().await.unwrap();
         // At least one should be due (the enabled one with null next_run_at)

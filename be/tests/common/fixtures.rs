@@ -126,6 +126,7 @@ impl QueryFixture {
             Some("A test query"),
             sql,
             &parameters,
+            &serde_json::json!([]),
             30,
             10000,
             created_by,
@@ -154,6 +155,7 @@ impl QueryFixture {
             None,
             sql,
             &parameters,
+            &serde_json::json!([]),
             30,
             10000,
             created_by,
@@ -214,6 +216,7 @@ impl VisualizationFixture {
             &name,
             ChartType::Line,
             &config,
+            &serde_json::json!([]),
             created_by,
         )
         .await
@@ -235,6 +238,7 @@ impl DashboardFixture {
             org_id,
             &name,
             Some("Test description"),
+            &serde_json::json!([]),
             &serde_json::json!([]),
             created_by,
         )
@@ -259,6 +263,7 @@ impl ScheduleFixture {
             &name,
             "0 */15 * * *", // Every 15 minutes
             &serde_json::json!({}),
+            &serde_json::json!([]),
             true,
             created_by,
         )

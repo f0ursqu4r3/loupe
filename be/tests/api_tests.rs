@@ -1,14 +1,14 @@
 //! API integration tests
-//! 
+//!
 //! These tests verify the HTTP API endpoints against a real test server
 //! using testcontainers for the database.
 
-use actix_web::{test, web, App, http::StatusCode};
+use actix_web::{App, http::StatusCode, test, web};
 use loupe::db::Database;
 use loupe::models::*;
 use serde_json::json;
 use std::sync::Arc;
-use testcontainers::{runners::AsyncRunner, ContainerAsync};
+use testcontainers::{ContainerAsync, runners::AsyncRunner};
 use testcontainers_modules::postgres::Postgres;
 
 /// Application state matching the API server
@@ -38,15 +38,15 @@ impl TestApp {
             .await
             .expect("Failed to connect to test database");
 
-        db.run_migrations()
-            .await
-            .expect("Failed to run migrations");
+        db.run_migrations().await.expect("Failed to run migrations");
 
         Self { db, container }
     }
 
     fn app_state(&self) -> Arc<AppState> {
-        Arc::new(AppState { db: self.db.clone() })
+        Arc::new(AppState {
+            db: self.db.clone(),
+        })
     }
 }
 
@@ -55,8 +55,10 @@ mod routes {
     use super::*;
     use actix_web::HttpResponse;
     use argon2::{
-        password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
         Argon2,
+        password_hash::{
+            PasswordHash, PasswordHasher, PasswordVerifier, SaltString, rand_core::OsRng,
+        },
     };
     use loupe::Error;
 
@@ -96,8 +98,20 @@ mod routes {
             .map_err(|e| Error::Internal(e.to_string()))?
             .to_string();
 
-        let org = state.db.create_organization(&format!("{}'s Org", req.name)).await?;
-        let user = state.db.create_user(org.id, &req.email, &password_hash, &req.name, OrgRole::Admin).await?;
+        let org = state
+            .db
+            .create_organization(&format!("{}'s Org", req.name))
+            .await?;
+        let user = state
+            .db
+            .create_user(
+                org.id,
+                &req.email,
+                &password_hash,
+                &req.name,
+                OrgRole::Admin,
+            )
+            .await?;
 
         Ok(HttpResponse::Created().json(UserResponse::from(user)))
     }
@@ -147,13 +161,16 @@ mod routes {
         state: web::Data<Arc<AppState>>,
         req: web::Json<CreateDatasourceRequestWithOrg>,
     ) -> Result<HttpResponse, Error> {
-        let ds = state.db.create_datasource(
-            req.org_id,
-            &req.name,
-            req.ds_type.clone(),
-            &req.connection_string, // Not encrypting for tests
-            req.user_id,
-        ).await?;
+        let ds = state
+            .db
+            .create_datasource(
+                req.org_id,
+                &req.name,
+                req.ds_type.clone(),
+                &req.connection_string, // Not encrypting for tests
+                req.user_id,
+            )
+            .await?;
         Ok(HttpResponse::Created().json(DatasourceResponse::from(ds)))
     }
 
@@ -211,24 +228,32 @@ mod routes {
         pub max_rows: i32,
     }
 
-    fn default_timeout() -> i32 { 30 }
-    fn default_max_rows() -> i32 { 10000 }
+    fn default_timeout() -> i32 {
+        30
+    }
+    fn default_max_rows() -> i32 {
+        10000
+    }
 
     async fn create_query(
         state: web::Data<Arc<AppState>>,
         req: web::Json<CreateQueryRequestWithOrg>,
     ) -> Result<HttpResponse, Error> {
-        let query = state.db.create_query(
-            req.org_id,
-            req.datasource_id,
-            &req.name,
-            req.description.as_deref(),
-            &req.sql,
-            &serde_json::to_value(&req.parameters).unwrap_or_default(),
-            req.timeout_seconds,
-            req.max_rows,
-            req.user_id,
-        ).await?;
+        let query = state
+            .db
+            .create_query(
+                req.org_id,
+                req.datasource_id,
+                &req.name,
+                req.description.as_deref(),
+                &req.sql,
+                &serde_json::to_value(&req.parameters).unwrap_or_default(),
+                &serde_json::json!([]),
+                req.timeout_seconds,
+                req.max_rows,
+                req.user_id,
+            )
+            .await?;
         Ok(HttpResponse::Created().json(QueryResponse::from(query)))
     }
 }
@@ -446,13 +471,17 @@ mod datasource_tests {
 
     async fn setup_user(test_app: &TestApp) -> (uuid::Uuid, uuid::Uuid) {
         let org = test_app.db.create_organization("Test Org").await.unwrap();
-        let user = test_app.db.create_user(
-            org.id,
-            "ds-test@example.com",
-            "hash",
-            "DS Test User",
-            OrgRole::Admin,
-        ).await.unwrap();
+        let user = test_app
+            .db
+            .create_user(
+                org.id,
+                "ds-test@example.com",
+                "hash",
+                "DS Test User",
+                OrgRole::Admin,
+            )
+            .await
+            .unwrap();
         (org.id, user.id)
     }
 
@@ -498,8 +527,16 @@ mod datasource_tests {
         let state = test_app.app_state();
 
         // Create some datasources
-        test_app.db.create_datasource(org_id, "DS 1", DatasourceType::Postgres, "conn1", user_id).await.unwrap();
-        test_app.db.create_datasource(org_id, "DS 2", DatasourceType::Postgres, "conn2", user_id).await.unwrap();
+        test_app
+            .db
+            .create_datasource(org_id, "DS 1", DatasourceType::Postgres, "conn1", user_id)
+            .await
+            .unwrap();
+        test_app
+            .db
+            .create_datasource(org_id, "DS 2", DatasourceType::Postgres, "conn2", user_id)
+            .await
+            .unwrap();
 
         let app = test::init_service(
             App::new()
@@ -525,20 +562,28 @@ mod query_tests {
 
     async fn setup_with_datasource(test_app: &TestApp) -> (uuid::Uuid, uuid::Uuid, uuid::Uuid) {
         let org = test_app.db.create_organization("Test Org").await.unwrap();
-        let user = test_app.db.create_user(
-            org.id,
-            "query-test@example.com",
-            "hash",
-            "Query Test User",
-            OrgRole::Admin,
-        ).await.unwrap();
-        let ds = test_app.db.create_datasource(
-            org.id,
-            "Test DS",
-            DatasourceType::Postgres,
-            "postgres://localhost/test",
-            user.id,
-        ).await.unwrap();
+        let user = test_app
+            .db
+            .create_user(
+                org.id,
+                "query-test@example.com",
+                "hash",
+                "Query Test User",
+                OrgRole::Admin,
+            )
+            .await
+            .unwrap();
+        let ds = test_app
+            .db
+            .create_datasource(
+                org.id,
+                "Test DS",
+                DatasourceType::Postgres,
+                "postgres://localhost/test",
+                user.id,
+            )
+            .await
+            .unwrap();
         (org.id, user.id, ds.id)
     }
 
@@ -574,7 +619,10 @@ mod query_tests {
 
         let body: serde_json::Value = test::read_body_json(resp).await;
         assert_eq!(body["name"], "Active Users");
-        assert_eq!(body["sql"], "SELECT COUNT(*) FROM users WHERE active = true");
+        assert_eq!(
+            body["sql"],
+            "SELECT COUNT(*) FROM users WHERE active = true"
+        );
         assert_eq!(body["timeout_seconds"], 60);
     }
 
@@ -585,14 +633,38 @@ mod query_tests {
         let state = test_app.app_state();
 
         // Create queries directly
-        test_app.db.create_query(
-            org_id, ds_id, "Query 1", None,
-            "SELECT 1", &json!([]), 30, 1000, user_id,
-        ).await.unwrap();
-        test_app.db.create_query(
-            org_id, ds_id, "Query 2", None,
-            "SELECT 2", &json!([]), 30, 1000, user_id,
-        ).await.unwrap();
+        test_app
+            .db
+            .create_query(
+                org_id,
+                ds_id,
+                "Query 1",
+                None,
+                "SELECT 1",
+                &json!([]),
+                &json!([]),
+                30,
+                1000,
+                user_id,
+            )
+            .await
+            .unwrap();
+        test_app
+            .db
+            .create_query(
+                org_id,
+                ds_id,
+                "Query 2",
+                None,
+                "SELECT 2",
+                &json!([]),
+                &json!([]),
+                30,
+                1000,
+                user_id,
+            )
+            .await
+            .unwrap();
 
         let app = test::init_service(
             App::new()

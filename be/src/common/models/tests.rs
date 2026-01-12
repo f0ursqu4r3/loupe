@@ -1,7 +1,7 @@
 //! Unit tests for models
 
 mod user_tests {
-    use crate::models::{OrgRole, UserResponse, User};
+    use crate::models::{OrgRole, User, UserResponse};
     use chrono::Utc;
     use uuid::Uuid;
 
@@ -68,7 +68,7 @@ mod user_tests {
 }
 
 mod datasource_tests {
-    use crate::models::{DatasourceType, CreateDatasourceRequest, DatasourceResponse, Datasource};
+    use crate::models::{CreateDatasourceRequest, Datasource, DatasourceResponse, DatasourceType};
     use chrono::Utc;
     use uuid::Uuid;
 
@@ -86,7 +86,7 @@ mod datasource_tests {
             "name": "My DB",
             "connection_string": "postgres://localhost/db"
         }"#;
-        
+
         let req: CreateDatasourceRequest = serde_json::from_str(json).unwrap();
         assert_eq!(req.ds_type, DatasourceType::Postgres);
     }
@@ -106,7 +106,7 @@ mod datasource_tests {
 
         let response = DatasourceResponse::from(ds);
         let json = serde_json::to_string(&response).unwrap();
-        
+
         // Connection string should NOT be in the serialized output
         assert!(!json.contains("secret_connection"));
         assert!(!json.contains("connection_string"));
@@ -114,17 +114,32 @@ mod datasource_tests {
 }
 
 mod query_tests {
-    use crate::models::{ParamType, ParamDef, CreateQueryRequest, QueryResponse, Query};
+    use crate::models::{CreateQueryRequest, ParamDef, ParamType, Query, QueryResponse};
     use chrono::Utc;
     use uuid::Uuid;
 
     #[test]
     fn test_param_type_serialization() {
-        assert_eq!(serde_json::to_string(&ParamType::String).unwrap(), r#""string""#);
-        assert_eq!(serde_json::to_string(&ParamType::Number).unwrap(), r#""number""#);
-        assert_eq!(serde_json::to_string(&ParamType::Boolean).unwrap(), r#""boolean""#);
-        assert_eq!(serde_json::to_string(&ParamType::Date).unwrap(), r#""date""#);
-        assert_eq!(serde_json::to_string(&ParamType::DateTime).unwrap(), r#""datetime""#);
+        assert_eq!(
+            serde_json::to_string(&ParamType::String).unwrap(),
+            r#""string""#
+        );
+        assert_eq!(
+            serde_json::to_string(&ParamType::Number).unwrap(),
+            r#""number""#
+        );
+        assert_eq!(
+            serde_json::to_string(&ParamType::Boolean).unwrap(),
+            r#""boolean""#
+        );
+        assert_eq!(
+            serde_json::to_string(&ParamType::Date).unwrap(),
+            r#""date""#
+        );
+        assert_eq!(
+            serde_json::to_string(&ParamType::DateTime).unwrap(),
+            r#""datetime""#
+        );
     }
 
     #[test]
@@ -148,7 +163,7 @@ mod query_tests {
             "name": "My Query",
             "sql": "SELECT 1"
         }"#;
-        
+
         let req: CreateQueryRequest = serde_json::from_str(json).unwrap();
         assert_eq!(req.timeout_seconds, 30);
         assert_eq!(req.max_rows, 10000);
@@ -167,6 +182,7 @@ mod query_tests {
             parameters: serde_json::json!([
                 {"name": "id", "param_type": "number", "required": true}
             ]),
+            tags: serde_json::json!([]),
             timeout_seconds: 30,
             max_rows: 1000,
             created_by: Uuid::new_v4(),
@@ -181,18 +197,36 @@ mod query_tests {
 }
 
 mod run_tests {
-    use crate::models::{RunStatus, ExecuteAdHocRequest, ColumnDef, RunResultResponse, RunResult};
+    use crate::models::{ColumnDef, ExecuteAdHocRequest, RunResult, RunResultResponse, RunStatus};
     use chrono::Utc;
     use uuid::Uuid;
 
     #[test]
     fn test_run_status_serialization() {
-        assert_eq!(serde_json::to_string(&RunStatus::Queued).unwrap(), r#""queued""#);
-        assert_eq!(serde_json::to_string(&RunStatus::Running).unwrap(), r#""running""#);
-        assert_eq!(serde_json::to_string(&RunStatus::Completed).unwrap(), r#""completed""#);
-        assert_eq!(serde_json::to_string(&RunStatus::Failed).unwrap(), r#""failed""#);
-        assert_eq!(serde_json::to_string(&RunStatus::Cancelled).unwrap(), r#""cancelled""#);
-        assert_eq!(serde_json::to_string(&RunStatus::Timeout).unwrap(), r#""timeout""#);
+        assert_eq!(
+            serde_json::to_string(&RunStatus::Queued).unwrap(),
+            r#""queued""#
+        );
+        assert_eq!(
+            serde_json::to_string(&RunStatus::Running).unwrap(),
+            r#""running""#
+        );
+        assert_eq!(
+            serde_json::to_string(&RunStatus::Completed).unwrap(),
+            r#""completed""#
+        );
+        assert_eq!(
+            serde_json::to_string(&RunStatus::Failed).unwrap(),
+            r#""failed""#
+        );
+        assert_eq!(
+            serde_json::to_string(&RunStatus::Cancelled).unwrap(),
+            r#""cancelled""#
+        );
+        assert_eq!(
+            serde_json::to_string(&RunStatus::Timeout).unwrap(),
+            r#""timeout""#
+        );
     }
 
     #[test]
@@ -201,7 +235,7 @@ mod run_tests {
             "datasource_id": "00000000-0000-0000-0000-000000000001",
             "sql": "SELECT 1"
         }"#;
-        
+
         let req: ExecuteAdHocRequest = serde_json::from_str(json).unwrap();
         assert_eq!(req.timeout_seconds, 30);
         assert_eq!(req.max_rows, 10000);
@@ -228,10 +262,7 @@ mod run_tests {
                 {"name": "id", "data_type": "INT8"},
                 {"name": "name", "data_type": "TEXT"}
             ]),
-            rows: serde_json::json!([
-                [1, "Alice"],
-                [2, "Bob"]
-            ]),
+            rows: serde_json::json!([[1, "Alice"], [2, "Bob"]]),
             row_count: 2,
             byte_count: 100,
             execution_time_ms: 50,
@@ -252,10 +283,19 @@ mod visualization_tests {
 
     #[test]
     fn test_chart_type_serialization() {
-        assert_eq!(serde_json::to_string(&ChartType::Table).unwrap(), r#""table""#);
-        assert_eq!(serde_json::to_string(&ChartType::Line).unwrap(), r#""line""#);
+        assert_eq!(
+            serde_json::to_string(&ChartType::Table).unwrap(),
+            r#""table""#
+        );
+        assert_eq!(
+            serde_json::to_string(&ChartType::Line).unwrap(),
+            r#""line""#
+        );
         assert_eq!(serde_json::to_string(&ChartType::Bar).unwrap(), r#""bar""#);
-        assert_eq!(serde_json::to_string(&ChartType::SingleStat).unwrap(), r#""single_stat""#);
+        assert_eq!(
+            serde_json::to_string(&ChartType::SingleStat).unwrap(),
+            r#""single_stat""#
+        );
     }
 
     #[test]
@@ -265,7 +305,7 @@ mod visualization_tests {
             "name": "My Chart",
             "chart_type": "line"
         }"#;
-        
+
         let req: CreateVisualizationRequest = serde_json::from_str(json).unwrap();
         assert_eq!(req.chart_type, ChartType::Line);
         assert!(req.config.is_null() || req.config == serde_json::json!({}));
@@ -273,7 +313,7 @@ mod visualization_tests {
 }
 
 mod dashboard_tests {
-    use crate::models::{CreateTileRequest, TileResponse, Tile};
+    use crate::models::{CreateTileRequest, Tile, TileResponse};
     use chrono::Utc;
     use uuid::Uuid;
 
@@ -282,7 +322,7 @@ mod dashboard_tests {
         let json = r#"{
             "visualization_id": "00000000-0000-0000-0000-000000000001"
         }"#;
-        
+
         let req: CreateTileRequest = serde_json::from_str(json).unwrap();
         assert_eq!(req.pos_x, 0);
         assert_eq!(req.pos_y, 0);
@@ -314,7 +354,7 @@ mod dashboard_tests {
 }
 
 mod schedule_tests {
-    use crate::models::{CreateScheduleRequest, ScheduleResponse, Schedule};
+    use crate::models::{CreateScheduleRequest, Schedule, ScheduleResponse};
     use chrono::Utc;
     use uuid::Uuid;
 
@@ -325,7 +365,7 @@ mod schedule_tests {
             "name": "Daily Refresh",
             "cron_expression": "0 0 * * *"
         }"#;
-        
+
         let req: CreateScheduleRequest = serde_json::from_str(json).unwrap();
         assert!(req.enabled);
         assert!(req.parameters.is_null() || req.parameters == serde_json::json!({}));
@@ -340,6 +380,7 @@ mod schedule_tests {
             name: "Hourly".to_string(),
             cron_expression: "0 * * * *".to_string(),
             parameters: serde_json::json!({}),
+            tags: serde_json::json!([]),
             enabled: true,
             last_run_at: None,
             next_run_at: Some(Utc::now()),
