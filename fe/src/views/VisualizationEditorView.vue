@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   ArrowLeft,
@@ -36,13 +36,17 @@ const visualizationId = computed(() => route.params.id as string | undefined)
 const queryIdFromRoute = computed(() => route.query.query_id as string | undefined)
 const isNew = computed(() => !visualizationId.value || visualizationId.value === 'new')
 
+function createEmptyVisualization(): Partial<Visualization> {
+  return {
+    name: '',
+    chart_type: 'table',
+    config: {},
+    tags: [],
+  }
+}
+
 // Visualization state
-const visualization = ref<Partial<Visualization>>({
-  name: '',
-  chart_type: 'table',
-  config: {},
-  tags: [],
-})
+const visualization = ref<Partial<Visualization>>(createEmptyVisualization())
 
 // Query and data
 const query = ref<Query | null>(null)
@@ -55,6 +59,20 @@ const saving = ref(false)
 const running = ref(false)
 const error = ref<string | null>(null)
 const saveSuccess = ref(false)
+const previewPollToken = ref(0)
+const isActive = ref(true)
+
+function resetVisualizationState() {
+  visualization.value = createEmptyVisualization()
+  query.value = null
+  result.value = null
+  error.value = null
+  saveSuccess.value = false
+  running.value = false
+  loading.value = false
+  saving.value = false
+  previewPollToken.value += 1
+}
 
 // Chart type options
 const chartTypeOptions = [
@@ -117,15 +135,31 @@ async function handleQueryChange(queryId: string) {
 
 // Load visualization
 async function loadVisualization() {
+  const activeVisualizationId = visualizationId.value
+  const activeQueryId = queryIdFromRoute.value
+
   // Load all queries for the selector
   await loadQueries()
 
+  if (
+    activeVisualizationId !== visualizationId.value ||
+    activeQueryId !== queryIdFromRoute.value
+  ) {
+    return
+  }
+
   if (isNew.value) {
     // For new visualizations, load the query from query_id param
-    if (queryIdFromRoute.value) {
+    if (activeQueryId) {
       try {
-        query.value = await queriesApi.get(queryIdFromRoute.value)
-        visualization.value.query_id = queryIdFromRoute.value
+        query.value = await queriesApi.get(activeQueryId)
+        if (
+          activeVisualizationId !== visualizationId.value ||
+          activeQueryId !== queryIdFromRoute.value
+        ) {
+          return
+        }
+        visualization.value.query_id = activeQueryId
         visualization.value.name = `${query.value.name} - Visualization`
         await runQueryForPreview()
       } catch (e) {
@@ -137,7 +171,8 @@ async function loadVisualization() {
 
   try {
     loading.value = true
-    const viz = await visualizationsApi.get(visualizationId.value!)
+    const viz = await visualizationsApi.get(activeVisualizationId!)
+    if (activeVisualizationId !== visualizationId.value) return
     visualization.value = viz
 
     // Load associated query
@@ -146,7 +181,9 @@ async function loadVisualization() {
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load visualization'
   } finally {
-    loading.value = false
+    if (activeVisualizationId === visualizationId.value) {
+      loading.value = false
+    }
   }
 }
 
@@ -165,7 +202,8 @@ async function runQueryForPreview() {
     })
 
     // Poll for completion
-    await pollRunStatus(run.id)
+    const pollToken = ++previewPollToken.value
+    await pollRunStatus(run.id, pollToken)
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to run query'
   } finally {
@@ -173,16 +211,20 @@ async function runQueryForPreview() {
   }
 }
 
-async function pollRunStatus(runId: string) {
+async function pollRunStatus(runId: string, pollToken: number) {
   const maxAttempts = 60
   let attempts = 0
 
   while (attempts < maxAttempts) {
+    if (!isActive.value || pollToken !== previewPollToken.value) return
     try {
       const run = await runsApi.get(runId)
+      if (!isActive.value || pollToken !== previewPollToken.value) return
 
       if (run.status === 'completed') {
-        result.value = await runsApi.getResult(run.id)
+        const data = await runsApi.getResult(run.id)
+        if (!isActive.value || pollToken !== previewPollToken.value) return
+        result.value = data
         return
       } else if (
         run.status === 'failed' ||
@@ -201,6 +243,7 @@ async function pollRunStatus(runId: string) {
     }
   }
 
+  if (!isActive.value || pollToken !== previewPollToken.value) return
   error.value = 'Query timed out waiting for results'
 }
 
@@ -255,6 +298,20 @@ function updateConfig(key: keyof VisualizationConfig, value: unknown) {
 }
 
 onMounted(loadVisualization)
+
+onBeforeUnmount(() => {
+  isActive.value = false
+  previewPollToken.value += 1
+})
+
+watch(
+  [() => visualizationId.value, () => queryIdFromRoute.value],
+  ([nextId, nextQuery], [prevId, prevQuery]) => {
+    if (nextId === prevId && nextQuery === prevQuery) return
+    resetVisualizationState()
+    loadVisualization()
+  },
+)
 
 // Clear error on changes
 watch(

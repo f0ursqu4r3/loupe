@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   ArrowLeft,
@@ -35,14 +35,18 @@ const router = useRouter()
 const dashboardId = computed(() => route.params.id as string | undefined)
 const isNew = computed(() => !dashboardId.value || dashboardId.value === 'new')
 
+function createEmptyDashboard(): Partial<Dashboard> {
+  return {
+    name: '',
+    description: '',
+    parameters: [],
+    tags: [],
+    tiles: [],
+  }
+}
+
 // Dashboard state
-const dashboard = ref<Partial<Dashboard>>({
-  name: '',
-  description: '',
-  parameters: [],
-  tags: [],
-  tiles: [],
-})
+const dashboard = ref<Partial<Dashboard>>(createEmptyDashboard())
 
 // UI state
 const loading = ref(false)
@@ -66,12 +70,33 @@ const tileLoading = ref<Record<string, boolean>>({})
 // Refs to GridItem components for triggering drag
 const tileRefs = ref<Record<string, InstanceType<typeof GridItem>>>({})
 
+const tilePollToken = ref(0)
+const isActive = ref(true)
+
 // Grid settings
 const GRID_COLS = 12
 const GRID_ROW_HEIGHT = 80
 
+function resetDashboardState() {
+  dashboard.value = createEmptyDashboard()
+  tileData.value = {}
+  tileLoading.value = {}
+  tileRefs.value = {}
+  vizCache.value = {}
+  error.value = null
+  saveSuccess.value = false
+  showAddTileModal.value = false
+  selectedVisualizationId.value = null
+  settingsCollapsed.value = true
+  loading.value = false
+  saving.value = false
+  addingTile.value = false
+}
+
 // Load dashboard
 async function loadDashboard() {
+  const pollToken = ++tilePollToken.value
+
   if (isNew.value) {
     // Show settings for new dashboards so user can enter name
     settingsCollapsed.value = false
@@ -81,40 +106,50 @@ async function loadDashboard() {
   try {
     loading.value = true
     const data = await dashboardsApi.get(dashboardId.value!)
+    if (!isActive.value || pollToken !== tilePollToken.value) return
     dashboard.value = data
     setLastDashboardId(data.id)
 
     // Load tile data
     for (const tile of data.tiles) {
-      loadTileData(tile)
+      loadTileData(tile, pollToken)
     }
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load dashboard'
   } finally {
-    loading.value = false
+    if (isActive.value && pollToken === tilePollToken.value) {
+      loading.value = false
+    }
   }
 }
 
 // Load data for a tile
-async function loadTileData(tile: Tile) {
+async function loadTileData(tile: Tile, pollToken: number) {
+  if (!isActive.value || pollToken !== tilePollToken.value) return
   tileLoading.value[tile.id] = true
   try {
     // Get the visualization to find the query
     const viz = await visualizationsApi.get(tile.visualization_id)
+    if (!isActive.value || pollToken !== tilePollToken.value) return
 
     // Run the query
     const run = await runsApi.create({
       query_id: viz.query_id,
       parameters: {},
     })
+    if (!isActive.value || pollToken !== tilePollToken.value) return
 
     // Poll for completion
     const maxAttempts = 60
     let attempts = 0
     while (attempts < maxAttempts) {
+      if (!isActive.value || pollToken !== tilePollToken.value) return
       const status = await runsApi.get(run.id)
+      if (!isActive.value || pollToken !== tilePollToken.value) return
       if (status.status === 'completed') {
-        tileData.value[tile.id] = await runsApi.getResult(run.id)
+        const data = await runsApi.getResult(run.id)
+        if (!isActive.value || pollToken !== tilePollToken.value) return
+        tileData.value[tile.id] = data
         break
       } else if (
         status.status === 'failed' ||
@@ -129,9 +164,13 @@ async function loadTileData(tile: Tile) {
     }
   } catch (e) {
     console.error('Failed to load tile data:', e)
-    tileData.value[tile.id] = null
+    if (isActive.value && pollToken === tilePollToken.value) {
+      tileData.value[tile.id] = null
+    }
   } finally {
-    tileLoading.value[tile.id] = false
+    if (isActive.value && pollToken === tilePollToken.value) {
+      tileLoading.value[tile.id] = false
+    }
   }
 }
 
@@ -204,7 +243,7 @@ async function addTile() {
 
     const tile = await dashboardsApi.createTile(dashboardId.value!, payload)
     dashboard.value.tiles = [...(dashboard.value.tiles || []), tile]
-    loadTileData(tile)
+    loadTileData(tile, tilePollToken.value)
 
     showAddTileModal.value = false
     selectedVisualizationId.value = null
@@ -392,6 +431,20 @@ async function getVisualization(vizId: string): Promise<Visualization | null> {
 onMounted(() => {
   loadDashboard()
 })
+
+onBeforeUnmount(() => {
+  isActive.value = false
+  tilePollToken.value += 1
+})
+
+watch(
+  () => dashboardId.value,
+  (next, prev) => {
+    if (next === prev) return
+    resetDashboardState()
+    loadDashboard()
+  },
+)
 
 // Clear error on changes
 watch(

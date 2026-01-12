@@ -35,14 +35,18 @@ const scheduleId = computed(() => route.params.id as string | undefined)
 const queryIdFromRoute = computed(() => route.query.query_id as string | undefined)
 const isNew = computed(() => !scheduleId.value || scheduleId.value === 'new')
 
+function createEmptySchedule(): Partial<Schedule> {
+  return {
+    name: '',
+    cron_expression: '0 * * * *',
+    parameters: {},
+    tags: [],
+    enabled: true,
+  }
+}
+
 // Schedule state
-const schedule = ref<Partial<Schedule>>({
-  name: '',
-  cron_expression: '0 * * * *',
-  parameters: {},
-  tags: [],
-  enabled: true,
-})
+const schedule = ref<Partial<Schedule>>(createEmptySchedule())
 
 // Query state
 const query = ref<Query | null>(null)
@@ -55,6 +59,18 @@ const deleting = ref(false)
 const error = ref<string | null>(null)
 const saveSuccess = ref(false)
 const showDeleteConfirm = ref(false)
+
+function resetScheduleState() {
+  schedule.value = createEmptySchedule()
+  query.value = null
+  selectedPreset.value = schedule.value.cron_expression || '0 * * * *'
+  error.value = null
+  saveSuccess.value = false
+  showDeleteConfirm.value = false
+  deleting.value = false
+  loading.value = false
+  saving.value = false
+}
 
 // Cron presets
 const cronPresets = [
@@ -128,20 +144,28 @@ async function handleQueryChange(queryId: string) {
 
 // Load schedule
 async function loadSchedule() {
+  const activeScheduleId = scheduleId.value
+  const activeQueryId = queryIdFromRoute.value
+
   // Load all queries for the selector
   await loadQueries()
 
+  if (activeScheduleId !== scheduleId.value || activeQueryId !== queryIdFromRoute.value) {
+    return
+  }
+
   if (isNew.value) {
     // For new schedules, load the query from query_id param
-    if (queryIdFromRoute.value) {
-      await handleQueryChange(queryIdFromRoute.value)
+    if (activeQueryId) {
+      await handleQueryChange(activeQueryId)
     }
     return
   }
 
   try {
     loading.value = true
-    const sched = await schedulesApi.get(scheduleId.value!)
+    const sched = await schedulesApi.get(activeScheduleId!)
+    if (activeScheduleId !== scheduleId.value) return
     schedule.value = sched
 
     // Set the preset selector
@@ -153,7 +177,9 @@ async function loadSchedule() {
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load schedule'
   } finally {
-    loading.value = false
+    if (activeScheduleId === scheduleId.value) {
+      loading.value = false
+    }
   }
 }
 
@@ -246,6 +272,15 @@ function describeCron(expr: string): string {
 }
 
 onMounted(loadSchedule)
+
+watch(
+  [() => scheduleId.value, () => queryIdFromRoute.value],
+  ([nextId, nextQuery], [prevId, prevQuery]) => {
+    if (nextId === prevId && nextQuery === prevQuery) return
+    resetScheduleState()
+    loadSchedule()
+  },
+)
 </script>
 
 <template>

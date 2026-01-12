@@ -43,16 +43,20 @@ const router = useRouter()
 const queryId = computed(() => route.params.id as string | undefined)
 const isNew = computed(() => !queryId.value || queryId.value === 'new')
 
-const query = ref<Partial<Query>>({
-  name: '',
-  description: '',
-  sql: 'SELECT * FROM ',
-  datasource_id: '',
-  parameters: [],
-  tags: [],
-  timeout_seconds: 30,
-  max_rows: 10000,
-})
+function createEmptyQuery(): Partial<Query> {
+  return {
+    name: '',
+    description: '',
+    sql: 'SELECT * FROM ',
+    datasource_id: '',
+    parameters: [],
+    tags: [],
+    timeout_seconds: 30,
+    max_rows: 10000,
+  }
+}
+
+const query = ref<Partial<Query>>(createEmptyQuery())
 
 // UI state
 const loading = ref(false)
@@ -82,6 +86,8 @@ const currentRun = ref<Run | null>(null)
 const result = ref<QueryResult | null>(null)
 const resultError = ref<string | null>(null)
 const showResults = ref(false)
+const runPollToken = ref(0)
+const isActive = ref(true)
 
 // Editor resizing
 const editorHeight = ref(300)
@@ -120,6 +126,8 @@ function stopResize() {
 }
 
 onBeforeUnmount(() => {
+  isActive.value = false
+  runPollToken.value += 1
   document.removeEventListener('mousemove', handleResize)
   document.removeEventListener('mouseup', stopResize)
 })
@@ -129,6 +137,23 @@ const parameterValues = ref<Record<string, unknown>>({})
 
 // Show parameters section
 const showParameters = ref(false)
+
+function resetQueryState() {
+  query.value = createEmptyQuery()
+  parameterValues.value = {}
+  schedules.value = []
+  currentRun.value = null
+  result.value = null
+  resultError.value = null
+  showResults.value = false
+  showParameters.value = false
+  running.value = false
+  error.value = null
+  saveSuccess.value = false
+  loading.value = false
+  saving.value = false
+  runPollToken.value += 1
+}
 
 // Load datasources
 async function loadDatasources() {
@@ -148,16 +173,20 @@ async function loadDatasources() {
 async function loadQuery() {
   if (isNew.value) return
 
+  const activeQueryId = queryId.value
   try {
     loading.value = true
-    const data = await queriesApi.get(queryId.value!)
+    const data = await queriesApi.get(activeQueryId!)
+    if (activeQueryId !== queryId.value) return
     query.value = data
     // Load schedules for this query
     await loadSchedules()
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load query'
   } finally {
-    loading.value = false
+    if (activeQueryId === queryId.value) {
+      loading.value = false
+    }
   }
 }
 
@@ -247,7 +276,8 @@ async function runQuery() {
     })
 
     // Poll for completion
-    await pollRunStatus()
+    const pollToken = ++runPollToken.value
+    await pollRunStatus(pollToken)
   } catch (e) {
     resultError.value = e instanceof Error ? e.message : 'Failed to execute query'
     running.value = false
@@ -255,20 +285,33 @@ async function runQuery() {
 }
 
 // Poll run status until complete
-async function pollRunStatus() {
+async function pollRunStatus(pollToken: number) {
   if (!currentRun.value) return
 
   const maxAttempts = 60
   let attempts = 0
 
   while (attempts < maxAttempts) {
+    if (!isActive.value || pollToken !== runPollToken.value) {
+      running.value = false
+      return
+    }
     try {
       const run = await runsApi.get(currentRun.value.id)
+      if (!isActive.value || pollToken !== runPollToken.value) {
+        running.value = false
+        return
+      }
       currentRun.value = run
 
       if (run.status === 'completed') {
         // Fetch results
-        result.value = await runsApi.getResult(run.id)
+        const data = await runsApi.getResult(run.id)
+        if (!isActive.value || pollToken !== runPollToken.value) {
+          running.value = false
+          return
+        }
+        result.value = data
         running.value = false
         return
       } else if (
@@ -291,6 +334,7 @@ async function pollRunStatus() {
     }
   }
 
+  if (!isActive.value || pollToken !== runPollToken.value) return
   resultError.value = 'Query timed out waiting for results'
   running.value = false
 }
@@ -322,6 +366,15 @@ onMounted(() => {
   loadDatasources()
   loadQuery()
 })
+
+watch(
+  () => queryId.value,
+  (next, prev) => {
+    if (next === prev) return
+    resetQueryState()
+    loadQuery()
+  },
+)
 
 // Clear error when inputs change
 watch([() => query.value.name, () => query.value.sql, () => query.value.datasource_id], () => {
