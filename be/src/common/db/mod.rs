@@ -795,6 +795,20 @@ impl Database {
 
     // ==================== Schedules ====================
 
+    /// Calculate the next run time from a cron expression
+    fn calculate_next_run(
+        cron_expression: &str,
+        enabled: bool,
+    ) -> Option<chrono::DateTime<chrono::Utc>> {
+        if !enabled {
+            return None;
+        }
+
+        use std::str::FromStr;
+        let schedule = cron::Schedule::from_str(cron_expression).ok()?;
+        schedule.upcoming(chrono::Utc).next()
+    }
+
     pub async fn create_schedule(
         &self,
         org_id: Uuid,
@@ -806,10 +820,12 @@ impl Database {
         enabled: bool,
         created_by: Uuid,
     ) -> Result<Schedule> {
+        let next_run_at = Self::calculate_next_run(cron_expression, enabled);
+
         let schedule = sqlx::query_as::<_, Schedule>(
             r#"
-            INSERT INTO schedules (id, org_id, query_id, name, cron_expression, parameters, tags, enabled, created_by, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+            INSERT INTO schedules (id, org_id, query_id, name, cron_expression, parameters, tags, enabled, next_run_at, created_by, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
             RETURNING *
             "#,
         )
@@ -821,6 +837,7 @@ impl Database {
         .bind(parameters)
         .bind(tags)
         .bind(enabled)
+        .bind(next_run_at)
         .bind(created_by)
         .fetch_one(&self.pool)
         .await?;
@@ -887,57 +904,39 @@ impl Database {
         tags: Option<&serde_json::Value>,
         enabled: Option<bool>,
     ) -> Result<Schedule> {
-        // Build dynamic update query
-        let mut updates = vec!["updated_at = NOW()".to_string()];
-        let mut param_idx = 3; // Start after id and org_id
+        // Get existing schedule to determine current values for next_run calculation
+        let existing = self.get_schedule(id, org_id).await?;
 
-        if name.is_some() {
-            updates.push(format!("name = ${}", param_idx));
-            param_idx += 1;
-        }
-        if cron_expression.is_some() {
-            updates.push(format!("cron_expression = ${}", param_idx));
-            param_idx += 1;
-        }
-        if parameters.is_some() {
-            updates.push(format!("parameters = ${}", param_idx));
-            param_idx += 1;
-        }
-        if tags.is_some() {
-            updates.push(format!("tags = ${}", param_idx));
-            param_idx += 1;
-        }
-        if enabled.is_some() {
-            updates.push(format!("enabled = ${}", param_idx));
-        }
+        let new_cron = cron_expression.unwrap_or(&existing.cron_expression);
+        let new_enabled = enabled.unwrap_or(existing.enabled);
+        let next_run_at = Self::calculate_next_run(new_cron, new_enabled);
 
-        let query = format!(
-            "UPDATE schedules SET {} WHERE id = $1 AND org_id = $2 RETURNING *",
-            updates.join(", ")
-        );
-
-        let mut q = sqlx::query_as::<_, Schedule>(&query).bind(id).bind(org_id);
-
-        if let Some(n) = name {
-            q = q.bind(n);
-        }
-        if let Some(c) = cron_expression {
-            q = q.bind(c);
-        }
-        if let Some(p) = parameters {
-            q = q.bind(p);
-        }
-        if let Some(t) = tags {
-            q = q.bind(t);
-        }
-        if let Some(e) = enabled {
-            q = q.bind(e);
-        }
-
-        let schedule = q
-            .fetch_optional(&self.pool)
-            .await?
-            .ok_or_else(|| Error::NotFound("Schedule not found".into()))?;
+        // Use a simpler approach: update all fields, using COALESCE for optional ones
+        let schedule = sqlx::query_as::<_, Schedule>(
+            r#"
+            UPDATE schedules SET
+                name = COALESCE($3, name),
+                cron_expression = COALESCE($4, cron_expression),
+                parameters = COALESCE($5, parameters),
+                tags = COALESCE($6, tags),
+                enabled = COALESCE($7, enabled),
+                next_run_at = $8,
+                updated_at = NOW()
+            WHERE id = $1 AND org_id = $2
+            RETURNING *
+            "#,
+        )
+        .bind(id)
+        .bind(org_id)
+        .bind(name)
+        .bind(cron_expression)
+        .bind(parameters)
+        .bind(tags)
+        .bind(enabled)
+        .bind(next_run_at)
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or_else(|| Error::NotFound("Schedule not found".into()))?;
 
         Ok(schedule)
     }
@@ -957,11 +956,16 @@ impl Database {
     }
 
     pub async fn enable_schedule(&self, id: Uuid, org_id: Uuid) -> Result<Schedule> {
+        // First get the schedule to access the cron expression
+        let existing = self.get_schedule(id, org_id).await?;
+        let next_run_at = Self::calculate_next_run(&existing.cron_expression, true);
+
         let schedule = sqlx::query_as::<_, Schedule>(
-            "UPDATE schedules SET enabled = true, updated_at = NOW() WHERE id = $1 AND org_id = $2 RETURNING *",
+            "UPDATE schedules SET enabled = true, next_run_at = $3, updated_at = NOW() WHERE id = $1 AND org_id = $2 RETURNING *",
         )
         .bind(id)
         .bind(org_id)
+        .bind(next_run_at)
         .fetch_optional(&self.pool)
         .await?
         .ok_or_else(|| Error::NotFound("Schedule not found".into()))?;
@@ -971,7 +975,7 @@ impl Database {
 
     pub async fn disable_schedule(&self, id: Uuid, org_id: Uuid) -> Result<Schedule> {
         let schedule = sqlx::query_as::<_, Schedule>(
-            "UPDATE schedules SET enabled = false, updated_at = NOW() WHERE id = $1 AND org_id = $2 RETURNING *",
+            "UPDATE schedules SET enabled = false, next_run_at = NULL, updated_at = NOW() WHERE id = $1 AND org_id = $2 RETURNING *",
         )
         .bind(id)
         .bind(org_id)
