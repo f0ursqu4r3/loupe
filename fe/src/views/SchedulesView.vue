@@ -15,6 +15,7 @@ import {
 import { AppLayout } from '@/components/layout'
 import { LButton, LCard, LBadge, LEmptyState, LSpinner, LTagFilter } from '@/components/ui'
 import { schedulesApi } from '@/services/api'
+import { formatDateTimeShort } from '@/utils/dateTime'
 import type { Schedule } from '@/types'
 
 const router = useRouter()
@@ -106,17 +107,12 @@ async function deleteSchedule() {
 
 onMounted(loadSchedules)
 
+// Human-readable cron description
 function formatDate(dateString: string | undefined): string {
   if (!dateString) return 'Never'
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(new Date(dateString))
+  return formatDateTimeShort(dateString)
 }
 
-// Human-readable cron description
 function describeCron(expr: string): string {
   // Common presets
   const presets: Record<string, string> = {

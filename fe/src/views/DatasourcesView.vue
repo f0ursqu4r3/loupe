@@ -4,6 +4,7 @@ import { Plus, TestTube, CheckCircle, XCircle } from 'lucide-vue-next'
 import { AppLayout } from '@/components/layout'
 import { LButton, LCard, LEmptyState, LSpinner, LModal, LInput, LSelect } from '@/components/ui'
 import { datasourcesApi } from '@/services/api'
+import { formatDateShort } from '@/utils/dateTime'
 import type { Datasource, ConnectionTestResult } from '@/types'
 
 const datasources = ref<Datasource[]>([])
@@ -66,14 +67,6 @@ async function testConnection(id: string) {
 
 onMounted(loadDatasources)
 
-function formatDate(dateString: string): string {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(new Date(dateString))
-}
-
 const dsTypeOptions = [{ value: 'postgres', label: 'PostgreSQL' }]
 </script>
 
@@ -117,7 +110,7 @@ const dsTypeOptions = [{ value: 'postgres', label: 'PostgreSQL' }]
           <div>
             <h3 class="font-medium text-text">{{ ds.name }}</h3>
             <p class="text-sm text-text-muted">
-              {{ ds.ds_type }} · Created {{ formatDate(ds.created_at) }}
+              {{ ds.ds_type }} · Created {{ formatDateShort(ds.created_at) }}
             </p>
           </div>
         </div>

@@ -6,6 +6,7 @@ import { AppLayout } from '@/components/layout'
 import { LButton, LCard, LEmptyState, LSpinner, LBadge, LTagFilter } from '@/components/ui'
 import { dashboardsApi } from '@/services/api'
 import { clearLastDashboardId } from '@/utils/dashboardHistory'
+import { formatDateShort } from '@/utils/dateTime'
 import type { Dashboard } from '@/types'
 
 const router = useRouter()
@@ -53,14 +54,6 @@ onMounted(() => {
   clearLastDashboardId()
   loadDashboards()
 })
-
-function formatDate(dateString: string): string {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(new Date(dateString))
-}
 
 function openDashboard(dashboard: Dashboard) {
   router.push({ name: 'dashboard-editor', params: { id: dashboard.id } })
@@ -170,7 +163,7 @@ async function deleteDashboard(id: string, event: Event) {
 
           <div class="flex items-center justify-between text-xs text-text-subtle">
             <span>{{ dashboard.tiles?.length || 0 }} tiles</span>
-            <span>Updated {{ formatDate(dashboard.updated_at) }}</span>
+            <span>Updated {{ formatDateShort(dashboard.updated_at) }}</span>
           </div>
         </LCard>
       </div>

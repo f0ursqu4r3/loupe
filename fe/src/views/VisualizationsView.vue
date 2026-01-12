@@ -16,6 +16,7 @@ import {
 import { AppLayout } from '@/components/layout'
 import { LButton, LCard, LEmptyState, LSpinner, LModal, LBadge, LTagFilter } from '@/components/ui'
 import { visualizationsApi, queriesApi } from '@/services/api'
+import { formatDateShort } from '@/utils/dateTime'
 import type { Visualization, Query, ChartType } from '@/types'
 
 const router = useRouter()
@@ -70,14 +71,6 @@ async function loadVisualizations() {
 }
 
 onMounted(loadVisualizations)
-
-function formatDate(dateString: string): string {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(new Date(dateString))
-}
 
 const chartTypeIcons: Record<ChartType, typeof BarChart3> = {
   table: Table,
@@ -249,7 +242,7 @@ async function deleteVisualization(id: string, event: Event) {
             <component :is="chartTypeIcons[viz.chart_type]" class="h-12 w-12 text-text-subtle/30" />
           </div>
 
-          <div class="text-xs text-text-subtle">Updated {{ formatDate(viz.updated_at) }}</div>
+          <div class="text-xs text-text-subtle">Updated {{ formatDateShort(viz.updated_at) }}</div>
         </LCard>
 
         <!-- List view row -->
@@ -284,7 +277,9 @@ async function deleteVisualization(id: string, event: Event) {
               </div>
             </div>
             <div class="flex items-center gap-4">
-              <span class="text-xs text-text-subtle">Updated {{ formatDate(viz.updated_at) }}</span>
+              <span class="text-xs text-text-subtle">
+                Updated {{ formatDateShort(viz.updated_at) }}
+              </span>
               <button
                 type="button"
                 class="opacity-0 group-hover:opacity-100 p-1.5 rounded hover:bg-error-muted text-text-muted hover:text-error transition-all"

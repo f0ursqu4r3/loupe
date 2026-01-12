@@ -5,6 +5,7 @@ import { LCard, LInput, LButton, LCheckbox, LBadge } from '@/components/ui'
 import { ThemeToggle } from '@/components/layout'
 import { useAuthStore } from '@/stores/auth'
 import { User, Mail, Building2, Calendar, Shield } from 'lucide-vue-next'
+import { formatDateLong } from '@/utils/dateTime'
 
 const authStore = useAuthStore()
 
@@ -19,11 +20,7 @@ watch(
 
 function formatDate(dateStr: string | undefined) {
   if (!dateStr) return '—'
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
+  return formatDateLong(dateStr)
 }
 </script>
 

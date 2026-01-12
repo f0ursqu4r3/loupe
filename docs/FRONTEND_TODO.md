@@ -11,4 +11,4 @@
 
 ## P2
 
-- [ ] Normalize date/time formatting helpers across views to use locale-based utilities and avoid hard-coded `en-US` formatters.
+- [x] Normalize date/time formatting helpers across views to use locale-based utilities and avoid hard-coded `en-US` formatters.

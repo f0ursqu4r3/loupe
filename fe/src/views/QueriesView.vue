@@ -19,6 +19,7 @@ import { AppLayout } from '@/components/layout'
 import { LButton, LCard, LBadge, LEmptyState, LSpinner, LTagFilter } from '@/components/ui'
 import { ParameterInputs } from '@/components/query'
 import { queriesApi, runsApi, datasourcesApi } from '@/services/api'
+import { formatDateTimeShort } from '@/utils/dateTime'
 import type { Query, Run, RunStatus, Datasource, QueryExport } from '@/types'
 
 const router = useRouter()
@@ -131,12 +132,7 @@ function getLocalDateString(): string {
 onMounted(loadQueries)
 
 function formatDateTime(dateString: string): string {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(new Date(dateString))
+  return formatDateTimeShort(dateString)
 }
 
 function getStatusColor(status: RunStatus): string {
