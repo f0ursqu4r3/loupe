@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { formatDate, formatDateTime, isDateTimeType, isDateType } from '@/utils/dateTime'
 import type { VisualizationConfig, QueryResult } from '@/types'
 
 const props = defineProps<{
@@ -9,26 +10,47 @@ const props = defineProps<{
   loading?: boolean
 }>()
 
-const value = computed(() => {
+const valueMeta = computed(() => {
   if (!props.data || !props.data.rows.length) return null
 
   const valueColumn = props.config.value_column
   if (!valueColumn) {
     // Default to first numeric column if not specified
-    return props.data.rows[0]?.[0] ?? null
+    return {
+      value: props.data.rows[0]?.[0] ?? null,
+      dataType: props.data.columns[0]?.data_type,
+    }
   }
 
   const idx = props.data.columns.findIndex((c) => c.name === valueColumn)
   if (idx === -1) return null
 
-  return props.data.rows[0]?.[idx] ?? null
+  return {
+    value: props.data.rows[0]?.[idx] ?? null,
+    dataType: props.data.columns[idx]?.data_type,
+  }
 })
 
 const formattedValue = computed(() => {
-  if (value.value === null) return '-'
+  if (
+    !valueMeta.value ||
+    valueMeta.value.value === null ||
+    valueMeta.value.value === undefined
+  ) {
+    return '-'
+  }
 
-  const val = Number(value.value)
-  if (isNaN(val)) return String(value.value)
+  const rawValue = valueMeta.value.value
+  const dataType = valueMeta.value.dataType
+  if (isDateType(dataType)) {
+    return formatDate(rawValue)
+  }
+  if (isDateTimeType(dataType)) {
+    return formatDateTime(rawValue)
+  }
+
+  const val = Number(rawValue)
+  if (isNaN(val)) return String(rawValue)
 
   // Format large numbers
   if (Math.abs(val) >= 1_000_000) {
@@ -44,9 +66,9 @@ const formattedValue = computed(() => {
 })
 
 const thresholdColor = computed(() => {
-  if (!props.config.thresholds || !value.value) return null
+  if (!props.config.thresholds || !valueMeta.value?.value) return null
 
-  const val = Number(value.value)
+  const val = Number(valueMeta.value.value)
   if (isNaN(val)) return null
 
   // Sort thresholds by value descending

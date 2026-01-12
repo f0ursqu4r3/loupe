@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { formatDate, formatDateLike, formatDateTime } from '@/utils/dateTime'
 import type { VisualizationConfig, QueryResult } from '@/types'
 
 const props = defineProps<{
@@ -26,7 +27,7 @@ const columns = computed(() => {
   })
 })
 
-function formatValue(value: unknown, format?: string): string {
+function formatValue(value: unknown, format?: string, dataType?: string): string {
   if (value === null) return ''
   if (value === undefined) return ''
 
@@ -42,11 +43,16 @@ function formatValue(value: unknown, format?: string): string {
       return (value * 100).toFixed(1) + '%'
     }
     if (format === 'date') {
-      return new Date(value as string).toLocaleDateString()
+      return formatDate(value)
     }
     if (format === 'datetime') {
-      return new Date(value as string).toLocaleString()
+      return formatDateTime(value)
     }
+  }
+
+  const formattedByType = formatDateLike(value, dataType)
+  if (formattedByType !== null) {
+    return formattedByType
   }
 
   return String(value)
@@ -99,7 +105,7 @@ function formatValue(value: unknown, format?: string): string {
             }"
           >
             <span v-if="row[colIdx] === null" class="text-text-subtle italic">null</span>
-            <span v-else>{{ formatValue(row[colIdx], col.format) }}</span>
+            <span v-else>{{ formatValue(row[colIdx], col.format, col.data_type) }}</span>
           </td>
         </tr>
       </tbody>

@@ -33,6 +33,7 @@ import {
 import { SqlEditor } from '@/components/editor'
 import { QueryParameters, ParameterInputs } from '@/components/query'
 import { queriesApi, runsApi, datasourcesApi, schedulesApi } from '@/services/api'
+import { formatDateLike } from '@/utils/dateTime'
 import type { Query, Datasource, Run, QueryResult, CreateQueryRequest, Schedule } from '@/types'
 
 const route = useRoute()
@@ -298,6 +299,15 @@ async function pollRunStatus() {
 function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms}ms`
   return `${(ms / 1000).toFixed(2)}s`
+}
+
+function formatResultCell(value: unknown, dataType?: string): string {
+  if (value === null || value === undefined) return ''
+  const formatted = formatDateLike(value, dataType)
+  if (formatted !== null) {
+    return formatted
+  }
+  return String(value)
 }
 
 // Compute duration from run timestamps
@@ -644,7 +654,7 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
                     class="px-4 py-2 text-text whitespace-nowrap max-w-xs truncate"
                   >
                     <span v-if="cell === null" class="text-text-subtle italic">null</span>
-                    <span v-else>{{ cell }}</span>
+                    <span v-else>{{ formatResultCell(cell, result.columns[colIdx]?.data_type) }}</span>
                   </td>
                 </tr>
               </tbody>

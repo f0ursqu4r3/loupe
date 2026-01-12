@@ -3,6 +3,7 @@ import { computed, ref, onMounted, onUnmounted } from 'vue'
 import BaseChart from './BaseChart.vue'
 import type { VisualizationConfig, QueryResult } from '@/types'
 import type { EChartsOption } from 'echarts'
+import { formatDateLike } from '@/utils/dateTime'
 
 const props = defineProps<{
   data: QueryResult
@@ -59,6 +60,18 @@ const chartOptions = computed<EChartsOption>(() => {
 
   if (xIdx === -1 || yIdx === -1) {
     return {}
+  }
+
+  const xAxisType = props.data.columns[xIdx]?.data_type
+  const formatXAxisValue = (value: unknown) => {
+    if (value === null || value === undefined) return ''
+    const formatted = formatDateLike(value, xAxisType)
+    return formatted !== null ? formatted : String(value ?? '')
+  }
+  const formatSeriesValue = (value: unknown) => {
+    if (value === null || value === undefined) return '-'
+    if (typeof value === 'number') return value.toLocaleString()
+    return String(value)
   }
 
   let xData: string[]
@@ -134,6 +147,15 @@ const chartOptions = computed<EChartsOption>(() => {
         trigger: 'axis',
         appendToBody: true,
         confine: false,
+        formatter: (params: EChartOption.Tooltip.Format | EChartOption.Tooltip.Format[]) => {
+          const items = Array.isArray(params) ? params : [params]
+          if (!items.length) return ''
+          const header = formatXAxisValue(items[0].axisValue)
+          const lines = items.map(
+            (item) => `${item.marker}${item.seriesName}: ${formatSeriesValue(item.data)}`,
+          )
+          return [header, ...lines].join('<br/>')
+        },
       },
       grid: {
         left: 0,
@@ -161,6 +183,15 @@ const chartOptions = computed<EChartsOption>(() => {
       trigger: 'axis',
       appendToBody: true,
       confine: false,
+      formatter: (params: EChartOption.Tooltip.Format | EChartOption.Tooltip.Format[]) => {
+        const items = Array.isArray(params) ? params : [params]
+        if (!items.length) return ''
+        const header = formatXAxisValue(items[0].axisValue)
+        const lines = items.map(
+          (item) => `${item.marker}${item.seriesName}: ${formatSeriesValue(item.data)}`,
+        )
+        return [header, ...lines].join('<br/>')
+      },
     },
     legend: {
       show: showLegend,
@@ -180,6 +211,9 @@ const chartOptions = computed<EChartsOption>(() => {
       type: 'category',
       data: xData,
       boundaryGap: false,
+      axisLabel: {
+        formatter: (value: unknown) => formatXAxisValue(value),
+      },
     },
     yAxis: {
       type: 'value',

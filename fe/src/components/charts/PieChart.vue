@@ -3,6 +3,7 @@ import { computed, ref, onMounted, onUnmounted } from 'vue'
 import BaseChart from './BaseChart.vue'
 import type { VisualizationConfig, QueryResult } from '@/types'
 import type { EChartsOption } from 'echarts'
+import { formatDateLike } from '@/utils/dateTime'
 
 const props = defineProps<{
   data: QueryResult
@@ -53,9 +54,16 @@ const chartOptions = computed<EChartsOption>(() => {
     return {}
   }
 
+  const labelType = props.data.columns[labelIdx]?.data_type
+  const formatLabelValue = (value: unknown) => {
+    if (value === null || value === undefined) return 'Unknown'
+    const formatted = formatDateLike(value, labelType)
+    return formatted !== null ? formatted : String(value ?? 'Unknown')
+  }
+
   // Build pie data
   const pieData = props.data.rows.map((row) => ({
-    name: String(row[labelIdx] ?? 'Unknown'),
+    name: formatLabelValue(row[labelIdx]),
     value: Number(row[valueIdx]) || 0,
   }))
 
