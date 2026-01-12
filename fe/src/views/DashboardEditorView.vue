@@ -18,6 +18,7 @@ import { LButton, LInput, LCard, LSpinner, LModal, LEmptyState, LTagsInput } fro
 import { GridItem } from '@/components/dashboard'
 import { VisualizationRenderer } from '@/components/charts'
 import { dashboardsApi, visualizationsApi, runsApi } from '@/services/api'
+import { setLastDashboardId } from '@/utils/dashboardHistory'
 import type {
   Dashboard,
   Tile,
@@ -81,6 +82,7 @@ async function loadDashboard() {
     loading.value = true
     const data = await dashboardsApi.get(dashboardId.value!)
     dashboard.value = data
+    setLastDashboardId(data.id)
 
     // Load tile data
     for (const tile of data.tiles) {
@@ -155,9 +157,11 @@ async function saveDashboard() {
       const created = await dashboardsApi.create(payload)
       router.replace({ name: 'dashboard-editor', params: { id: created.id } })
       dashboard.value = created
+      setLastDashboardId(created.id)
     } else {
       const updated = await dashboardsApi.update(dashboardId.value!, payload)
       dashboard.value = updated
+      setLastDashboardId(updated.id)
     }
 
     saveSuccess.value = true

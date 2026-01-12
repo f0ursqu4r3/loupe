@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { getLastDashboardId } from '@/utils/dashboardHistory'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -12,6 +13,18 @@ const router = createRouter({
     },
     {
       path: '/',
+      name: 'dashboard-entry',
+      redirect: () => {
+        const lastViewed = getLastDashboardId()
+        if (lastViewed) {
+          return { name: 'dashboard-editor', params: { id: lastViewed } }
+        }
+        return { name: 'dashboards' }
+      },
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/dashboards',
       name: 'dashboards',
       component: () => import('@/views/DashboardsView.vue'),
       meta: { requiresAuth: true },
@@ -111,7 +124,7 @@ router.beforeEach(async (to, from, next) => {
     next({ name: 'auth', query: { redirect: to.fullPath } })
   } else if (to.meta.guest && authStore.isAuthenticated) {
     // Redirect to home if already authenticated
-    next({ name: 'dashboards' })
+    next({ name: 'dashboard-entry' })
   } else {
     next()
   }

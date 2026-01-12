@@ -37,7 +37,7 @@ const navItems = [
 const bottomNavItems = [{ to: '/settings', icon: Settings, label: 'Settings' }]
 
 function isActive(to: string): boolean {
-  if (to === '/') return route.path === '/'
+  if (to === '/') return route.path === '/' || route.path.startsWith('/dashboards')
   return route.path.startsWith(to)
 }
 

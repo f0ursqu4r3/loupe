@@ -5,6 +5,7 @@ import { Plus, Trash2, LayoutGrid, Tag } from 'lucide-vue-next'
 import { AppLayout } from '@/components/layout'
 import { LButton, LCard, LEmptyState, LSpinner, LBadge, LTagFilter } from '@/components/ui'
 import { dashboardsApi } from '@/services/api'
+import { clearLastDashboardId } from '@/utils/dashboardHistory'
 import type { Dashboard } from '@/types'
 
 const router = useRouter()
@@ -48,7 +49,10 @@ async function loadDashboards() {
   }
 }
 
-onMounted(loadDashboards)
+onMounted(() => {
+  clearLastDashboardId()
+  loadDashboards()
+})
 
 function formatDate(dateString: string): string {
   return new Intl.DateTimeFormat('en-US', {
