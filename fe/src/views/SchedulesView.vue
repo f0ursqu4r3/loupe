@@ -1,10 +1,23 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { Plus, Play, Pause, Clock, Calendar as CalendarIcon, Tag } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
+import {
+  Plus,
+  Play,
+  Pause,
+  Clock,
+  Calendar as CalendarIcon,
+  Tag,
+  Pencil,
+  Trash2,
+  Loader2,
+} from 'lucide-vue-next'
 import { AppLayout } from '@/components/layout'
 import { LButton, LCard, LBadge, LEmptyState, LSpinner, LTagFilter } from '@/components/ui'
 import { schedulesApi } from '@/services/api'
 import type { Schedule } from '@/types'
+
+const router = useRouter()
 
 const schedules = ref<Schedule[]>([])
 const loading = ref(true)
@@ -12,6 +25,11 @@ const error = ref<string | null>(null)
 
 // Tag filtering
 const selectedTags = ref<string[]>([])
+
+// Delete confirmation state
+const showDeleteConfirm = ref(false)
+const scheduleToDelete = ref<Schedule | null>(null)
+const deleting = ref(false)
 
 // Get all unique tags across schedules
 const allTags = computed(() => {
@@ -66,6 +84,26 @@ async function triggerSchedule(id: string) {
   }
 }
 
+function confirmDelete(schedule: Schedule) {
+  scheduleToDelete.value = schedule
+  showDeleteConfirm.value = true
+}
+
+async function deleteSchedule() {
+  if (!scheduleToDelete.value) return
+  try {
+    deleting.value = true
+    await schedulesApi.delete(scheduleToDelete.value.id)
+    await loadSchedules()
+    showDeleteConfirm.value = false
+    scheduleToDelete.value = null
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Failed to delete schedule'
+  } finally {
+    deleting.value = false
+  }
+}
+
 onMounted(loadSchedules)
 
 function formatDate(dateString: string | undefined): string {
@@ -82,7 +120,7 @@ function formatDate(dateString: string | undefined): string {
 <template>
   <AppLayout title="Schedules">
     <template #header-actions>
-      <LButton>
+      <LButton @click="router.push({ name: 'schedule-new' })">
         <Plus class="h-4 w-4" />
         New Schedule
       </LButton>
@@ -103,7 +141,7 @@ function formatDate(dateString: string | undefined): string {
         <CalendarIcon class="h-8 w-8 text-text-subtle" />
       </template>
       <template #action>
-        <LButton>
+        <LButton @click="router.push({ name: 'schedule-new' })">
           <Plus class="h-4 w-4" />
           Create Schedule
         </LButton>
@@ -141,7 +179,12 @@ function formatDate(dateString: string | undefined): string {
             </div>
             <div>
               <div class="flex items-center gap-2">
-                <h3 class="font-medium text-text">{{ schedule.name }}</h3>
+                <h3
+                  class="font-medium text-text cursor-pointer hover:text-primary"
+                  @click="router.push({ name: 'schedule-editor', params: { id: schedule.id } })"
+                >
+                  {{ schedule.name }}
+                </h3>
                 <LBadge :variant="schedule.enabled ? 'success' : 'default'">
                   {{ schedule.enabled ? 'Active' : 'Paused' }}
                 </LBadge>
@@ -173,8 +216,24 @@ function formatDate(dateString: string | undefined): string {
             </div>
 
             <div class="flex items-center gap-2">
-              <LButton variant="ghost" size="sm" @click="triggerSchedule(schedule.id)">
+              <LButton
+                variant="ghost"
+                size="sm"
+                title="Run now"
+                @click="triggerSchedule(schedule.id)"
+              >
                 <Play class="h-4 w-4" />
+              </LButton>
+              <LButton
+                variant="ghost"
+                size="sm"
+                title="Edit"
+                @click="router.push({ name: 'schedule-editor', params: { id: schedule.id } })"
+              >
+                <Pencil class="h-4 w-4" />
+              </LButton>
+              <LButton variant="ghost" size="sm" title="Delete" @click="confirmDelete(schedule)">
+                <Trash2 class="h-4 w-4" />
               </LButton>
               <LButton variant="secondary" size="sm" @click="toggleSchedule(schedule)">
                 <component :is="schedule.enabled ? Pause : Play" class="h-4 w-4" />
@@ -184,6 +243,27 @@ function formatDate(dateString: string | undefined): string {
           </div>
         </div>
       </LCard>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div v-if="showDeleteConfirm" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-black/50" @click="showDeleteConfirm = false" />
+      <div
+        class="relative bg-surface-overlay rounded-xl shadow-xl border border-border p-6 max-w-sm w-full"
+      >
+        <h3 class="text-lg font-semibold text-text mb-2">Delete Schedule</h3>
+        <p class="text-text-muted text-sm mb-4">
+          Are you sure you want to delete "{{ scheduleToDelete?.name }}"? This action cannot be
+          undone.
+        </p>
+        <div class="flex justify-end gap-2">
+          <LButton variant="ghost" @click="showDeleteConfirm = false">Cancel</LButton>
+          <LButton variant="danger" @click="deleteSchedule" :disabled="deleting">
+            <Loader2 v-if="deleting" class="h-4 w-4 animate-spin" />
+            Delete
+          </LButton>
+        </div>
+      </div>
     </div>
   </AppLayout>
 </template>

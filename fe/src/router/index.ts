@@ -77,6 +77,18 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/schedules/new',
+      name: 'schedule-new',
+      component: () => import('@/views/ScheduleEditorView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/schedules/:id',
+      name: 'schedule-editor',
+      component: () => import('@/views/ScheduleEditorView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/settings',
       name: 'settings',
       component: () => import('@/views/SettingsView.vue'),
