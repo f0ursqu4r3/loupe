@@ -21,6 +21,7 @@ const emit = defineEmits<{
   'update:datasource': [id: string]
   'update:sql': [sql: string]
   'update:viz': [viz: string]
+  'update:vizConfig': [config: Record<string, unknown>]
   'update:note-text': [text: string]
   run: []
   center: []
@@ -68,10 +69,11 @@ function updateDatasource(value: string | number) {
             :class="props.node.type === 'query' ? 'bg-info' : 'bg-warning'"
           ></span>
           <input
-            class="w-full min-w-0 font-bold text-sm bg-transparent border-none outline-none"
+            class="w-full min-w-0 font-bold text-sm bg-transparent rounded px-1.5 py-0.5 -ml-1.5 border border-transparent hover:border-border focus:border-primary-500 focus:bg-surface outline-none transition-colors"
             :value="props.node.title"
             @input="updateTitle"
             spellcheck="false"
+            placeholder="Untitled Query"
           />
         </div>
 
@@ -122,6 +124,8 @@ function updateDatasource(value: string | number) {
         :node="props.node"
         @update:sql="$emit('update:sql', $event)"
         @update:viz="$emit('update:viz', $event)"
+        @update:vizConfig="$emit('update:vizConfig', $event)"
+        @run="$emit('run')"
       />
 
       <!-- Note Editor -->

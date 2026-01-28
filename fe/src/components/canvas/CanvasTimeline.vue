@@ -7,6 +7,10 @@ const canvasStore = useCanvasStore()
 
 const timePresets: { value: TimePreset; label: string }[] = [
   { value: 'now', label: 'Now' },
+  { value: '1h', label: '1h' },
+  { value: '3h', label: '3h' },
+  { value: '6h', label: '6h' },
+  { value: '12h', label: '12h' },
   { value: '24h', label: '24h' },
   { value: '7d', label: '7d' },
   { value: '30d', label: '30d' },
@@ -38,7 +42,9 @@ function toggleLive(value: boolean) {
         <LButton
           v-for="p in timePresets"
           :key="p.value"
-          :variant="canvasStore.activeCanvas?.timeRange.preset === p.value ? 'primary' : 'secondary'"
+          :variant="
+            canvasStore.activeCanvas?.timeRange.preset === p.value ? 'primary' : 'secondary'
+          "
           size="sm"
           @click="setTimePreset(p.value)"
         >
@@ -48,12 +54,24 @@ function toggleLive(value: boolean) {
     </div>
 
     <div class="flex justify-end items-center">
-      <label class="inline-flex gap-2 items-center text-xs text-text-muted cursor-pointer">
+      <label
+        class="inline-flex gap-2 items-center text-xs cursor-pointer"
+        :class="canvasStore.activeCanvas?.live ? 'text-success' : 'text-text-muted'"
+      >
         <LCheckbox
           :model-value="canvasStore.activeCanvas?.live ?? false"
           @update:model-value="toggleLive"
         />
-        Live
+        <span class="flex items-center gap-1.5">
+          <span v-if="canvasStore.activeCanvas?.live" class="relative flex h-2 w-2">
+            <span
+              class="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"
+            ></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-success"></span>
+          </span>
+          Live
+          <span v-if="canvasStore.activeCanvas?.live" class="text-text-muted">(30s)</span>
+        </span>
       </label>
     </div>
   </section>

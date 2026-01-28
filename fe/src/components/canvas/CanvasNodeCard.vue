@@ -106,7 +106,6 @@ const statusClass = computed(() => {
             </span>
           </div>
         </div>
-        <div class="text-xs text-text-muted">Double-click to open editor</div>
       </template>
 
       <template v-else>

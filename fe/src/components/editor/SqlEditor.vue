@@ -3,6 +3,28 @@ import { ref, onMounted, onBeforeUnmount, watch, shallowRef } from 'vue'
 import * as monaco from 'monaco-editor'
 import { format as formatSql } from 'sql-formatter'
 
+// Format SQL while preserving $param placeholders (sql-formatter doesn't understand them)
+function formatSqlWithParams(sql: string): string {
+  const params: string[] = []
+  const escaped = sql.replace(/\$([a-zA-Z_][a-zA-Z0-9_]*)/g, (match) => {
+    params.push(match)
+    return `__PARAM_${params.length - 1}__`
+  })
+
+  let formatted = formatSql(escaped, {
+    language: 'postgresql',
+    tabWidth: 2,
+    keywordCase: 'upper',
+    linesBetweenQueries: 2,
+  })
+
+  params.forEach((param, i) => {
+    formatted = formatted.replace(`__PARAM_${i}__`, param)
+  })
+
+  return formatted
+}
+
 interface Props {
   modelValue: string
   readonly?: boolean
@@ -145,13 +167,7 @@ onMounted(() => {
     contextMenuOrder: 1.5,
     run: (ed) => {
       const position = ed.getPosition()
-      const value = ed.getValue()
-      const formatted = formatSql(value, {
-        language: 'postgresql',
-        tabWidth: 2,
-        keywordCase: 'upper',
-        linesBetweenQueries: 2,
-      })
+      const formatted = formatSqlWithParams(ed.getValue())
       ed.setValue(formatted)
       if (position) {
         // Clamp position to new content bounds
@@ -195,13 +211,7 @@ defineExpose({
   format: () => {
     if (editor.value) {
       const position = editor.value.getPosition()
-      const value = editor.value.getValue()
-      const formatted = formatSql(value, {
-        language: 'postgresql',
-        tabWidth: 2,
-        keywordCase: 'upper',
-        linesBetweenQueries: 2,
-      })
+      const formatted = formatSqlWithParams(editor.value.getValue())
       editor.value.setValue(formatted)
       if (position) {
         // Clamp position to new content bounds

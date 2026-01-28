@@ -1,4 +1,4 @@
-import type { UUID, QueryResult, Datasource } from './api'
+import type { UUID, QueryResult, Datasource, VisualizationConfig, ChartType } from './api'
 
 // ===== Canvas Node Types =====
 export type CanvasNodeType = 'query' | 'note'
@@ -7,7 +7,8 @@ export type CanvasNodeStatus = 'idle' | 'running' | 'ok' | 'error' | 'warn'
 
 export interface CanvasNodeMeta {
   // Common
-  viz?: 'table' | 'line' | 'bar' | 'stat' | 'map'
+  viz?: ChartType
+  vizConfig?: VisualizationConfig
 
   // Query node specific
   datasourceId?: UUID
@@ -53,7 +54,17 @@ export interface CanvasEdge {
 }
 
 // ===== Time Range =====
-export type TimePreset = 'now' | '24h' | '7d' | '30d' | '90d' | 'custom'
+export type TimePreset =
+  | 'now'
+  | '1h'
+  | '3h'
+  | '6h'
+  | '12h'
+  | '24h'
+  | '7d'
+  | '30d'
+  | '90d'
+  | 'custom'
 
 export interface TimeRange {
   preset: TimePreset
@@ -84,7 +95,7 @@ export interface CanvasStorage {
 export function createDefaultNode(
   type: CanvasNodeType,
   position: { x: number; y: number },
-  datasource?: Datasource
+  datasource?: Datasource,
 ): CanvasNode {
   const id = `${type[0]}-${Math.random().toString(16).slice(2, 8)}`
 
@@ -106,6 +117,7 @@ export function createDefaultNode(
         runtime: '-',
         cached: false,
         viz: 'table',
+        vizConfig: {},
         result: null,
         error: null,
       },
