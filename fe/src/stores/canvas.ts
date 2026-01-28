@@ -262,7 +262,18 @@ export const useCanvasStore = defineStore('canvas', () => {
   // Time range
   function setTimePreset(preset: TimePreset): void {
     if (!activeCanvas.value) return
-    activeCanvas.value.timeRange = { preset }
+    activeCanvas.value.timeRange = { preset, offset: 0 }
+    touch()
+    save()
+  }
+
+  function setTimeOffset(offsetMs: number): void {
+    if (!activeCanvas.value) return
+    activeCanvas.value.timeRange = {
+      ...activeCanvas.value.timeRange,
+      preset: 'custom',
+      offset: offsetMs,
+    }
     touch()
     save()
   }
@@ -270,6 +281,10 @@ export const useCanvasStore = defineStore('canvas', () => {
   function setLive(live: boolean): void {
     if (!activeCanvas.value) return
     activeCanvas.value.live = live
+    if (live) {
+      // Reset offset when going live
+      activeCanvas.value.timeRange = { ...activeCanvas.value.timeRange, offset: 0 }
+    }
     touch()
     save()
   }
@@ -309,6 +324,7 @@ export const useCanvasStore = defineStore('canvas', () => {
 
     // Time range
     setTimePreset,
+    setTimeOffset,
     setLive,
   }
 })
