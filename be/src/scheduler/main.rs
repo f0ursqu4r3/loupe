@@ -1,19 +1,12 @@
-use loupe::Database;
+use loupe::{init_tracing, load_env, Database};
 use std::time::Duration;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 const DEFAULT_POLL_INTERVAL_SECS: u64 = 10;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    dotenvy::dotenv().ok();
-
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| "info,sqlx=warn".to_string()),
-        ))
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    load_env();
+    init_tracing();
 
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let scheduler_id = std::env::var("SCHEDULER_ID").unwrap_or_else(|_| {

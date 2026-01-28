@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { Plus, TestTube, CheckCircle, XCircle } from 'lucide-vue-next'
+import { Plus, TestTube, CheckCircle, XCircle, Pencil, Trash2 } from 'lucide-vue-next'
 import { AppLayout } from '@/components/layout'
 import { LButton, LCard, LEmptyState, LSpinner, LModal, LInput, LSelect } from '@/components/ui'
 import { datasourcesApi } from '@/services/api'
@@ -23,6 +23,20 @@ const creating = ref(false)
 // Test connection state
 const testingId = ref<string | null>(null)
 const testResults = ref<Record<string, ConnectionTestResult>>({})
+
+// Edit modal state
+const showEditModal = ref(false)
+const editingDatasource = ref<Datasource | null>(null)
+const editForm = ref({
+  name: '',
+  connection_string: '',
+})
+const updating = ref(false)
+
+// Delete confirmation state
+const showDeleteModal = ref(false)
+const deletingDatasource = ref<Datasource | null>(null)
+const deleting = ref(false)
 
 async function loadDatasources() {
   try {
@@ -62,6 +76,57 @@ async function testConnection(id: string) {
     }
   } finally {
     testingId.value = null
+  }
+}
+
+function openEditModal(ds: Datasource) {
+  editingDatasource.value = ds
+  editForm.value = {
+    name: ds.name,
+    connection_string: '',
+  }
+  showEditModal.value = true
+}
+
+async function updateDatasource() {
+  if (!editingDatasource.value) return
+  try {
+    updating.value = true
+    const updateData: { name?: string; connection_string?: string } = {}
+    if (editForm.value.name !== editingDatasource.value.name) {
+      updateData.name = editForm.value.name
+    }
+    if (editForm.value.connection_string) {
+      updateData.connection_string = editForm.value.connection_string
+    }
+    await datasourcesApi.update(editingDatasource.value.id, updateData)
+    showEditModal.value = false
+    editingDatasource.value = null
+    await loadDatasources()
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Failed to update datasource'
+  } finally {
+    updating.value = false
+  }
+}
+
+function openDeleteModal(ds: Datasource) {
+  deletingDatasource.value = ds
+  showDeleteModal.value = true
+}
+
+async function deleteDatasource() {
+  if (!deletingDatasource.value) return
+  try {
+    deleting.value = true
+    await datasourcesApi.delete(deletingDatasource.value.id)
+    showDeleteModal.value = false
+    deletingDatasource.value = null
+    await loadDatasources()
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Failed to delete datasource'
+  } finally {
+    deleting.value = false
   }
 }
 
@@ -137,6 +202,16 @@ const dsTypeOptions = [{ value: 'postgres', label: 'PostgreSQL' }]
             <TestTube class="h-4 w-4" />
             Test
           </LButton>
+
+          <LButton variant="secondary" size="sm" @click="openEditModal(ds)">
+            <Pencil class="h-4 w-4" />
+            Edit
+          </LButton>
+
+          <LButton variant="secondary" size="sm" @click="openDeleteModal(ds)">
+            <Trash2 class="h-4 w-4" />
+            Delete
+          </LButton>
         </div>
       </LCard>
     </div>
@@ -168,6 +243,50 @@ const dsTypeOptions = [{ value: 'postgres', label: 'PostgreSQL' }]
         <div class="flex justify-end gap-3">
           <LButton variant="secondary" @click="showCreateModal = false">Cancel</LButton>
           <LButton :loading="creating" @click="createDatasource">Create</LButton>
+        </div>
+      </template>
+    </LModal>
+
+    <!-- Edit Modal -->
+    <LModal v-model="showEditModal" title="Edit Datasource">
+      <form class="space-y-4" @submit.prevent="updateDatasource">
+        <div>
+          <label class="block text-sm font-medium text-text mb-1.5">Name</label>
+          <LInput v-model="editForm.name" placeholder="Production Database" />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-text mb-1.5">Connection String</label>
+          <LInput
+            v-model="editForm.connection_string"
+            type="password"
+            placeholder="Leave empty to keep current"
+          />
+          <p class="mt-1 text-xs text-text-muted">
+            Only fill this in if you want to change the connection string.
+          </p>
+        </div>
+      </form>
+
+      <template #footer>
+        <div class="flex justify-end gap-3">
+          <LButton variant="secondary" @click="showEditModal = false">Cancel</LButton>
+          <LButton :loading="updating" @click="updateDatasource">Save Changes</LButton>
+        </div>
+      </template>
+    </LModal>
+
+    <!-- Delete Confirmation Modal -->
+    <LModal v-model="showDeleteModal" title="Delete Datasource">
+      <p class="text-text">
+        Are you sure you want to delete <strong>{{ deletingDatasource?.name }}</strong>? This action
+        cannot be undone.
+      </p>
+
+      <template #footer>
+        <div class="flex justify-end gap-3">
+          <LButton variant="secondary" @click="showDeleteModal = false">Cancel</LButton>
+          <LButton variant="danger" :loading="deleting" @click="deleteDatasource">Delete</LButton>
         </div>
       </template>
     </LModal>

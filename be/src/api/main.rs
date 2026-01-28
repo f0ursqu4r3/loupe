@@ -2,9 +2,13 @@ mod routes;
 
 use actix_cors::Cors;
 use actix_web::{middleware, web, App, HttpServer};
-use loupe::Database;
+use argon2::{
+    Argon2,
+    password_hash::{PasswordHasher, SaltString, rand_core::OsRng},
+};
+use loupe::models::OrgRole;
+use loupe::{init_tracing, load_env, Database};
 use std::sync::Arc;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 pub struct AppState {
     pub db: Database,
@@ -12,15 +16,8 @@ pub struct AppState {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    dotenvy::dotenv().ok();
-
-    // Initialize tracing
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| "info,sqlx=warn".to_string()),
-        ))
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    load_env();
+    init_tracing();
 
     let database_url = std::env::var("DATABASE_URL")
         .expect("DATABASE_URL must be set");
@@ -39,6 +36,11 @@ async fn main() -> std::io::Result<()> {
     db.run_migrations()
         .await
         .expect("Failed to run migrations");
+
+    // Seed default admin if env vars are set
+    if let Err(e) = seed_default_admin(&db).await {
+        tracing::warn!("Failed to seed default admin: {}", e);
+    }
 
     let state = Arc::new(AppState { db });
 
@@ -60,4 +62,43 @@ async fn main() -> std::io::Result<()> {
     .bind((host.as_str(), port))?
     .run()
     .await
+}
+
+/// Seeds a default admin user if ADMIN_USERNAME and ADMIN_PASSWORD are set.
+/// Skips if the user already exists.
+async fn seed_default_admin(db: &Database) -> Result<(), loupe::Error> {
+    let admin_email = match std::env::var("ADMIN_USERNAME") {
+        Ok(email) => email,
+        Err(_) => return Ok(()), // Not configured, skip silently
+    };
+
+    let admin_password = match std::env::var("ADMIN_PASSWORD") {
+        Ok(password) => password,
+        Err(_) => return Ok(()), // Not configured, skip silently
+    };
+
+    // Check if user already exists
+    if db.get_user_by_email(&admin_email).await?.is_some() {
+        tracing::debug!("Default admin user already exists");
+        return Ok(());
+    }
+
+    tracing::info!("Creating default admin user: {}", admin_email);
+
+    // Hash password
+    let salt = SaltString::generate(&mut OsRng);
+    let password_hash = Argon2::default()
+        .hash_password(admin_password.as_bytes(), &salt)
+        .map_err(|e| loupe::Error::Internal(format!("Failed to hash password: {}", e)))?
+        .to_string();
+
+    // Create organization for admin
+    let org = db.create_organization("Default Organization").await?;
+
+    // Create admin user
+    db.create_user(org.id, &admin_email, &password_hash, "Admin", OrgRole::Admin)
+        .await?;
+
+    tracing::info!("Default admin user created successfully");
+    Ok(())
 }

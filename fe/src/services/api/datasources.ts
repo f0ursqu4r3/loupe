@@ -21,7 +21,7 @@ export const datasourcesApi = {
   },
 
   update(id: UUID, data: UpdateDatasourceRequest): Promise<Datasource> {
-    return api.patch<Datasource>(`/datasources/${id}`, data)
+    return api.put<Datasource>(`/datasources/${id}`, data)
   },
 
   delete(id: UUID): Promise<void> {

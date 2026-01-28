@@ -37,8 +37,8 @@ Loupe is a self-hosted BI tool with a Rust backend (separate API, runner, and sc
 
     ```bash
     cd fe
-    npm install
-    npm run dev
+    bun install
+    bun run dev
     ```
 
 Vite proxies `/api` to `http://localhost:8080` by default.

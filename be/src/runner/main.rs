@@ -1,24 +1,16 @@
 use loupe::connectors::{Connector, PostgresConnector};
 use loupe::models::DatasourceType;
 use loupe::params::TypedValue;
-use loupe::Database;
+use loupe::{init_tracing, load_env, Database};
 use std::time::Duration;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 const POLL_INTERVAL: Duration = Duration::from_secs(1);
 const MAX_CONCURRENT_RUNS: usize = 4;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    dotenvy::dotenv().ok();
-
-    // Initialize tracing
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| "info,sqlx=warn".to_string()),
-        ))
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    load_env();
+    init_tracing();
 
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let runner_id = std::env::var("RUNNER_ID").unwrap_or_else(|_| {
