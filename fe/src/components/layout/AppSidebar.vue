@@ -10,6 +10,7 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  Network,
 } from 'lucide-vue-next'
 
 interface Props {
@@ -28,6 +29,7 @@ const route = useRoute()
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboards' },
+  { to: '/canvas', icon: Network, label: 'Canvas (Semantic)' },
   { to: '/datasources', icon: Database, label: 'Datasources' },
   { to: '/queries', icon: FileCode, label: 'Queries' },
   { to: '/visualizations', icon: BarChart3, label: 'Visualizations' },

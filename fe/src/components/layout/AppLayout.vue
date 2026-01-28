@@ -5,9 +5,13 @@ import AppHeader from './AppHeader.vue'
 
 interface Props {
   title?: string
+  noPadding?: boolean
 }
 
-defineProps<Props>()
+withDefaults(defineProps<Props>(), {
+  title: '',
+  noPadding: false,
+})
 
 const SIDEBAR_STORAGE_KEY = 'loupe-sidebar-collapsed'
 
@@ -48,7 +52,7 @@ const mainClasses = computed(() => [
         </template>
       </AppHeader>
 
-      <main class="p-6 overflow-auto h-[calc(100vh-4rem)]">
+      <main :class="[{ 'p-6': !noPadding }, 'overflow-auto h-[calc(100vh-4rem)]']">
         <slot />
       </main>
     </div>
