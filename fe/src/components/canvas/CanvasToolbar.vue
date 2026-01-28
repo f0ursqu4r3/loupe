@@ -78,4 +78,3 @@ function createNewCanvas() {
     </div>
   </header>
 </template>
-import type { BrainCircuit } from 'lucide-vue-next' , StickyNote, Grid2X2Check, Grid2X2X
