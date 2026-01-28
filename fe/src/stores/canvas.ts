@@ -25,7 +25,7 @@ function createEmptyCanvas(name: string = 'Untitled Canvas'): CanvasState {
     name,
     nodes: [],
     edges: [],
-    timeRange: { preset: '7d' },
+    timeRange: { preset: 'now', offset: 0 },
     live: false,
     createdAt: now,
     updatedAt: now,
@@ -53,6 +53,13 @@ export const useCanvasStore = defineStore('canvas', () => {
         const data: CanvasStorage = JSON.parse(stored)
         canvases.value = data.canvases ?? []
         activeCanvasId.value = data.activeCanvasId
+
+        // Migrate: ensure all canvases have offset in timeRange
+        for (const canvas of canvases.value) {
+          if (canvas.timeRange.offset === undefined) {
+            canvas.timeRange.offset = 0
+          }
+        }
 
         // Validate active canvas exists
         if (activeCanvasId.value && !canvases.value.find((c) => c.id === activeCanvasId.value)) {
@@ -262,7 +269,7 @@ export const useCanvasStore = defineStore('canvas', () => {
   // Time range
   function setTimePreset(preset: TimePreset): void {
     if (!activeCanvas.value) return
-    activeCanvas.value.timeRange = { preset, offset: 0 }
+    activeCanvas.value.timeRange = { ...activeCanvas.value.timeRange, preset, offset: 0 }
     touch()
     save()
   }

@@ -308,6 +308,7 @@ function handleKeyDown(e: KeyboardEvent) {
     <div
       ref="trackRef"
       class="relative py-3"
+      style="touch-action: none"
       role="slider"
       tabindex="0"
       :aria-valuemin="min"
@@ -363,32 +364,28 @@ function handleKeyDown(e: KeyboardEvent) {
       />
 
       <!-- Markers (positioned absolutely, clickable) -->
-      <div
-        v-for="(marker, index) in markers"
-        :key="`marker-${index}`"
-        :class="[!disabled && 'cursor-pointer', 'z-10']"
-        @pointerdown.stop="handleMarkerClick(marker, $event)"
-      >
-        <!-- Marker -->
+      <template v-for="(marker, index) in markers" :key="`marker-${index}`">
+        <!-- Marker dot (clickable) -->
         <div
           :class="[
             'absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full transition-transform z-10',
             currentSize.marker,
             markerColors[marker.color || 'primary'],
-            !disabled && 'hover:scale-150',
+            !disabled && 'hover:scale-150 cursor-pointer',
           ]"
           :style="{ left: `${positionToPercent(marker.position)}%` }"
+          @pointerdown.stop="handleMarkerClick(marker, $event)"
         />
         <!-- Marker label -->
         <div
           v-if="markerLabels && marker.label"
-          class="absolute -bottom-4 left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded shadow-md text-xs text-text whitespace-nowrap pointer-events-none"
+          class="absolute -bottom-3 -translate-x-1/2 px-1.5 py-0.5 text-xs text-text whitespace-nowrap pointer-events-none z-10"
           :style="{ left: `${positionToPercent(marker.position)}%` }"
           :title="marker.label"
         >
           {{ marker.label }}
         </div>
-      </div>
+      </template>
 
       <!-- Tooltip -->
       <Transition

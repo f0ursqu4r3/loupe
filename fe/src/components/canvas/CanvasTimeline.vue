@@ -5,57 +5,72 @@ import { LCheckbox, LTimelineScrubber } from '@/components/ui'
 
 const canvasStore = useCanvasStore()
 
-// Preset positions as offsets from now (in ms)
-const presetOffsets = {
-  '1h': 60 * 60 * 1000,
-  '3h': 3 * 60 * 60 * 1000,
-  '6h': 6 * 60 * 60 * 1000,
-  '12h': 12 * 60 * 60 * 1000,
-  '24h': 24 * 60 * 60 * 1000,
-  '7d': 7 * 24 * 60 * 60 * 1000,
-  '30d': 30 * 24 * 60 * 60 * 1000,
-  '90d': 90 * 24 * 60 * 60 * 1000,
-}
-
-// Use logarithmic scale for better distribution
-// Map: 0 = 1 minute ago, 100 = 90 days ago
+// Minimum offset to consider as "now"
 const MIN_MS = 60 * 1000 // 1 minute
-const MAX_MS = 90 * 24 * 60 * 60 * 1000 // 90 days
-const LOG_MIN = Math.log(MIN_MS)
-const LOG_MAX = Math.log(MAX_MS)
 
-// Convert offset (ms) to percentage using log scale (100 = now/min, 0 = 90d)
+// Define presets with evenly-spaced positions (percent) and their time values (ms)
+// Ordered from left (oldest) to right (newest/now)
+const presets = [
+  { percent: 0, ms: 90 * 24 * 60 * 60 * 1000, label: '90d' },
+  { percent: 20, ms: 30 * 24 * 60 * 60 * 1000, label: '30d' },
+  { percent: 40, ms: 7 * 24 * 60 * 60 * 1000, label: '7d' },
+  { percent: 60, ms: 24 * 60 * 60 * 1000, label: '24h' },
+  { percent: 80, ms: 6 * 60 * 60 * 1000, label: '6h' },
+  { percent: 90, ms: 60 * 60 * 1000, label: '1h' },
+  { percent: 100, ms: 0, label: 'Now' },
+] as const
+
+// Convert offset (ms) to percentage using piecewise linear interpolation
 function offsetToPercent(offsetMs: number): number {
-  if (offsetMs <= MIN_MS) return 100
-  if (offsetMs >= MAX_MS) return 0
-  const logValue = Math.log(offsetMs)
-  return 100 - ((logValue - LOG_MIN) / (LOG_MAX - LOG_MIN)) * 100
+  if (offsetMs <= 0) return 100
+  if (offsetMs >= presets[0].ms) return 0
+
+  // Find the two presets we're between (presets are ordered by percent ascending, ms descending)
+  for (let i = 0; i < presets.length - 1; i++) {
+    const left = presets[i]!
+    const right = presets[i + 1]!
+    if (offsetMs <= left.ms && offsetMs >= right.ms) {
+      // Linear interpolation between these two presets
+      const ratio = (left.ms - offsetMs) / (left.ms - right.ms)
+      return left.percent + ratio * (right.percent - left.percent)
+    }
+  }
+  return 100
 }
 
-// Convert percentage to offset (ms) using log scale
+// Convert percentage to offset (ms) using piecewise linear interpolation
 function percentToOffset(percent: number): number {
   if (percent >= 100) return 0
-  if (percent <= 0) return MAX_MS
-  const logValue = LOG_MIN + ((100 - percent) / 100) * (LOG_MAX - LOG_MIN)
-  return Math.exp(logValue)
+  if (percent <= 0) return presets[0].ms
+
+  // Find the two presets we're between
+  for (let i = 0; i < presets.length - 1; i++) {
+    const left = presets[i]!
+    const right = presets[i + 1]!
+    if (percent >= left.percent && percent <= right.percent) {
+      // Linear interpolation between these two presets
+      const ratio = (percent - left.percent) / (right.percent - left.percent)
+      return left.ms - ratio * (left.ms - right.ms)
+    }
+  }
+  return 0
 }
 
-// Create markers for the presets (with log scale positions)
-const timelineMarkers = computed(() => [
-  { position: offsetToPercent(presetOffsets['1h']), label: '1h', color: 'primary' as const },
-  { position: offsetToPercent(presetOffsets['6h']), label: '6h', color: 'primary' as const },
-  { position: offsetToPercent(presetOffsets['24h']), label: '24h', color: 'primary' as const },
-  { position: offsetToPercent(presetOffsets['7d']), label: '7d', color: 'primary' as const },
-  { position: offsetToPercent(presetOffsets['30d']), label: '30d', color: 'primary' as const },
-])
+// Create markers for the presets (evenly spaced, excluding 90d and Now which are at edges)
+const timelineMarkers = computed(() =>
+  presets
+    .filter((p) => p.label !== '90d' && p.label !== 'Now')
+    .map((p) => ({ position: p.percent, label: p.label, color: 'primary' as const })),
+)
 
 // Current scrubber position (computed from store)
 const scrubPosition = computed({
   get: () => {
-    const offset = canvasStore.activeCanvas?.timeRange.offset ?? 0
+    const offset = canvasStore.activeCanvas?.timeRange?.offset ?? 0
     return offsetToPercent(offset)
   },
   set: (percent: number) => {
+    if (!canvasStore.activeCanvas) return
     const offsetMs = percentToOffset(percent)
     // Snap to "now" if very close
     canvasStore.setTimeOffset(offsetMs < MIN_MS ? 0 : offsetMs)
@@ -87,7 +102,7 @@ function formatScrubValue(percent: number): string {
 
 // Current time window label (compact)
 const timeWindowLabel = computed(() => {
-  const offset = canvasStore.activeCanvas?.timeRange.offset ?? 0
+  const offset = canvasStore.activeCanvas?.timeRange?.offset ?? 0
   if (offset < MIN_MS) return 'Now'
 
   if (offset < 60 * 60 * 1000) return `${Math.round(offset / 60000)}m`
@@ -120,9 +135,9 @@ watch(
 
 // Handle marker clicks - snap to preset
 function handleMarkerClick(marker: { position: number; label?: string }) {
-  if (marker.label && marker.label in presetOffsets) {
-    const offset = presetOffsets[marker.label as keyof typeof presetOffsets]
-    canvasStore.setTimeOffset(offset)
+  const preset = presets.find((p) => p.label === marker.label)
+  if (preset) {
+    canvasStore.setTimeOffset(preset.ms)
   }
 }
 </script>

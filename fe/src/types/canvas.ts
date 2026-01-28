@@ -69,7 +69,7 @@ export type TimePreset =
 export interface TimeRange {
   preset: TimePreset
   // Offset from "now" in milliseconds (0 = now, positive = past)
-  offset?: number
+  offset: number
   // For custom ranges
   start?: Date
   end?: Date
