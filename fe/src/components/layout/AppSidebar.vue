@@ -29,11 +29,11 @@ const route = useRoute()
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboards' },
-  { to: '/canvas', icon: Network, label: 'Canvas (Semantic)' },
   { to: '/datasources', icon: Database, label: 'Datasources' },
   { to: '/queries', icon: FileCode, label: 'Queries' },
   { to: '/visualizations', icon: BarChart3, label: 'Visualizations' },
   { to: '/schedules', icon: Calendar, label: 'Schedules' },
+  { to: '/canvas', icon: Network, label: 'Canvas (Semantic)' },
 ]
 
 const bottomNavItems = [{ to: '/settings', icon: Settings, label: 'Settings' }]
