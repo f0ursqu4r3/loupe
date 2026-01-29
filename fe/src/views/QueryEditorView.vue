@@ -4,7 +4,6 @@ import { useRoute, useRouter } from 'vue-router'
 import {
   Play,
   Save,
-  ArrowLeft,
   Database,
   Clock,
   Rows3,
@@ -383,14 +382,7 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
 </script>
 
 <template>
-  <AppLayout :title="isNew ? 'New Query' : query.name || 'Query Editor'">
-    <template #header-left>
-      <LButton variant="ghost" size="sm" @click="router.push({ name: 'queries' })">
-        <ArrowLeft class="h-4 w-4" />
-        Back
-      </LButton>
-    </template>
-
+  <AppLayout :title="isNew ? 'New Query' : query.name || 'Query Editor'" back="queries">
     <template #header-actions>
       <LButton
         v-if="!isNew"
@@ -707,7 +699,9 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
                     class="px-4 py-2 text-text whitespace-nowrap max-w-xs truncate"
                   >
                     <span v-if="cell === null" class="text-text-subtle italic">null</span>
-                    <span v-else>{{ formatResultCell(cell, result.columns[colIdx]?.data_type) }}</span>
+                    <span v-else>{{
+                      formatResultCell(cell, result.columns[colIdx]?.data_type)
+                    }}</span>
                   </td>
                 </tr>
               </tbody>

@@ -2,7 +2,6 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  ArrowLeft,
   Save,
   Loader2,
   AlertCircle,
@@ -141,10 +140,7 @@ async function loadVisualization() {
   // Load all queries for the selector
   await loadQueries()
 
-  if (
-    activeVisualizationId !== visualizationId.value ||
-    activeQueryId !== queryIdFromRoute.value
-  ) {
+  if (activeVisualizationId !== visualizationId.value || activeQueryId !== queryIdFromRoute.value) {
     return
   }
 
@@ -323,14 +319,10 @@ watch(
 </script>
 
 <template>
-  <AppLayout :title="isNew ? 'New Visualization' : visualization.name || 'Visualization Editor'">
-    <template #header-left>
-      <LButton variant="ghost" size="sm" @click="router.push({ name: 'visualizations' })">
-        <ArrowLeft class="h-4 w-4" />
-        Back
-      </LButton>
-    </template>
-
+  <AppLayout
+    :title="isNew ? 'New Visualization' : visualization.name || 'Visualization Editor'"
+    back="visualizations"
+  >
     <template #header-actions>
       <LButton variant="secondary" :disabled="saving" @click="saveVisualization">
         <Loader2 v-if="saving" class="h-4 w-4 animate-spin" />

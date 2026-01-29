@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { Sun, Moon, Monitor } from 'lucide-vue-next'
+import { LButton } from '@/components/ui'
 
 type Theme = 'light' | 'dark' | 'system'
 
@@ -45,18 +46,16 @@ onMounted(() => {
 
 <template>
   <div class="flex items-center gap-1 p-1 rounded-lg bg-surface-sunken">
-    <button
+    <LButton
       v-for="t in themes"
       :key="t.value"
-      type="button"
       :title="t.label"
-      :class="[
-        'p-2 rounded-md transition-colors focus-ring',
-        theme === t.value ? 'bg-surface text-text shadow-sm' : 'text-text-muted hover:text-text',
-      ]"
+      :variant="theme === t.value ? 'secondary' : 'ghost'"
+      size="xs"
+      square
       @click="setTheme(t.value)"
     >
-      <component :is="t.icon" class="h-4 w-4" />
-    </button>
+      <component :is="t.icon" :size="14" />
+    </LButton>
   </div>
 </template>

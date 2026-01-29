@@ -108,9 +108,21 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
-      path: '/canvas',
-      name: 'canvas',
+      path: '/canvases',
+      name: 'canvases',
       component: () => import('@/views/CanvasView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/canvases/new',
+      name: 'canvas-new',
+      component: () => import('@/views/CanvasEditorView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/canvases/:id',
+      name: 'canvas-editor',
+      component: () => import('@/views/CanvasEditorView.vue'),
       meta: { requiresAuth: true },
     },
   ],

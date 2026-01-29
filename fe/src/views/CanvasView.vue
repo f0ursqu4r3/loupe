@@ -1,413 +1,152 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { Splitpanes, Pane } from 'splitpanes'
-import 'splitpanes/dist/splitpanes.css'
-import { useCanvasStore } from '@/stores/canvas'
-import { datasourcesApi } from '@/services/api/datasources'
-import { queriesApi, runsApi } from '@/services/api/queries'
-import { timePresetToDateRange } from '@/types/canvas'
-import type { Datasource, ChartType, VisualizationConfig } from '@/types/api'
-import type { CanvasEdge } from '@/types/canvas'
+import { computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { Plus, Trash2, Layout, Pencil, Check, X } from 'lucide-vue-next'
 import { AppLayout } from '@/components/layout'
-import {
-  CanvasToolbar,
-  CanvasTimeline,
-  CanvasWorkspace,
-  CanvasInspector,
-  EdgeEditModal,
-} from '@/components/canvas'
+import { LButton, LCard, LEmptyState, LInput } from '@/components/ui'
+import { useCanvasStore } from '@/stores/canvas'
+import { formatDateShort } from '@/utils/dateTime'
+import { ref } from 'vue'
 
+const router = useRouter()
 const canvasStore = useCanvasStore()
 
-// Panel layout - load from localStorage
-const STORAGE_KEY = 'loupe:canvas:layout'
+const canvases = computed(() => canvasStore.canvases)
 
-function loadLayoutFromStorage() {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) return JSON.parse(stored)
-  } catch {
-    // ignore
+// Editing state
+const editingId = ref<string | null>(null)
+const editingName = ref('')
+
+function openCanvas(id: string) {
+  canvasStore.setActiveCanvas(id)
+  router.push({ name: 'canvas-editor', params: { id } })
+}
+
+function createCanvas() {
+  const canvas = canvasStore.createCanvas()
+  router.push({ name: 'canvas-editor', params: { id: canvas.id } })
+}
+
+function deleteCanvas(id: string, event: Event) {
+  event.stopPropagation()
+  if (!confirm('Are you sure you want to delete this canvas?')) return
+  canvasStore.deleteCanvas(id)
+}
+
+function startEditing(id: string, name: string, event: Event) {
+  event.stopPropagation()
+  editingId.value = id
+  editingName.value = name
+}
+
+function saveEditing(event: Event) {
+  event.stopPropagation()
+  if (editingId.value && editingName.value.trim()) {
+    canvasStore.renameCanvas(editingId.value, editingName.value.trim())
   }
-  return null
+  cancelEditing()
 }
 
-const storedLayout = loadLayoutFromStorage()
-const splitDirection = ref<'vertical' | 'horizontal'>(storedLayout?.splitDirection ?? 'vertical')
-const inspectorPct = ref(storedLayout?.inspectorPct ?? 30)
-
-// Persist layout changes
-watch([splitDirection, inspectorPct], () => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({
-    splitDirection: splitDirection.value,
-    inspectorPct: inspectorPct.value,
-  }))
-})
-
-function onPaneResized(panes: { size: number }[]) {
-  if (panes[1]) {
-    inspectorPct.value = panes[1].size
-  }
+function cancelEditing(event?: Event) {
+  event?.stopPropagation()
+  editingId.value = null
+  editingName.value = ''
 }
 
-onMounted(() => {
-  loadDatasources()
-})
-
-onUnmounted(() => {
-  stopLiveRefresh()
-})
-
-// Datasources
-const datasources = ref<Datasource[]>([])
-
-async function loadDatasources() {
-  try {
-    datasources.value = await datasourcesApi.list()
-  } catch (e) {
-    console.error('Failed to load datasources:', e)
-  }
-}
-
-// Canvas state
-const showGrid = ref(true)
-const selectedId = ref<string | null>(null)
-const workspaceRef = ref<InstanceType<typeof CanvasWorkspace> | null>(null)
-
-const selectedNode = computed(
-  () => canvasStore.nodes.find((n) => n.id === selectedId.value) ?? null,
-)
-
-// Load results on-demand when selecting a node with lastRunId but no result
-async function loadNodeResults(nodeId: string) {
-  const node = canvasStore.nodes.find((n) => n.id === nodeId)
-  if (!node || node.type !== 'query') return
-  if (!node.meta.lastRunId || node.meta.result) return // Already loaded or no run ID
-
-  try {
-    const result = await runsApi.getResult(node.meta.lastRunId)
-    canvasStore.updateNodeMeta(node.id, { result })
-  } catch (e) {
-    console.error('Failed to load results for node:', nodeId, e)
-    // Clear lastRunId if results can't be fetched (run may have expired)
-    canvasStore.updateNodeMeta(node.id, { lastRunId: undefined })
-  }
-}
-
-// Watch for node selection to load results lazily
-watch(selectedId, (nodeId) => {
-  if (nodeId) {
-    loadNodeResults(nodeId)
-  }
-})
-
-// Query execution state
-const isRunning = ref(false)
-
-// Live refresh
-const LIVE_REFRESH_INTERVAL = 30000 // 30 seconds
-let liveRefreshTimer: ReturnType<typeof setInterval> | null = null
-
-async function runAllQueries() {
-  const queryNodes = canvasStore.nodes.filter(
-    (n) => n.type === 'query' && n.meta.datasourceId && n.meta.sql?.trim(),
-  )
-
-  // Run all queries in parallel
-  await Promise.all(queryNodes.map((node) => runQueryNode(node.id)))
-}
-
-async function runQueryNode(nodeId: string) {
-  const node = canvasStore.nodes.find((n) => n.id === nodeId)
-  if (!node || node.type !== 'query') return
-  if (!node.meta.datasourceId || !node.meta.sql?.trim()) return
-
-  canvasStore.updateNodeMeta(node.id, {
-    status: 'running',
-    error: null,
-  })
-
-  try {
-    const timeRange = canvasStore.activeCanvas?.timeRange
-    const { start, end } = timePresetToDateRange(
-      timeRange?.preset ?? '7d',
-      timeRange?.offset ?? 0,
-    )
-
-    let queryId = node.meta.queryId
-    const queryData = {
-      datasource_id: node.meta.datasourceId,
-      name: `[Canvas] ${node.title}`,
-      sql: node.meta.sql,
-      parameters: [
-        {
-          name: 'start',
-          param_type: 'datetime' as const,
-          required: false,
-          default: start.toISOString(),
-        },
-        {
-          name: 'end',
-          param_type: 'datetime' as const,
-          required: false,
-          default: end.toISOString(),
-        },
-      ],
-      tags: ['canvas'],
-    }
-
-    if (queryId) {
-      await queriesApi.update(queryId, queryData)
-    } else {
-      const created = await queriesApi.create(queryData)
-      queryId = created.id
-      canvasStore.updateNodeMeta(node.id, { queryId })
-    }
-
-    const run = await runsApi.create({
-      query_id: queryId,
-      parameters: {
-        start: start.toISOString(),
-        end: end.toISOString(),
-      },
-    })
-
-    // Poll for completion
-    let attempts = 0
-    const maxAttempts = 60
-
-    while (attempts < maxAttempts) {
-      const status = await runsApi.get(run.id)
-
-      if (status.status === 'completed') {
-        const result = await runsApi.getResult(run.id)
-        canvasStore.updateNodeMeta(node.id, {
-          status: 'ok',
-          lastRun: new Date().toLocaleTimeString(),
-          lastRunId: run.id, // Store run ID for on-demand result loading
-          rows: result.row_count,
-          runtime: `${result.execution_time_ms}ms`,
-          result,
-          error: null,
-        })
-        return
-      } else if (['failed', 'cancelled', 'timeout'].includes(status.status)) {
-        canvasStore.updateNodeMeta(node.id, {
-          status: 'error',
-          error: status.error_message || `Query ${status.status}`,
-        })
-        return
-      }
-
-      await new Promise((r) => setTimeout(r, 500))
-      attempts++
-    }
-
-    canvasStore.updateNodeMeta(node.id, {
-      status: 'error',
-      error: 'Query timed out',
-    })
-  } catch (e) {
-    canvasStore.updateNodeMeta(node.id, {
-      status: 'error',
-      error: e instanceof Error ? e.message : 'Failed to execute query',
-    })
-  }
-}
-
-function startLiveRefresh() {
-  if (liveRefreshTimer) return
-
-  // Run immediately, then on interval
-  runAllQueries()
-  liveRefreshTimer = setInterval(runAllQueries, LIVE_REFRESH_INTERVAL)
-}
-
-function stopLiveRefresh() {
-  if (liveRefreshTimer) {
-    clearInterval(liveRefreshTimer)
-    liveRefreshTimer = null
-  }
-}
-
-// Watch for live mode changes
-watch(
-  () => canvasStore.activeCanvas?.live,
-  (isLive) => {
-    if (isLive) {
-      startLiveRefresh()
-    } else {
-      stopLiveRefresh()
-    }
-  },
-)
-
-// Edge editing
-const editingEdge = ref<CanvasEdge | null>(null)
-
-function handleEditEdge(edge: CanvasEdge) {
-  editingEdge.value = { ...edge }
-}
-
-function handleSaveEdge(edge: CanvasEdge) {
-  canvasStore.updateEdge(edge.id, { label: edge.label })
-}
-
-function handleDeleteEdge(edge: CanvasEdge) {
-  canvasStore.deleteEdge(edge.id)
-}
-
-// Toolbar actions
-function handleAddQuery() {
-  const defaultDs = datasources.value[0]
-  const node = canvasStore.addNode(
-    'query',
-    { x: 150 + Math.random() * 200, y: 150 + Math.random() * 200 },
-    defaultDs,
-  )
-  if (node) {
-    selectedId.value = node.id
-  }
-}
-
-function handleAddNote() {
-  const node = canvasStore.addNode('note', {
-    x: 150 + Math.random() * 200,
-    y: 150 + Math.random() * 200,
-  })
-  if (node) {
-    selectedId.value = node.id
-  }
-}
-
-function handleNewCanvas() {
-  selectedId.value = null
-}
-
-// Inspector actions
-function updateNodeTitle(title: string) {
-  if (selectedNode.value) {
-    canvasStore.updateNode(selectedNode.value.id, { title })
-  }
-}
-
-function updateNodeDatasource(id: string) {
-  if (selectedNode.value) {
-    canvasStore.updateNodeMeta(selectedNode.value.id, {
-      datasourceId: id || undefined,
-    })
-  }
-}
-
-function updateNodeSql(sql: string) {
-  if (selectedNode.value) {
-    canvasStore.updateNodeMeta(selectedNode.value.id, { sql })
-  }
-}
-
-function updateNodeViz(viz: string) {
-  if (selectedNode.value) {
-    canvasStore.updateNodeMeta(selectedNode.value.id, { viz: viz as ChartType })
-  }
-}
-
-function updateNodeVizConfig(config: VisualizationConfig) {
-  if (selectedNode.value) {
-    canvasStore.updateNodeMeta(selectedNode.value.id, { vizConfig: config })
-  }
-}
-
-function updateNoteText(text: string) {
-  if (selectedNode.value) {
-    canvasStore.updateNodeMeta(selectedNode.value.id, { text })
-  }
-}
-
-function centerOnSelected() {
-  if (selectedId.value && workspaceRef.value) {
-    workspaceRef.value.centerOnNode(selectedId.value)
-  }
-}
-
-// Query execution (for selected node)
-async function runSelectedQuery() {
-  const node = selectedNode.value
-  if (!node || node.type !== 'query') return
-  if (!node.meta.datasourceId) {
-    canvasStore.updateNodeMeta(node.id, { error: 'Please select a datasource' })
-    return
-  }
-  if (!node.meta.sql?.trim()) {
-    canvasStore.updateNodeMeta(node.id, { error: 'No SQL to execute' })
-    return
-  }
-
-  isRunning.value = true
-  try {
-    await runQueryNode(node.id)
-  } finally {
-    isRunning.value = false
+function handleKeydown(event: KeyboardEvent) {
+  if (event.key === 'Enter') {
+    saveEditing(event)
+  } else if (event.key === 'Escape') {
+    cancelEditing()
   }
 }
 </script>
 
 <template>
-  <AppLayout title="Canvas" no-padding>
-    <template #header-left>
-      <CanvasToolbar @new-canvas="handleNewCanvas" />
+  <AppLayout title="Canvases">
+    <template #header-actions>
+      <LButton @click="createCanvas">
+        <Plus :size="16" />
+        New Canvas
+      </LButton>
     </template>
-    <div class="h-full grid grid-rows-[64px_1fr] bg-surface text-text overflow-hidden">
-      <!-- Timeline scrubber -->
-      <CanvasTimeline />
 
-      <!-- Main -->
-      <Splitpanes
-        class="default-theme h-full min-h-0 overflow-hidden"
-        :horizontal="splitDirection === 'horizontal'"
-        @resized="onPaneResized"
+    <!-- Empty state -->
+    <LEmptyState
+      v-if="canvases.length === 0"
+      title="No canvases yet"
+      description="Create your first canvas to start exploring your data visually."
+    >
+      <template #icon>
+        <Layout :size="32" class="text-text-subtle" />
+      </template>
+      <template #action>
+        <LButton @click="createCanvas">
+          <Plus :size="16" />
+          Create Canvas
+        </LButton>
+      </template>
+    </LEmptyState>
+
+    <!-- Canvas grid -->
+    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <LCard
+        v-for="canvas in canvases"
+        :key="canvas.id"
+        class="group hover:border-primary-500/50 transition-colors cursor-pointer"
+        @click="openCanvas(canvas.id)"
       >
-        <Pane :size="100 - inspectorPct" :min-size="20">
-          <CanvasWorkspace
-            ref="workspaceRef"
-            class="h-full w-full"
-            :show-grid="showGrid"
-            :selected-id="selectedId"
-            :datasources="datasources"
-            :split-direction="splitDirection"
-            @update:selected-id="selectedId = $event"
-            @update:show-grid="showGrid = $event"
-            @update:split-direction="splitDirection = $event"
-            @add-query="handleAddQuery"
-            @add-note="handleAddNote"
-            @edit-edge="handleEditEdge"
-          />
-        </Pane>
+        <div class="flex items-start justify-between mb-3">
+          <!-- Editable title -->
+          <div
+            v-if="editingId === canvas.id"
+            class="flex items-center gap-2 flex-1 mr-2"
+            @click.stop
+          >
+            <LInput v-model="editingName" class="flex-1" autofocus @keydown="handleKeydown" />
+            <button
+              type="button"
+              class="p-1.5 rounded text-text-muted hover:text-success hover:bg-success-muted transition-colors"
+              @click="saveEditing"
+            >
+              <Check :size="16" />
+            </button>
+            <button
+              type="button"
+              class="p-1.5 rounded text-text-muted hover:text-error hover:bg-error-muted transition-colors"
+              @click="cancelEditing"
+            >
+              <X :size="16" />
+            </button>
+          </div>
+          <h3 v-else class="font-semibold text-text group-hover:text-primary-600 transition-colors">
+            {{ canvas.name }}
+          </h3>
 
-        <Pane :size="inspectorPct" :min-size="20" :max-size="60">
-          <CanvasInspector
-            class="h-full w-full"
-            :node="selectedNode"
-            :datasources="datasources"
-            :is-running="isRunning"
-            @update:title="updateNodeTitle"
-            @update:datasource="updateNodeDatasource"
-            @update:sql="updateNodeSql"
-            @update:viz="updateNodeViz"
-            @update:vizConfig="updateNodeVizConfig"
-            @update:note-text="updateNoteText"
-            @run="runSelectedQuery"
-            @center="centerOnSelected"
-          />
-        </Pane>
-      </Splitpanes>
+          <!-- Actions -->
+          <div v-if="editingId !== canvas.id" class="flex items-center gap-1">
+            <button
+              type="button"
+              class="p-1.5 rounded text-text-muted hover:text-primary-600 hover:bg-primary-50 transition-colors opacity-0 group-hover:opacity-100"
+              @click="startEditing(canvas.id, canvas.name, $event)"
+            >
+              <Pencil :size="16" />
+            </button>
+            <button
+              type="button"
+              class="p-1.5 rounded text-text-muted hover:text-error hover:bg-error-muted transition-colors opacity-0 group-hover:opacity-100"
+              @click="deleteCanvas(canvas.id, $event)"
+            >
+              <Trash2 :size="16" />
+            </button>
+          </div>
+        </div>
 
-      <!-- Edge edit modal -->
-      <EdgeEditModal
-        :edge="editingEdge"
-        @update:edge="editingEdge = $event"
-        @save="handleSaveEdge"
-        @delete="handleDeleteEdge"
-      />
+        <div class="flex items-center justify-between text-xs text-text-subtle">
+          <span>{{ canvas.nodes.length }} nodes</span>
+          <span>Updated {{ formatDateShort(canvas.updatedAt) }}</span>
+        </div>
+      </LCard>
     </div>
   </AppLayout>
 </template>

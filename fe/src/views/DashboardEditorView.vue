@@ -2,7 +2,6 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  ArrowLeft,
   Save,
   Loader2,
   AlertCircle,
@@ -456,14 +455,7 @@ watch(
 </script>
 
 <template>
-  <AppLayout :title="isNew ? 'New Dashboard' : dashboard.name || 'Dashboard'">
-    <template #header-left>
-      <LButton variant="ghost" size="sm" @click="router.push({ name: 'dashboards' })">
-        <ArrowLeft class="h-4 w-4" />
-        Back
-      </LButton>
-    </template>
-
+  <AppLayout :title="isNew ? 'New Dashboard' : dashboard.name || 'Dashboard'" back="dashboards">
     <template #header-actions>
       <LButton
         variant="ghost"

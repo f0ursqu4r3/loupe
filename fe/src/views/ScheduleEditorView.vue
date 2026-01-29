@@ -2,7 +2,6 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  ArrowLeft,
   Save,
   Loader2,
   AlertCircle,
@@ -284,14 +283,9 @@ watch(
 </script>
 
 <template>
-  <AppLayout :title="isNew ? 'New Schedule' : 'Edit Schedule'">
+  <AppLayout :title="isNew ? 'New Schedule' : 'Edit Schedule'" back="schedules">
     <template #header-actions>
       <div class="flex items-center gap-2">
-        <LButton variant="ghost" @click="router.push({ name: 'schedules' })">
-          <ArrowLeft class="h-4 w-4" />
-          Back
-        </LButton>
-
         <div v-if="!isNew" class="flex items-center gap-2">
           <LButton variant="danger" size="sm" @click="showDeleteConfirm = true">
             <Trash2 class="h-4 w-4" />

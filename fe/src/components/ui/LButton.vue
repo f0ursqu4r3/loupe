@@ -11,6 +11,7 @@ interface Props {
   disabled?: boolean
   loading?: boolean
   class?: HTMLAttributes['class']
+  square?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -18,10 +19,11 @@ const props = withDefaults(defineProps<Props>(), {
   size: 'md',
   disabled: false,
   loading: false,
+  square: false,
 })
 
 const baseClasses =
-  'inline-flex items-center justify-center font-medium transition-colors focus-ring rounded-md disabled:opacity-50 disabled:pointer-events-none'
+  'inline-flex items-center justify-center font-medium transition-colors focus-ring rounded-md cursor-pointer disabled:opacity-50 disabled:pointer-events-none cursor-pointer'
 
 const variantClasses: Record<Variant, string> = {
   primary: 'bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800',
@@ -42,6 +44,14 @@ const sizeClasses: Record<Size, string> = {
   xl: 'h-14 px-8 text-lg gap-2.5',
 }
 
+const squareSizeClasses: Record<Size, string> = {
+  xs: 'h-6 w-6 text-xs',
+  sm: 'h-8 w-8 text-sm',
+  md: 'h-10 w-10 text-sm',
+  lg: 'h-12 w-12 text-base',
+  xl: 'h-14 w-14 text-lg',
+}
+
 const loaderSizes: Record<Size, string> = {
   xs: 'h-3 w-3',
   sm: 'h-3.5 w-3.5',
@@ -53,7 +63,7 @@ const loaderSizes: Record<Size, string> = {
 const classes = computed(() => [
   baseClasses,
   variantClasses[props.variant],
-  sizeClasses[props.size],
+  props.square ? squareSizeClasses[props.size] : sizeClasses[props.size],
   props.class,
 ])
 

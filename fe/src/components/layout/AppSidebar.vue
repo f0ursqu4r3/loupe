@@ -33,7 +33,7 @@ const navItems = [
   { to: '/queries', icon: FileCode, label: 'Queries' },
   { to: '/visualizations', icon: BarChart3, label: 'Visualizations' },
   { to: '/schedules', icon: Calendar, label: 'Schedules' },
-  { to: '/canvas', icon: Network, label: 'Canvas (Semantic)' },
+  { to: '/canvases', icon: Network, label: 'Canvases' },
 ]
 
 const bottomNavItems = [{ to: '/settings', icon: Settings, label: 'Settings' }]
@@ -59,7 +59,7 @@ function toggleCollapse() {
     <div class="h-16 flex items-center px-4 border-b border-border">
       <RouterLink to="/" class="flex items-center gap-3">
         <div class="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center">
-          <Search class="h-4 w-4 text-white" />
+          <Search :size="16" class="text-white" />
         </div>
         <span v-if="!collapsed" class="font-semibold text-lg text-text transition-opacity">
           Loupe
@@ -80,7 +80,7 @@ function toggleCollapse() {
                 : 'text-text-muted hover:text-text hover:bg-surface-sunken',
             ]"
           >
-            <component :is="item.icon" class="h-5 w-5 shrink-0" />
+            <component :is="item.icon" :size="20" class="shrink-0" />
             <span v-if="!collapsed" class="text-sm font-medium">
               {{ item.label }}
             </span>
@@ -102,7 +102,7 @@ function toggleCollapse() {
                 : 'text-text-muted hover:text-text hover:bg-surface-sunken',
             ]"
           >
-            <component :is="item.icon" class="h-5 w-5 shrink-0" />
+            <component :is="item.icon" :size="20" class="shrink-0" />
             <span v-if="!collapsed" class="text-sm font-medium">
               {{ item.label }}
             </span>
@@ -120,7 +120,7 @@ function toggleCollapse() {
           ]"
           @click="toggleCollapse"
         >
-          <component :is="collapsed ? ChevronRight : ChevronLeft" class="h-5 w-5 shrink-0" />
+          <component :is="collapsed ? ChevronRight : ChevronLeft" :size="20" class="shrink-0" />
           <span v-if="!collapsed" class="text-sm font-medium">Collapse</span>
         </button>
       </div>

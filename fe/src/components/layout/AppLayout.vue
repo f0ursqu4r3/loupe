@@ -5,11 +5,13 @@ import AppHeader from './AppHeader.vue'
 
 interface Props {
   title?: string
+  back?: string
   noPadding?: boolean
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   title: '',
+  back: '',
   noPadding: false,
 })
 
@@ -43,16 +45,13 @@ const mainClasses = computed(() => [
     <AppSidebar v-model:collapsed="sidebarCollapsed" />
 
     <div :class="mainClasses">
-      <AppHeader :title="title" class="sticky top-0 z-10">
-        <template #left>
-          <slot name="header-left" />
-        </template>
+      <AppHeader :title="props.title" :back="props.back" class="sticky top-0 z-10">
         <template #actions>
           <slot name="header-actions" />
         </template>
       </AppHeader>
 
-      <main :class="[{ 'p-6': !noPadding }, 'overflow-auto h-[calc(100vh-4rem)]']">
+      <main :class="[{ 'p-6': !props.noPadding }, 'overflow-auto h-[calc(100vh-4rem)]']">
         <slot />
       </main>
     </div>
