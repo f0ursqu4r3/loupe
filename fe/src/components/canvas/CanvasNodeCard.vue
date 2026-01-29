@@ -53,17 +53,15 @@ const statusClass = computed(() => {
     :style="nodeStyle"
   >
     <!-- Header -->
-    <div class="flex items-center justify-between px-2.5 py-2 border-b border-border">
-      <div
-        class="flex items-center gap-2 font-semibold text-sm overflow-hidden text-ellipsis whitespace-nowrap"
-      >
+    <div class="flex items-center justify-between px-2.5 py-2 border-b border-border overflow-hidden">
+      <div class="flex-1 flex items-center gap-2 font-semibold text-sm min-w-0 overflow-hidden">
         <span
           class="w-2.5 h-2.5 rounded-full shrink-0"
           :class="props.node.type === 'query' ? 'bg-info' : 'bg-warning'"
         ></span>
-        <span>{{ props.node.title }}</span>
+        <span class="truncate">{{ props.node.title }}</span>
       </div>
-      <div class="flex gap-1.5">
+      <div class="flex gap-1.5 shrink-0">
         <button
           class="w-6 h-6 rounded-lg border border-border bg-surface hover:bg-surface-sunken text-xs flex items-center justify-center"
           title="Connect"

@@ -342,10 +342,9 @@ function onCanvasPointerDown(e: PointerEvent) {
     return
   }
 
-  // Don't clear selection if click originated from within a node
-  // (the node's pointerdown handler will handle selection)
+  // Don't clear selection if click originated from within a node or UI overlay
   const target = e.target as HTMLElement
-  if (target.closest('[data-canvas-node]')) {
+  if (target.closest('[data-canvas-node]') || target.closest('[data-canvas-ui]')) {
     return
   }
 
@@ -496,14 +495,22 @@ defineExpose({
           </marker>
         </defs>
 
-        <g v-for="e in canvasStore.edges" :key="e.id">
+        <g v-for="e in canvasStore.edges" :key="e.id" data-canvas-ui>
           <path
             class="fill-none stroke-text-subtle stroke-2"
             :d="edgePath(e.from, e.to)"
             marker-end="url(#arrow)"
           />
+          <rect
+            class="fill-surface-sunken"
+            :x="edgeLabelPos(e.from, e.to).x - (e.label.length * 4 + 8)"
+            :y="edgeLabelPos(e.from, e.to).y - 10"
+            :width="e.label.length * 8"
+            :height="16"
+            rx="4"
+          />
           <text
-            class="fill-text-muted text-[11px] text-center pointer-events-auto cursor-pointer hover:fill-text"
+            class="fill-text-muted text-xs pointer-events-auto cursor-pointer hover:fill-text"
             text-anchor="middle"
             :x="edgeLabelPos(e.from, e.to).x"
             :y="edgeLabelPos(e.from, e.to).y"
@@ -532,6 +539,7 @@ defineExpose({
 
     <!-- Floating toolbar -->
     <div
+      data-canvas-ui
       class="absolute top-4 left-4 z-10 flex items-center gap-1 p-1.5 rounded-lg bg-surface-overlay/90 backdrop-blur-sm border border-border shadow-lg"
     >
       <!-- Add node buttons -->
@@ -594,7 +602,7 @@ defineExpose({
     />
 
     <!-- Minimap (fixed position, outside camera transform) -->
-    <div class="absolute bottom-4 right-4 z-20 shadow-lg">
+    <div data-canvas-ui class="absolute bottom-4 right-4 z-20 shadow-lg">
       <LMinimap
         :nodes="minimapNodes"
         :edges="minimapEdges"
