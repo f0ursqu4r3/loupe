@@ -108,7 +108,7 @@ function updateDatasource(value: string | number) {
           <LSelect
             :model-value="props.node.meta.datasourceId ?? ''"
             :options="datasourceOptions"
-            class="text-xs"
+            size="xs"
             @update:model-value="updateDatasource"
           />
         </div>
@@ -122,6 +122,7 @@ function updateDatasource(value: string | number) {
       <QueryEditor
         v-if="props.node.type === 'query'"
         :node="props.node"
+        class="min-h-0"
         @update:sql="$emit('update:sql', $event)"
         @update:viz="$emit('update:viz', $event)"
         @update:vizConfig="$emit('update:vizConfig', $event)"

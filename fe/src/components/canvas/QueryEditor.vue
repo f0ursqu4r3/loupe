@@ -3,7 +3,17 @@ import { computed, reactive, ref, watch } from 'vue'
 import { Splitpanes, Pane } from 'splitpanes'
 import 'splitpanes/dist/splitpanes.css'
 import { LButton, LSelect, LBadge, LInput } from '@/components/ui'
-import { PanelRight, PanelBottom } from 'lucide-vue-next'
+import {
+  Columns2,
+  Rows2,
+  WandSparkles,
+  Code2,
+  BarChart3,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  ChevronDown,
+} from 'lucide-vue-next'
 import { VisualizationRenderer } from '@/components/charts'
 import SqlEditor from '@/components/editor/SqlEditor.vue'
 import type { CanvasNode, VisualizationConfig, ChartType } from '@/types'
@@ -35,16 +45,19 @@ function loadLayoutFromStorage() {
 }
 
 const storedLayout = loadLayoutFromStorage()
-const splitCollapsed = reactive({ sql: false, viz: false })
+const collapsed = reactive({ sql: false, viz: false })
 const splitDirection = ref<'horizontal' | 'vertical'>(storedLayout?.splitDirection ?? 'horizontal')
 const splitPct = ref(storedLayout?.splitPct ?? 50)
 
 // Persist layout changes
 watch([splitDirection, splitPct], () => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({
-    splitDirection: splitDirection.value,
-    splitPct: splitPct.value,
-  }))
+  localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({
+      splitDirection: splitDirection.value,
+      splitPct: splitPct.value,
+    }),
+  )
 })
 
 function toggleSplitDirection() {
@@ -52,10 +65,23 @@ function toggleSplitDirection() {
 }
 
 function onPaneResized(panes: { size: number }[]) {
-  if (panes[0]) {
+  if (panes[0] && !collapsed.sql && !collapsed.viz) {
     splitPct.value = panes[0].size
   }
 }
+
+// Computed pane sizes based on collapsed state
+const sqlPaneSize = computed(() => {
+  if (collapsed.sql) return 0
+  if (collapsed.viz) return 100
+  return splitPct.value
+})
+
+const vizPaneSize = computed(() => {
+  if (collapsed.viz) return 0
+  if (collapsed.sql) return 100
+  return 100 - splitPct.value
+})
 
 // SQL Editor ref
 const sqlEditorRef = ref<InstanceType<typeof SqlEditor> | null>(null)
@@ -106,41 +132,99 @@ function formatSql() {
 }
 
 function togglePane(which: 'sql' | 'viz') {
-  splitCollapsed[which] = !splitCollapsed[which]
+  // Don't allow both to be collapsed
+  if (!collapsed[which] && collapsed[which === 'sql' ? 'viz' : 'sql']) {
+    return
+  }
+  collapsed[which] = !collapsed[which]
 }
+
+// Collapse direction icons based on split direction
+const sqlCollapseIcon = computed(() => {
+  if (collapsed.sql) {
+    return splitDirection.value === 'horizontal' ? ChevronRight : ChevronDown
+  }
+  return splitDirection.value === 'horizontal' ? ChevronLeft : ChevronUp
+})
+
+const vizCollapseIcon = computed(() => {
+  if (collapsed.viz) {
+    return splitDirection.value === 'horizontal' ? ChevronLeft : ChevronUp
+  }
+  return splitDirection.value === 'horizontal' ? ChevronRight : ChevronDown
+})
 </script>
 
 <template>
-  <Splitpanes
-    class="default-theme query-editor-split h-full min-h-0"
-    :horizontal="splitDirection === 'vertical'"
-    @resized="onPaneResized"
-  >
-    <!-- SQL Editor pane -->
-    <Pane :size="splitPct" :min-size="20" :max-size="80">
-      <div class="h-full grid grid-rows-[40px_1fr] overflow-hidden bg-surface-raised">
-        <div
-          class="flex items-center justify-between px-2.5 py-2 border-b border-border font-semibold text-xs"
-        >
-          <span>SQL Editor</span>
-          <div class="flex gap-2 items-center">
-            <button
-              type="button"
-              class="p-1.5 rounded text-text-muted hover:text-text hover:bg-surface-sunken transition-colors"
-              :title="splitDirection === 'horizontal' ? 'Switch to Vertical Split' : 'Switch to Horizontal Split'"
-              @click="toggleSplitDirection"
-            >
-              <PanelRight v-if="splitDirection === 'horizontal'" :size="14" />
-              <PanelBottom v-else :size="14" />
-            </button>
-            <LButton variant="ghost" size="sm" @click="formatSql">Format</LButton>
-            <LButton variant="ghost" size="sm" @click="togglePane('sql')">
-              {{ splitCollapsed.sql ? 'Show' : 'Hide' }}
-            </LButton>
-          </div>
-        </div>
+  <div class="h-full w-full grid grid-rows-[36px_1fr] min-h-0 overflow-hidden">
+    <!-- Shared toolbar -->
+    <div
+      class="w-full flex items-center justify-between px-2.5 border-b border-border bg-surface-raised text-xs overflow-visible"
+    >
+      <!-- SQL controls -->
+      <div class="flex items-center gap-1.5 shrink-0">
+        <LButton variant="ghost" size="sm" title="Toggle SQL Editor" @click="togglePane('sql')">
+          <component :is="sqlCollapseIcon" :size="14" class="text-text-subtle" />
+          <Code2 :size="14" />
+          <span class="font-medium">SQL</span>
+        </LButton>
+        <Transition name="fade" appear>
+          <LButton
+            v-if="!collapsed.sql"
+            variant="ghost"
+            size="sm"
+            title="Format SQL"
+            @click="formatSql"
+          >
+            <WandSparkles :size="14" />
+          </LButton>
+        </Transition>
+      </div>
 
-        <div v-show="!splitCollapsed.sql" class="min-h-0 overflow-hidden">
+      <!-- Center controls -->
+      <LButton
+        variant="text"
+        class="shrink-0"
+        :title="
+          splitDirection === 'horizontal'
+            ? 'Switch to Vertical Split'
+            : 'Switch to Horizontal Split'
+        "
+        @click="toggleSplitDirection"
+      >
+        <Columns2 v-if="splitDirection === 'horizontal'" :size="14" />
+        <Rows2 v-else :size="14" />
+      </LButton>
+
+      <!-- Viz controls -->
+      <div class="flex items-center gap-1.5 shrink-0">
+        <Transition name="fade" appear>
+          <LSelect
+            v-if="!collapsed.viz"
+            :model-value="currentViz"
+            :options="vizOptions"
+            size="xs"
+            class="w-24 text-xs"
+            @update:model-value="updateViz"
+          />
+        </Transition>
+        <LButton variant="ghost" size="sm" title="Toggle Visualization" @click="togglePane('viz')">
+          <BarChart3 :size="14" />
+          <span class="font-medium">Viz</span>
+          <component :is="vizCollapseIcon" :size="14" class="text-text-subtle" />
+        </LButton>
+      </div>
+    </div>
+
+    <!-- Split panes -->
+    <Splitpanes
+      class="default-theme query-editor-split min-h-0 w-full overflow-hidden"
+      :horizontal="splitDirection === 'vertical'"
+      @resized="onPaneResized"
+    >
+      <!-- SQL Editor pane -->
+      <Pane v-if="!collapsed.sql" :size="sqlPaneSize" :min-size="20">
+        <div class="h-full overflow-hidden bg-surface-raised">
           <SqlEditor
             ref="sqlEditorRef"
             :model-value="props.node.meta.sql ?? ''"
@@ -152,164 +236,144 @@ function togglePane(which: 'sql' | 'viz') {
             @run="$emit('run')"
           />
         </div>
-      </div>
-    </Pane>
+      </Pane>
 
-    <!-- Visualization pane -->
-    <Pane :size="100 - splitPct" :min-size="20" :max-size="80">
-      <div class="h-full grid grid-rows-[auto_minmax(100px,1fr)] overflow-hidden bg-surface-raised">
-      <div class="border-b border-border max-h-40 overflow-y-auto">
-        <!-- Viz header -->
-        <div
-          class="flex items-center justify-between px-2.5 py-2 font-semibold text-xs"
-        >
-          <span>Visualization</span>
-          <div class="flex gap-2 items-center">
-            <LSelect
-              :model-value="currentViz"
-              :options="vizOptions"
-              class="w-24"
-              @update:model-value="updateViz"
-            />
-            <LButton variant="ghost" size="sm" @click="togglePane('viz')">
-              {{ splitCollapsed.viz ? 'Show' : 'Hide' }}
-            </LButton>
+      <!-- Visualization pane -->
+      <Pane v-if="!collapsed.viz" :size="vizPaneSize" :min-size="20">
+        <div class="h-full flex flex-col overflow-hidden bg-surface-raised">
+          <!-- Chart config (when not table) -->
+          <div
+            v-if="currentViz !== 'table' && props.node.meta.result"
+            class="border-b border-border px-2.5 py-2 space-y-2 max-h-32 overflow-y-auto shrink-0"
+          >
+            <!-- Line/Bar config -->
+            <template v-if="currentViz === 'line' || currentViz === 'bar'">
+              <div class="grid grid-cols-3 gap-2">
+                <div>
+                  <label class="block text-[10px] text-text-muted mb-1">X-Axis</label>
+                  <LSelect
+                    :model-value="currentConfig.x_axis ?? ''"
+                    :options="columnOptions"
+                    class="text-xs"
+                    @update:model-value="updateConfig('x_axis', $event)"
+                  />
+                </div>
+                <div>
+                  <label class="block text-[10px] text-text-muted mb-1">Y-Axis</label>
+                  <LSelect
+                    :model-value="currentConfig.y_axis ?? ''"
+                    :options="columnOptions"
+                    class="text-xs"
+                    @update:model-value="updateConfig('y_axis', $event)"
+                  />
+                </div>
+                <div>
+                  <label class="block text-[10px] text-text-muted mb-1">Series</label>
+                  <LSelect
+                    :model-value="currentConfig.series_column ?? ''"
+                    :options="columnOptions"
+                    class="text-xs"
+                    @update:model-value="updateConfig('series_column', $event)"
+                  />
+                </div>
+              </div>
+            </template>
+
+            <!-- Single stat config -->
+            <template v-if="currentViz === 'single_stat'">
+              <div class="grid grid-cols-3 gap-2">
+                <div>
+                  <label class="block text-[10px] text-text-muted mb-1">Value</label>
+                  <LSelect
+                    :model-value="currentConfig.value_column ?? ''"
+                    :options="columnOptions"
+                    class="text-xs"
+                    @update:model-value="updateConfig('value_column', $event)"
+                  />
+                </div>
+                <div>
+                  <label class="block text-[10px] text-text-muted mb-1">Prefix</label>
+                  <LInput
+                    :model-value="currentConfig.prefix ?? ''"
+                    class="text-xs h-8"
+                    placeholder="$"
+                    @update:model-value="updateConfig('prefix', $event)"
+                  />
+                </div>
+                <div>
+                  <label class="block text-[10px] text-text-muted mb-1">Suffix</label>
+                  <LInput
+                    :model-value="currentConfig.suffix ?? ''"
+                    class="text-xs h-8"
+                    placeholder="%"
+                    @update:model-value="updateConfig('suffix', $event)"
+                  />
+                </div>
+              </div>
+            </template>
+
+            <!-- Pie config -->
+            <template v-if="currentViz === 'pie'">
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-[10px] text-text-muted mb-1">Label</label>
+                  <LSelect
+                    :model-value="currentConfig.label_column ?? ''"
+                    :options="columnOptions"
+                    class="text-xs"
+                    @update:model-value="updateConfig('label_column', $event)"
+                  />
+                </div>
+                <div>
+                  <label class="block text-[10px] text-text-muted mb-1">Value</label>
+                  <LSelect
+                    :model-value="currentConfig.value_column ?? ''"
+                    :options="columnOptions"
+                    class="text-xs"
+                    @update:model-value="updateConfig('value_column', $event)"
+                  />
+                </div>
+              </div>
+            </template>
           </div>
-        </div>
 
-        <!-- Chart config (when not table) -->
-        <div
-          v-if="currentViz !== 'table' && props.node.meta.result"
-          class="px-2.5 pb-2.5 space-y-2"
-        >
-          <!-- Line/Bar config -->
-          <template v-if="currentViz === 'line' || currentViz === 'bar'">
-            <div class="grid grid-cols-3 gap-2">
-              <div>
-                <label class="block text-[10px] text-text-muted mb-1">X-Axis</label>
-                <LSelect
-                  :model-value="currentConfig.x_axis ?? ''"
-                  :options="columnOptions"
-                  class="text-xs"
-                  @update:model-value="updateConfig('x_axis', $event)"
-                />
+          <div class="flex-1 min-h-0 overflow-auto">
+            <!-- Error state -->
+            <div v-if="props.node.meta.error" class="p-5 text-center">
+              <div class="font-bold text-error mb-2">Error</div>
+              <div class="text-sm text-error/70">{{ props.node.meta.error }}</div>
+            </div>
+
+            <!-- No results yet -->
+            <div
+              v-else-if="!props.node.meta.result"
+              class="p-5 flex flex-col items-center justify-center gap-2 text-text-muted text-center h-full"
+            >
+              <div class="text-sm">Run the query to see results</div>
+            </div>
+
+            <!-- Results with VisualizationRenderer -->
+            <div v-else class="h-full flex flex-col min-h-0">
+              <div class="flex gap-2 flex-wrap px-3 pt-3">
+                <LBadge>Rows: {{ props.node.meta.result.row_count }}</LBadge>
+                <LBadge>Runtime: {{ props.node.meta.result.execution_time_ms }}ms</LBadge>
+                <LBadge v-if="props.node.meta.result.truncated" variant="warning">Truncated</LBadge>
               </div>
-              <div>
-                <label class="block text-[10px] text-text-muted mb-1">Y-Axis</label>
-                <LSelect
-                  :model-value="currentConfig.y_axis ?? ''"
-                  :options="columnOptions"
-                  class="text-xs"
-                  @update:model-value="updateConfig('y_axis', $event)"
-                />
-              </div>
-              <div>
-                <label class="block text-[10px] text-text-muted mb-1">Series</label>
-                <LSelect
-                  :model-value="currentConfig.series_column ?? ''"
-                  :options="columnOptions"
-                  class="text-xs"
-                  @update:model-value="updateConfig('series_column', $event)"
+
+              <div class="flex-1 min-h-0 p-3">
+                <VisualizationRenderer
+                  :chart-type="currentViz"
+                  :data="props.node.meta.result"
+                  :config="currentConfig"
+                  height="100%"
                 />
               </div>
             </div>
-          </template>
-
-          <!-- Single stat config -->
-          <template v-if="currentViz === 'single_stat'">
-            <div class="grid grid-cols-3 gap-2">
-              <div>
-                <label class="block text-[10px] text-text-muted mb-1">Value</label>
-                <LSelect
-                  :model-value="currentConfig.value_column ?? ''"
-                  :options="columnOptions"
-                  class="text-xs"
-                  @update:model-value="updateConfig('value_column', $event)"
-                />
-              </div>
-              <div>
-                <label class="block text-[10px] text-text-muted mb-1">Prefix</label>
-                <LInput
-                  :model-value="currentConfig.prefix ?? ''"
-                  class="text-xs h-8"
-                  placeholder="$"
-                  @update:model-value="updateConfig('prefix', $event)"
-                />
-              </div>
-              <div>
-                <label class="block text-[10px] text-text-muted mb-1">Suffix</label>
-                <LInput
-                  :model-value="currentConfig.suffix ?? ''"
-                  class="text-xs h-8"
-                  placeholder="%"
-                  @update:model-value="updateConfig('suffix', $event)"
-                />
-              </div>
-            </div>
-          </template>
-
-          <!-- Pie config -->
-          <template v-if="currentViz === 'pie'">
-            <div class="grid grid-cols-2 gap-2">
-              <div>
-                <label class="block text-[10px] text-text-muted mb-1">Label</label>
-                <LSelect
-                  :model-value="currentConfig.label_column ?? ''"
-                  :options="columnOptions"
-                  class="text-xs"
-                  @update:model-value="updateConfig('label_column', $event)"
-                />
-              </div>
-              <div>
-                <label class="block text-[10px] text-text-muted mb-1">Value</label>
-                <LSelect
-                  :model-value="currentConfig.value_column ?? ''"
-                  :options="columnOptions"
-                  class="text-xs"
-                  @update:model-value="updateConfig('value_column', $event)"
-                />
-              </div>
-            </div>
-          </template>
-        </div>
-      </div>
-
-      <div v-show="!splitCollapsed.viz" class="min-h-0 overflow-auto">
-        <!-- Error state -->
-        <div v-if="props.node.meta.error" class="p-5 text-center">
-          <div class="font-bold text-error mb-2">Error</div>
-          <div class="text-sm text-error/70">{{ props.node.meta.error }}</div>
-        </div>
-
-        <!-- No results yet -->
-        <div
-          v-else-if="!props.node.meta.result"
-          class="p-5 flex flex-col items-center justify-center gap-2 text-text-muted text-center h-full"
-        >
-          <div class="text-sm">Run the query to see results</div>
-        </div>
-
-        <!-- Results with VisualizationRenderer -->
-        <div v-else class="h-full flex flex-col">
-          <div class="flex gap-2 flex-wrap px-3 pt-3">
-            <LBadge>Rows: {{ props.node.meta.result.row_count }}</LBadge>
-            <LBadge>Runtime: {{ props.node.meta.result.execution_time_ms }}ms</LBadge>
-            <LBadge v-if="props.node.meta.result.truncated" variant="warning">Truncated</LBadge>
-          </div>
-
-          <div class="flex-1 min-h-0 p-3">
-            <VisualizationRenderer
-              :chart-type="currentViz"
-              :data="props.node.meta.result"
-              :config="currentConfig"
-              height="100%"
-            />
           </div>
         </div>
-      </div>
-      </div>
-    </Pane>
-  </Splitpanes>
+      </Pane>
+    </Splitpanes>
+  </div>
 </template>
 
 <style scoped>
@@ -318,5 +382,14 @@ function togglePane(which: 'sql' | 'viz') {
 }
 .query-editor-split :deep(.border) {
   border: none;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

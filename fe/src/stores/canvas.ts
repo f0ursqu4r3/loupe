@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, markRaw } from 'vue'
 import type {
   CanvasState,
   CanvasNode,
@@ -84,17 +84,36 @@ export const useCanvasStore = defineStore('canvas', () => {
     }
   }
 
-  // Save to localStorage
+  // Save to localStorage (excluding large transient data like query results)
   function save(): void {
     try {
+      // Strip result data from nodes before saving (too large for localStorage)
+      const sanitizedCanvases = canvases.value.map((canvas) => ({
+        ...canvas,
+        nodes: canvas.nodes.map((node) => ({
+          ...node,
+          meta: {
+            ...node.meta,
+            result: undefined, // Exclude query results - they're regenerated on run
+          },
+        })),
+      }))
+
       const data: CanvasStorage = {
-        canvases: canvases.value,
+        canvases: sanitizedCanvases,
         activeCanvasId: activeCanvasId.value,
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
     } catch (e) {
       console.error('Failed to save canvas state:', e)
     }
+  }
+
+  // Debounced save for frequent updates (dragging, resizing)
+  let saveTimeout: ReturnType<typeof setTimeout> | null = null
+  function debouncedSave(): void {
+    if (saveTimeout) clearTimeout(saveTimeout)
+    saveTimeout = setTimeout(save, 300)
   }
 
   // Update active canvas timestamp
@@ -167,7 +186,7 @@ export const useCanvasStore = defineStore('canvas', () => {
     if (node) {
       Object.assign(node, updates)
       touch()
-      save()
+      debouncedSave() // Debounce for frequent updates (dragging)
     }
   }
 
@@ -176,6 +195,10 @@ export const useCanvasStore = defineStore('canvas', () => {
 
     const node = activeCanvas.value.nodes.find((n) => n.id === id)
     if (node) {
+      // Mark result as raw to prevent deep reactivity on large data
+      if (meta.result) {
+        meta.result = markRaw(meta.result)
+      }
       Object.assign(node.meta, meta)
       touch()
       save()

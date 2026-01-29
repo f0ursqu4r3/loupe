@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useCanvasStore } from '@/stores/canvas'
-import { LMinimap } from '@/components/ui'
-import { BrainCircuit, StickyNote, Grid2X2Check, Grid2X2X, PanelRight, PanelBottom } from 'lucide-vue-next'
+import { LMinimap, LButton } from '@/components/ui'
+import { BrainCircuit, StickyNote, Grid2X2Check, Grid2X2X, Columns2, Rows2 } from 'lucide-vue-next'
 import CanvasNodeCard from './CanvasNodeCard.vue'
 import ConnectModeHint from './ConnectModeHint.vue'
 import type { CanvasEdge, EdgeRelationship } from '@/types/canvas'
@@ -37,7 +37,7 @@ const viewportSize = reactive({ width: 800, height: 600 })
 
 // Zoom constraints
 const MIN_ZOOM = 0.1
-const MAX_ZOOM = 3
+const MAX_ZOOM = 1
 
 // Transform style for canvas content (includes zoom)
 const cameraTransform = computed(
@@ -535,46 +535,45 @@ defineExpose({
       class="absolute top-4 left-4 z-10 flex items-center gap-1 p-1.5 rounded-lg bg-surface-overlay/90 backdrop-blur-sm border border-border shadow-lg"
     >
       <!-- Add node buttons -->
-      <button
-        type="button"
-        class="p-2 rounded-md text-text hover:bg-surface-sunken transition-colors"
-        title="Add Query Node"
-        @click="$emit('add-query')"
-      >
+      <LButton title="Add Query Node" variant="ghost" size="sm" @click.stop="$emit('add-query')">
         <BrainCircuit :size="16" />
-      </button>
-      <button
-        type="button"
-        class="p-2 rounded-md text-text hover:bg-surface-sunken transition-colors"
-        title="Add Note"
-        @click="$emit('add-note')"
-      >
+      </LButton>
+      <LButton title="Add Note" variant="ghost" size="sm" @click.stop="$emit('add-note')">
         <StickyNote :size="16" />
-      </button>
+      </LButton>
 
       <div class="w-px h-5 bg-border mx-1" />
 
       <!-- Grid toggle -->
-      <button
-        type="button"
-        class="p-2 rounded-md text-text hover:bg-surface-sunken transition-colors"
+      <LButton
+        variant="ghost"
+        size="sm"
         :title="props.showGrid ? 'Hide Grid' : 'Show Grid'"
-        @click="$emit('update:showGrid', !props.showGrid)"
+        @click.stop="$emit('update:showGrid', !props.showGrid)"
       >
         <Grid2X2Check v-if="props.showGrid" :size="16" />
         <Grid2X2X v-else :size="16" />
-      </button>
+      </LButton>
 
       <!-- Split direction toggle -->
-      <button
-        type="button"
-        class="p-2 rounded-md text-text hover:bg-surface-sunken transition-colors"
-        :title="props.splitDirection === 'vertical' ? 'Switch to Horizontal Split' : 'Switch to Vertical Split'"
-        @click="$emit('update:splitDirection', props.splitDirection === 'vertical' ? 'horizontal' : 'vertical')"
+      <LButton
+        variant="ghost"
+        size="sm"
+        :title="
+          props.splitDirection === 'vertical'
+            ? 'Switch to Horizontal Split'
+            : 'Switch to Vertical Split'
+        "
+        @click.stop="
+          $emit(
+            'update:splitDirection',
+            props.splitDirection === 'vertical' ? 'horizontal' : 'vertical',
+          )
+        "
       >
-        <PanelRight v-if="props.splitDirection === 'vertical'" :size="16" />
-        <PanelBottom v-else :size="16" />
-      </button>
+        <Columns2 v-if="props.splitDirection === 'vertical'" :size="16" />
+        <Rows2 v-else :size="16" />
+      </LButton>
 
       <div class="w-px h-5 bg-border mx-1" />
 

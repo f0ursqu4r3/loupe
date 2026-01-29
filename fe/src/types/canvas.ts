@@ -19,7 +19,8 @@ export interface CanvasNodeMeta {
   runtime?: string
   cached?: boolean
   queryId?: UUID // Linked backend query (created on first run)
-  result?: QueryResult | null
+  lastRunId?: UUID // Last successful run ID (for loading results on-demand)
+  result?: QueryResult | null // Transient - not persisted to localStorage
   error?: string | null
 
   // Note node specific
@@ -149,22 +150,33 @@ export function createDefaultEdge(from: string, to: string): CanvasEdge {
   }
 }
 
-export function timePresetToDateRange(preset: TimePreset): { start: Date; end: Date } {
-  const now = new Date()
-  const end = now
+// Default window sizes for each preset (in milliseconds)
+const PRESET_WINDOWS: Record<TimePreset, number> = {
+  now: 0,
+  '1h': 60 * 60 * 1000,
+  '3h': 3 * 60 * 60 * 1000,
+  '6h': 6 * 60 * 60 * 1000,
+  '12h': 12 * 60 * 60 * 1000,
+  '24h': 24 * 60 * 60 * 1000,
+  '7d': 7 * 24 * 60 * 60 * 1000,
+  '30d': 30 * 24 * 60 * 60 * 1000,
+  '90d': 90 * 24 * 60 * 60 * 1000,
+  custom: 7 * 24 * 60 * 60 * 1000, // Default to 7 days for custom
+}
 
-  switch (preset) {
-    case 'now':
-      return { start: now, end: now }
-    case '24h':
-      return { start: new Date(now.getTime() - 24 * 60 * 60 * 1000), end }
-    case '7d':
-      return { start: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000), end }
-    case '30d':
-      return { start: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000), end }
-    case '90d':
-      return { start: new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000), end }
-    default:
-      return { start: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000), end }
-  }
+export function timePresetToDateRange(
+  preset: TimePreset,
+  offsetMs: number = 0,
+): { start: Date; end: Date } {
+  const now = new Date()
+  // End date is "now" shifted back by the offset
+  const end = new Date(now.getTime() - offsetMs)
+
+  // Get window size based on preset
+  const windowMs = PRESET_WINDOWS[preset] ?? PRESET_WINDOWS['7d']
+
+  // Start date is end date minus the window
+  const start = new Date(end.getTime() - windowMs)
+
+  return { start, end }
 }

@@ -78,6 +78,29 @@ const selectedNode = computed(
   () => canvasStore.nodes.find((n) => n.id === selectedId.value) ?? null,
 )
 
+// Load results on-demand when selecting a node with lastRunId but no result
+async function loadNodeResults(nodeId: string) {
+  const node = canvasStore.nodes.find((n) => n.id === nodeId)
+  if (!node || node.type !== 'query') return
+  if (!node.meta.lastRunId || node.meta.result) return // Already loaded or no run ID
+
+  try {
+    const result = await runsApi.getResult(node.meta.lastRunId)
+    canvasStore.updateNodeMeta(node.id, { result })
+  } catch (e) {
+    console.error('Failed to load results for node:', nodeId, e)
+    // Clear lastRunId if results can't be fetched (run may have expired)
+    canvasStore.updateNodeMeta(node.id, { lastRunId: undefined })
+  }
+}
+
+// Watch for node selection to load results lazily
+watch(selectedId, (nodeId) => {
+  if (nodeId) {
+    loadNodeResults(nodeId)
+  }
+})
+
 // Query execution state
 const isRunning = ref(false)
 
@@ -105,7 +128,11 @@ async function runQueryNode(nodeId: string) {
   })
 
   try {
-    const { start, end } = timePresetToDateRange(canvasStore.activeCanvas?.timeRange.preset ?? '7d')
+    const timeRange = canvasStore.activeCanvas?.timeRange
+    const { start, end } = timePresetToDateRange(
+      timeRange?.preset ?? '7d',
+      timeRange?.offset ?? 0,
+    )
 
     let queryId = node.meta.queryId
     const queryData = {
@@ -157,6 +184,7 @@ async function runQueryNode(nodeId: string) {
         canvasStore.updateNodeMeta(node.id, {
           status: 'ok',
           lastRun: new Date().toLocaleTimeString(),
+          lastRunId: run.id, // Store run ID for on-demand result loading
           rows: result.row_count,
           runtime: `${result.execution_time_ms}ms`,
           result,

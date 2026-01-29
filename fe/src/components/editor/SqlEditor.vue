@@ -123,7 +123,7 @@ onMounted(() => {
     fontFamily: 'JetBrains Mono, Menlo, Monaco, Consolas, monospace',
     fontLigatures: true,
     tabSize: 2,
-    wordWrap: 'on',
+    wordWrap: 'off',
     scrollBeyondLastLine: false,
     automaticLayout: true,
     padding: { top: 12, bottom: 12 },

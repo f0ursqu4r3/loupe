@@ -10,14 +10,16 @@ const MIN_MS = 60 * 1000 // 1 minute
 
 // Define presets with evenly-spaced positions (percent) and their time values (ms)
 // Ordered from left (oldest) to right (newest/now)
+// values: 1y, 6m, 1m, 7d, 1d, 6h, 1h, Now
 const presets = [
-  { percent: 0, ms: 90 * 24 * 60 * 60 * 1000, label: '90d' },
-  { percent: 20, ms: 30 * 24 * 60 * 60 * 1000, label: '30d' },
-  { percent: 40, ms: 7 * 24 * 60 * 60 * 1000, label: '7d' },
-  { percent: 60, ms: 24 * 60 * 60 * 1000, label: '24h' },
-  { percent: 80, ms: 6 * 60 * 60 * 1000, label: '6h' },
-  { percent: 90, ms: 60 * 60 * 1000, label: '1h' },
-  { percent: 100, ms: 0, label: 'Now' },
+  { percent: 0, ms: 365 * 24 * 60 * 60 * 1000, label: '1yr' }, // 1 year
+  { percent: 14.3, ms: 182 * 24 * 60 * 60 * 1000, label: '6mo' }, // 6 months (approx)
+  { percent: 28.6, ms: 30 * 24 * 60 * 60 * 1000, label: '1mo' }, // 1 month
+  { percent: 42.9, ms: 7 * 24 * 60 * 60 * 1000, label: '7d' }, // 7 days
+  { percent: 57.2, ms: 24 * 60 * 60 * 1000, label: '1d' }, // 1 day
+  { percent: 71.5, ms: 6 * 60 * 60 * 1000, label: '6h' }, // 6 hours
+  { percent: 85.8, ms: 60 * 60 * 1000, label: '1h' }, // 1 hour
+  { percent: 100, ms: 0, label: 'Now' }, // Now
 ] as const
 
 // Convert offset (ms) to percentage using piecewise linear interpolation
@@ -178,14 +180,17 @@ function handleMarkerClick(marker: { position: number; label?: string }) {
     </div>
 
     <!-- Live toggle -->
-    <label
+    <div
       class="flex items-center gap-1.5 text-xs cursor-pointer shrink-0"
       :class="canvasStore.activeCanvas?.live ? 'text-success' : 'text-text-muted'"
+      @click="toggleLive(!(canvasStore.activeCanvas?.live ?? false))"
     >
-      <LCheckbox
-        :model-value="canvasStore.activeCanvas?.live ?? false"
-        @update:model-value="toggleLive"
-      />
+      <div @click.stop>
+        <LCheckbox
+          :model-value="canvasStore.activeCanvas?.live ?? false"
+          @update:model-value="toggleLive"
+        />
+      </div>
       <span class="flex items-center gap-1">
         <span v-if="canvasStore.activeCanvas?.live" class="relative flex h-1.5 w-1.5">
           <span
@@ -195,6 +200,6 @@ function handleMarkerClick(marker: { position: number; label?: string }) {
         </span>
         Live
       </span>
-    </label>
+    </div>
   </section>
 </template>

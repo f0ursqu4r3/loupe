@@ -128,10 +128,18 @@ pub struct RunResultResponse {
 
 impl From<RunResult> for RunResultResponse {
     fn from(r: RunResult) -> Self {
+        let columns = serde_json::from_value(r.columns.clone()).unwrap_or_else(|e| {
+            tracing::error!("Failed to deserialize columns for run {}: {}", r.run_id, e);
+            vec![]
+        });
+        let rows = serde_json::from_value(r.rows.clone()).unwrap_or_else(|e| {
+            tracing::error!("Failed to deserialize rows for run {}: {}", r.run_id, e);
+            vec![]
+        });
         Self {
             run_id: r.run_id,
-            columns: serde_json::from_value(r.columns).unwrap_or_default(),
-            rows: serde_json::from_value(r.rows).unwrap_or_default(),
+            columns,
+            rows,
             row_count: r.row_count,
             execution_time_ms: r.execution_time_ms,
         }

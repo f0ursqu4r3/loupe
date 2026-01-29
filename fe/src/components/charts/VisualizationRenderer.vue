@@ -30,6 +30,18 @@ const chartComponent = computed(() => {
       return DataTable
   }
 })
+
+// Ensure data always has required fields with valid arrays
+const normalizedData = computed<QueryResult>(() => {
+  if (!props.data) {
+    return { columns: [], rows: [], row_count: 0, execution_time_ms: 0 }
+  }
+  return {
+    ...props.data,
+    columns: Array.isArray(props.data.columns) ? props.data.columns : [],
+    rows: Array.isArray(props.data.rows) ? props.data.rows : [],
+  }
+})
 </script>
 
 <template>
@@ -39,7 +51,7 @@ const chartComponent = computed(() => {
     </div>
     <component
       :is="chartComponent"
-      :data="data || { columns: [], rows: [], row_count: 0, execution_time_ms: 0 }"
+      :data="normalizedData"
       :config="config"
       :height="height"
       :loading="loading"
