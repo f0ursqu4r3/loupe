@@ -373,3 +373,48 @@ body {
   outline: 2px solid var(--loupe-primary-500);
   outline-offset: 2px;
 }
+
+/* ===== Splitpanes Theme Override ===== */
+.splitpanes.default-theme {
+  background-color: transparent !important;
+}
+
+.splitpanes.default-theme .splitpanes__pane {
+  background-color: transparent !important;
+}
+
+.splitpanes.default-theme .splitpanes__splitter {
+  background-color: var(--loupe-border) !important;
+  border: none !important;
+  transition: background-color var(--loupe-transition-fast);
+}
+
+.splitpanes.default-theme .splitpanes__splitter:hover {
+  background-color: var(--loupe-primary-500) !important;
+}
+
+.splitpanes.default-theme .splitpanes__splitter:active {
+  background-color: var(--loupe-primary-600) !important;
+}
+
+/* Vertical split (splitter is horizontal bar) */
+.splitpanes.default-theme.splitpanes--horizontal > .splitpanes__splitter {
+  min-height: 6px !important;
+  margin: 0 !important;
+}
+
+.splitpanes.default-theme.splitpanes--horizontal > .splitpanes__splitter::before,
+.splitpanes.default-theme.splitpanes--horizontal > .splitpanes__splitter::after {
+  display: none !important;
+}
+
+/* Horizontal split (splitter is vertical bar) */
+.splitpanes.default-theme.splitpanes--vertical > .splitpanes__splitter {
+  min-width: 6px !important;
+  margin: 0 !important;
+}
+
+.splitpanes.default-theme.splitpanes--vertical > .splitpanes__splitter::before,
+.splitpanes.default-theme.splitpanes--vertical > .splitpanes__splitter::after {
+  display: none !important;
+}

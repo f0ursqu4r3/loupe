@@ -10,6 +10,7 @@
         "lucide-vue-next": "^0.562.0",
         "monaco-editor": "^0.55.1",
         "pinia": "^3.0.4",
+        "splitpanes": "^4.0.4",
         "sql-formatter": "^15.6.12",
         "tailwindcss": "^4.1.18",
         "vue": "^3.5.26",
@@ -877,6 +878,8 @@
     "source-map-js": ["source-map-js@1.2.1", "", {}, "sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA=="],
 
     "speakingurl": ["speakingurl@14.0.1", "", {}, "sha512-1POYv7uv2gXoyGFpBCmpDVSNV74IfsWlDW216UPjbWufNf+bSU6GdbDsxdcxtfwb4xlI3yxzOTKClUosxARYrQ=="],
+
+    "splitpanes": ["splitpanes@4.0.4", "", { "peerDependencies": { "vue": "^3.2.0" } }, "sha512-RbysugZhjbCw5fgplvk3hOXr41stahQDtZhHVkhnnJI6H4wlGDhM2kIpbehy7v92duy9GnMa8zIhHigIV1TWtg=="],
 
     "sql-formatter": ["sql-formatter@15.6.12", "", { "dependencies": { "argparse": "^2.0.1", "nearley": "^2.20.1" }, "bin": { "sql-formatter": "bin/sql-formatter-cli.cjs" } }, "sha512-mkpF+RG402P66VMsnQkWewTRzDBWfu9iLbOfxaW/nAKOS/2A9MheQmcU5cmX0D0At9azrorZwpvcBRNNBozACQ=="],
 

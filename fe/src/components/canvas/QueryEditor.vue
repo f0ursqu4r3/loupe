@@ -1,6 +1,9 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
+import { Splitpanes, Pane } from 'splitpanes'
+import 'splitpanes/dist/splitpanes.css'
 import { LButton, LSelect, LBadge, LInput } from '@/components/ui'
+import { PanelRight, PanelBottom } from 'lucide-vue-next'
 import { VisualizationRenderer } from '@/components/charts'
 import SqlEditor from '@/components/editor/SqlEditor.vue'
 import type { CanvasNode, VisualizationConfig, ChartType } from '@/types'
@@ -18,10 +21,41 @@ const emit = defineEmits<{
   run: []
 }>()
 
-// Split pane state
+// Split pane state - load from localStorage
+const STORAGE_KEY = 'loupe:canvas:queryEditor:layout'
+
+function loadLayoutFromStorage() {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    if (stored) return JSON.parse(stored)
+  } catch {
+    // ignore
+  }
+  return null
+}
+
+const storedLayout = loadLayoutFromStorage()
 const splitCollapsed = reactive({ sql: false, viz: false })
-const split = reactive({ leftPct: 50 })
-const isResizing = ref(false)
+const splitDirection = ref<'horizontal' | 'vertical'>(storedLayout?.splitDirection ?? 'horizontal')
+const splitPct = ref(storedLayout?.splitPct ?? 50)
+
+// Persist layout changes
+watch([splitDirection, splitPct], () => {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    splitDirection: splitDirection.value,
+    splitPct: splitPct.value,
+  }))
+})
+
+function toggleSplitDirection() {
+  splitDirection.value = splitDirection.value === 'horizontal' ? 'vertical' : 'horizontal'
+}
+
+function onPaneResized(panes: { size: number }[]) {
+  if (panes[0]) {
+    splitPct.value = panes[0].size
+  }
+}
 
 // SQL Editor ref
 const sqlEditorRef = ref<InstanceType<typeof SqlEditor> | null>(null)
@@ -74,78 +108,56 @@ function formatSql() {
 function togglePane(which: 'sql' | 'viz') {
   splitCollapsed[which] = !splitCollapsed[which]
 }
-
-// Resize handling
-function startResize(e: PointerEvent) {
-  isResizing.value = true
-  ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
-}
-
-function onResizeMove(e: PointerEvent) {
-  if (!isResizing.value) return
-  const splitEl = document.querySelector('.split-pane') as HTMLElement | null
-  if (!splitEl) return
-
-  const rect = splitEl.getBoundingClientRect()
-  const pct = ((e.clientX - rect.left) / rect.width) * 100
-  split.leftPct = Math.min(80, Math.max(20, pct))
-}
-
-function endResize(e: PointerEvent) {
-  if (isResizing.value) {
-    isResizing.value = false
-    ;(e.target as HTMLElement).releasePointerCapture?.(e.pointerId)
-  }
-}
 </script>
 
 <template>
-  <div
-    class="split-pane grid h-full min-h-0"
-    :class="{ 'select-none': isResizing }"
-    :style="{
-      gridTemplateColumns: `${split.leftPct}% 10px calc(100% - ${split.leftPct}% - 10px)`,
-    }"
-    @pointermove="onResizeMove"
-    @pointerup="endResize"
+  <Splitpanes
+    class="default-theme query-editor-split h-full min-h-0"
+    :horizontal="splitDirection === 'vertical'"
+    @resized="onPaneResized"
   >
     <!-- SQL Editor pane -->
-    <div class="min-h-0 grid grid-rows-[40px_1fr] overflow-hidden">
-      <div
-        class="flex items-center justify-between px-2.5 py-2 border-b border-border font-semibold text-xs"
-      >
-        <span>SQL Editor</span>
-        <div class="flex gap-2 items-center">
-          <LButton variant="ghost" size="sm" @click="formatSql">Format</LButton>
-          <LButton variant="ghost" size="sm" @click="togglePane('sql')">
-            {{ splitCollapsed.sql ? 'Show' : 'Hide' }}
-          </LButton>
+    <Pane :size="splitPct" :min-size="20" :max-size="80">
+      <div class="h-full grid grid-rows-[40px_1fr] overflow-hidden bg-surface-raised">
+        <div
+          class="flex items-center justify-between px-2.5 py-2 border-b border-border font-semibold text-xs"
+        >
+          <span>SQL Editor</span>
+          <div class="flex gap-2 items-center">
+            <button
+              type="button"
+              class="p-1.5 rounded text-text-muted hover:text-text hover:bg-surface-sunken transition-colors"
+              :title="splitDirection === 'horizontal' ? 'Switch to Vertical Split' : 'Switch to Horizontal Split'"
+              @click="toggleSplitDirection"
+            >
+              <PanelRight v-if="splitDirection === 'horizontal'" :size="14" />
+              <PanelBottom v-else :size="14" />
+            </button>
+            <LButton variant="ghost" size="sm" @click="formatSql">Format</LButton>
+            <LButton variant="ghost" size="sm" @click="togglePane('sql')">
+              {{ splitCollapsed.sql ? 'Show' : 'Hide' }}
+            </LButton>
+          </div>
+        </div>
+
+        <div v-show="!splitCollapsed.sql" class="min-h-0 overflow-hidden">
+          <SqlEditor
+            ref="sqlEditorRef"
+            :model-value="props.node.meta.sql ?? ''"
+            :minimap="false"
+            :line-numbers="true"
+            height="100%"
+            class="h-full border-0 rounded-none"
+            @update:model-value="updateSql"
+            @run="$emit('run')"
+          />
         </div>
       </div>
-
-      <div v-show="!splitCollapsed.sql" class="min-h-0 overflow-hidden">
-        <SqlEditor
-          ref="sqlEditorRef"
-          :model-value="props.node.meta.sql ?? ''"
-          :minimap="false"
-          :line-numbers="true"
-          height="100%"
-          class="h-full border-0 rounded-none"
-          @update:model-value="updateSql"
-          @run="$emit('run')"
-        />
-      </div>
-    </div>
-
-    <!-- Resize handle -->
-    <div
-      class="cursor-col-resize bg-border-muted hover:bg-primary-500 transition-colors"
-      :class="{ 'bg-primary-500': isResizing }"
-      @pointerdown="startResize"
-    />
+    </Pane>
 
     <!-- Visualization pane -->
-    <div class="min-h-0 grid grid-rows-[auto_1fr] overflow-hidden">
+    <Pane :size="100 - splitPct" :min-size="20" :max-size="80">
+      <div class="h-full grid grid-rows-[auto_1fr] overflow-hidden bg-surface-raised">
       <div class="border-b border-border">
         <!-- Viz header -->
         <div
@@ -295,15 +307,16 @@ function endResize(e: PointerEvent) {
           </div>
         </div>
       </div>
-    </div>
-  </div>
+      </div>
+    </Pane>
+  </Splitpanes>
 </template>
 
 <style scoped>
-.split-pane :deep(.rounded-md) {
+.query-editor-split :deep(.rounded-md) {
   border-radius: 0;
 }
-.split-pane :deep(.border) {
+.query-editor-split :deep(.border) {
   border: none;
 }
 </style>

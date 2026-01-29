@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { Splitpanes, Pane } from 'splitpanes'
+import 'splitpanes/dist/splitpanes.css'
 import { useCanvasStore } from '@/stores/canvas'
 import { datasourcesApi } from '@/services/api/datasources'
 import { queriesApi, runsApi } from '@/services/api/queries'
@@ -17,39 +19,42 @@ import {
 
 const canvasStore = useCanvasStore()
 
-// Panel resize
-const inspectorWidth = ref(520)
-const isResizing = ref(false)
-const resizeStartX = ref(0)
-const resizeStartWidth = ref(0)
+// Panel layout - load from localStorage
+const STORAGE_KEY = 'loupe:canvas:layout'
 
-function startResize(e: PointerEvent) {
-  isResizing.value = true
-  resizeStartX.value = e.clientX
-  resizeStartWidth.value = inspectorWidth.value
-  ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
+function loadLayoutFromStorage() {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    if (stored) return JSON.parse(stored)
+  } catch {
+    // ignore
+  }
+  return null
 }
 
-function onResizeMove(e: PointerEvent) {
-  if (!isResizing.value) return
-  const dx = resizeStartX.value - e.clientX
-  const newWidth = Math.max(320, Math.min(800, resizeStartWidth.value + dx))
-  inspectorWidth.value = newWidth
-}
+const storedLayout = loadLayoutFromStorage()
+const splitDirection = ref<'vertical' | 'horizontal'>(storedLayout?.splitDirection ?? 'vertical')
+const inspectorPct = ref(storedLayout?.inspectorPct ?? 30)
 
-function endResize() {
-  isResizing.value = false
+// Persist layout changes
+watch([splitDirection, inspectorPct], () => {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    splitDirection: splitDirection.value,
+    inspectorPct: inspectorPct.value,
+  }))
+})
+
+function onPaneResized(panes: { size: number }[]) {
+  if (panes[1]) {
+    inspectorPct.value = panes[1].size
+  }
 }
 
 onMounted(() => {
   loadDatasources()
-  window.addEventListener('pointermove', onResizeMove)
-  window.addEventListener('pointerup', endResize)
 })
 
 onUnmounted(() => {
-  window.removeEventListener('pointermove', onResizeMove)
-  window.removeEventListener('pointerup', endResize)
   stopLiveRefresh()
 })
 
@@ -82,7 +87,7 @@ let liveRefreshTimer: ReturnType<typeof setInterval> | null = null
 
 async function runAllQueries() {
   const queryNodes = canvasStore.nodes.filter(
-    (n) => n.type === 'query' && n.meta.datasourceId && n.meta.sql?.trim()
+    (n) => n.type === 'query' && n.meta.datasourceId && n.meta.sql?.trim(),
   )
 
   // Run all queries in parallel
@@ -108,8 +113,18 @@ async function runQueryNode(nodeId: string) {
       name: `[Canvas] ${node.title}`,
       sql: node.meta.sql,
       parameters: [
-        { name: 'start', param_type: 'datetime' as const, required: false, default: start.toISOString() },
-        { name: 'end', param_type: 'datetime' as const, required: false, default: end.toISOString() },
+        {
+          name: 'start',
+          param_type: 'datetime' as const,
+          required: false,
+          default: start.toISOString(),
+        },
+        {
+          name: 'end',
+          param_type: 'datetime' as const,
+          required: false,
+          default: end.toISOString(),
+        },
       ],
       tags: ['canvas'],
     }
@@ -237,10 +252,6 @@ function handleAddNote() {
   }
 }
 
-function handleToggleGrid() {
-  showGrid.value = !showGrid.value
-}
-
 function handleNewCanvas() {
   selectedId.value = null
 }
@@ -315,59 +326,52 @@ async function runSelectedQuery() {
 <template>
   <AppLayout title="Canvas" no-padding>
     <template #header-left>
-      <CanvasToolbar
-        :show-grid="showGrid"
-        :selected-id="selectedId"
-        @add-query="handleAddQuery"
-        @add-note="handleAddNote"
-        @toggle-grid="handleToggleGrid"
-        @new-canvas="handleNewCanvas"
-      />
+      <CanvasToolbar @new-canvas="handleNewCanvas" />
     </template>
-    <div
-      class="h-full grid grid-rows-[64px_1fr] bg-surface text-text"
-      :class="{ 'select-none': isResizing }"
-    >
+    <div class="h-full grid grid-rows-[64px_1fr] bg-surface text-text">
       <!-- Timeline scrubber -->
       <CanvasTimeline />
 
       <!-- Main -->
-      <main class="flex h-full min-h-0">
-        <!-- Canvas workspace -->
-        <CanvasWorkspace
-          ref="workspaceRef"
-          class="flex-1 min-w-0"
-          :show-grid="showGrid"
-          :selected-id="selectedId"
-          :datasources="datasources"
-          @update:selected-id="selectedId = $event"
-          @edit-edge="handleEditEdge"
-        />
+      <Splitpanes
+        class="default-theme h-full"
+        :horizontal="splitDirection === 'horizontal'"
+        @resized="onPaneResized"
+      >
+        <Pane :size="100 - inspectorPct" :min-size="20">
+          <CanvasWorkspace
+            ref="workspaceRef"
+            class="h-full w-full"
+            :show-grid="showGrid"
+            :selected-id="selectedId"
+            :datasources="datasources"
+            :split-direction="splitDirection"
+            @update:selected-id="selectedId = $event"
+            @update:show-grid="showGrid = $event"
+            @update:split-direction="splitDirection = $event"
+            @add-query="handleAddQuery"
+            @add-note="handleAddNote"
+            @edit-edge="handleEditEdge"
+          />
+        </Pane>
 
-        <!-- Resize handle -->
-        <div
-          class="w-1.5 bg-border hover:bg-primary-500 cursor-col-resize transition-colors shrink-0"
-          :class="{ 'bg-primary-500': isResizing }"
-          @pointerdown="startResize"
-        />
-
-        <!-- Inspector -->
-        <CanvasInspector
-          :style="{ width: `${inspectorWidth}px` }"
-          class="shrink-0"
-          :node="selectedNode"
-          :datasources="datasources"
-          :is-running="isRunning"
-          @update:title="updateNodeTitle"
-          @update:datasource="updateNodeDatasource"
-          @update:sql="updateNodeSql"
-          @update:viz="updateNodeViz"
-          @update:vizConfig="updateNodeVizConfig"
-          @update:note-text="updateNoteText"
-          @run="runSelectedQuery"
-          @center="centerOnSelected"
-        />
-      </main>
+        <Pane :size="inspectorPct" :min-size="20" :max-size="60">
+          <CanvasInspector
+            class="h-full w-full"
+            :node="selectedNode"
+            :datasources="datasources"
+            :is-running="isRunning"
+            @update:title="updateNodeTitle"
+            @update:datasource="updateNodeDatasource"
+            @update:sql="updateNodeSql"
+            @update:viz="updateNodeViz"
+            @update:vizConfig="updateNodeVizConfig"
+            @update:note-text="updateNoteText"
+            @run="runSelectedQuery"
+            @center="centerOnSelected"
+          />
+        </Pane>
+      </Splitpanes>
 
       <!-- Edge edit modal -->
       <EdgeEditModal

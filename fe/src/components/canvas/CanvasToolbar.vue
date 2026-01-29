@@ -2,19 +2,9 @@
 import { computed } from 'vue'
 import { useCanvasStore } from '@/stores/canvas'
 import { LButton, LSelect, LBadge } from '@/components/ui'
-import { BrainCircuit, FilePlus, StickyNote, Grid2X2Check, Grid2X2X } from 'lucide-vue-next'
-
-interface Props {
-  showGrid: boolean
-  selectedId: string | null
-}
-
-const props = defineProps<Props>()
+import { FilePlus } from 'lucide-vue-next'
 
 const emit = defineEmits<{
-  'add-query': []
-  'add-note': []
-  'toggle-grid': []
   'new-canvas': []
 }>()
 
@@ -57,24 +47,10 @@ function createNewCanvas() {
       </LButton>
     </div>
 
-    <div class="flex gap-2">
-      <LButton variant="secondary" @click="$emit('add-query')">
-        <BrainCircuit :size="16" />
-      </LButton>
-      <LButton variant="secondary" @click="$emit('add-note')">
-        <StickyNote :size="16" />
-      </LButton>
-      <LButton variant="ghost" @click="$emit('toggle-grid')">
-        <Grid2X2Check v-if="props.showGrid" :size="16" />
-        <Grid2X2X v-else :size="16" />
-      </LButton>
-    </div>
-
     <div class="flex-1"></div>
 
     <div class="flex gap-2 items-center">
       <LBadge>Time: {{ timeRangeLabel }}</LBadge>
-      <LBadge v-if="props.selectedId">Selected: {{ props.selectedId }}</LBadge>
     </div>
   </header>
 </template>

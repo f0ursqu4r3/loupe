@@ -44,6 +44,7 @@ const statusClass = computed(() => {
 
 <template>
   <div
+    data-canvas-node
     class="absolute rounded-xl border bg-surface-raised shadow-lg grid grid-rows-[36px_1fr_32px] select-none cursor-grab"
     :class="{
       'border-border-strong ring-2 ring-border': props.selected,
