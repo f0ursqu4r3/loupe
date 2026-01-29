@@ -238,8 +238,9 @@ function updateValueFromEvent(e: PointerEvent) {
   // Store raw drag value for thumb position
   dragValue.value = value
 
-  // Emit the value (snapping happens on release)
-  emit('update:modelValue', value)
+  // Emit snapped value during drag when markerSnap is enabled, raw value otherwise
+  const emitValue = props.markerSnap && props.markers.length > 0 ? findNearestSnapPoint(value) : value
+  emit('update:modelValue', emitValue)
 }
 
 function handleMarkerClick(marker: Marker, e: PointerEvent) {

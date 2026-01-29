@@ -30,8 +30,20 @@ const emit = defineEmits<{
 const canvasStore = useCanvasStore()
 
 const timeRangeLabel = computed(() => {
-  const preset = canvasStore.activeCanvas?.timeRange.preset ?? '7d'
-  const live = canvasStore.activeCanvas?.live ? ' (live)' : ''
+  const timeRange = canvasStore.activeCanvas?.timeRange
+  const preset = timeRange?.preset ?? '7d'
+  const live = canvasStore.isLive ? ' (live)' : ''
+  if (preset === 'custom' && timeRange?.offset) {
+    const offset = timeRange.offset
+    const MS_MIN = 60 * 1000
+    const MS_HOUR = 60 * MS_MIN
+    const MS_DAY = 24 * MS_HOUR
+    let label: string
+    if (offset < MS_HOUR) label = `${Math.round(offset / MS_MIN)}m`
+    else if (offset < MS_DAY) label = `${Math.round(offset / MS_HOUR)}h`
+    else label = `${Math.round(offset / MS_DAY)}d`
+    return `Last ${label}${live}`
+  }
   return `Last ${preset}${live}`
 })
 
@@ -100,7 +112,7 @@ function updateDatasource(value: string | number) {
           <div class="text-[11px] text-text-subtle">Global time</div>
           <div class="text-xs">
             {{ timeRangeLabel }}
-            <span v-if="canvasStore.activeCanvas?.live" class="text-text-muted">(live)</span>
+            <span v-if="canvasStore.isLive" class="text-text-muted">(live)</span>
           </div>
         </div>
         <div v-if="props.node.type === 'query'" class="grid gap-1">

@@ -132,7 +132,6 @@ watch(selectedId, (nodeId) => {
 const isRunning = ref(false)
 
 // Live refresh
-const LIVE_REFRESH_INTERVAL = 30000 // 30 seconds
 let liveRefreshTimer: ReturnType<typeof setInterval> | null = null
 
 async function runAllQueries() {
@@ -239,12 +238,12 @@ async function runQueryNode(nodeId: string) {
   }
 }
 
-function startLiveRefresh() {
-  if (liveRefreshTimer) return
+function startLiveRefresh(intervalMs: number) {
+  stopLiveRefresh()
 
   // Run immediately, then on interval
   runAllQueries()
-  liveRefreshTimer = setInterval(runAllQueries, LIVE_REFRESH_INTERVAL)
+  liveRefreshTimer = setInterval(runAllQueries, intervalMs)
 }
 
 function stopLiveRefresh() {
@@ -254,12 +253,12 @@ function stopLiveRefresh() {
   }
 }
 
-// Watch for live mode changes
+// Watch for refresh interval changes
 watch(
-  () => canvasStore.activeCanvas?.live,
-  (isLive) => {
-    if (isLive) {
-      startLiveRefresh()
+  () => canvasStore.activeCanvas?.refreshInterval,
+  (interval) => {
+    if (interval && interval > 0) {
+      startLiveRefresh(interval)
     } else {
       stopLiveRefresh()
     }

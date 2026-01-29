@@ -1,7 +1,17 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed } from 'vue'
 import { useCanvasStore } from '@/stores/canvas'
-import { LCheckbox, LTimelineScrubber } from '@/components/ui'
+import { LSelect, LTimelineScrubber } from '@/components/ui'
+import type { TimePreset } from '@/types/canvas'
+
+const LABEL_TO_PRESET: Partial<Record<(typeof presets)[number]['label'], TimePreset>> = {
+  '1h': '1h',
+  '6h': '6h',
+  '1d': '24h',
+  '7d': '7d',
+  '1mo': '30d',
+  Now: 'now',
+}
 
 const canvasStore = useCanvasStore()
 
@@ -108,38 +118,36 @@ const timeWindowLabel = computed(() => {
   if (offset < MIN_MS) return 'Now'
 
   if (offset < 60 * 60 * 1000) return `${Math.round(offset / 60000)}m`
-  if (offset < 24 * 60 * 60 * 1000) {
-    const hours = offset / 3600000
-    return hours < 10 ? `${hours.toFixed(1)}h` : `${Math.round(hours)}h`
-  }
-  const days = offset / 86400000
-  return days < 10 ? `${days.toFixed(1)}d` : `${Math.round(days)}d`
+  if (offset < 24 * 60 * 60 * 1000) return `${Math.round(offset / 3600000)}h`
+  return `${Math.round(offset / 86400000)}d`
 })
 
-// Check if scrubber should be disabled
-const isScrubberDisabled = computed(() => {
-  return canvasStore.activeCanvas?.live ?? false
-})
+// Refresh interval options for the Live dropdown
+const REFRESH_OPTIONS = [
+  { value: 0, label: 'Off' },
+  { value: 5000, label: '5s' },
+  { value: 10000, label: '10s' },
+  { value: 30000, label: '30s' },
+  { value: 60000, label: '1m' },
+  { value: 300000, label: '5m' },
+]
 
-function toggleLive(value: boolean) {
-  canvasStore.setLive(value)
+// Check if scrubber should be disabled (any refresh interval is active)
+const isScrubberDisabled = computed(() => canvasStore.isLive)
+
+function onRefreshIntervalChange(value: string | number) {
+  canvasStore.setRefreshInterval(Number(value))
 }
-
-// When going live, snap to "Now"
-watch(
-  () => canvasStore.activeCanvas?.live,
-  (live) => {
-    if (live) {
-      canvasStore.setTimeOffset(0)
-    }
-  },
-)
 
 // Handle marker clicks - snap to preset
 function handleMarkerClick(marker: { position: number; label?: string }) {
-  const preset = presets.find((p) => p.label === marker.label)
-  if (preset) {
-    canvasStore.setTimeOffset(preset.ms)
+  const match = presets.find((p) => p.label === marker.label)
+  if (!match) return
+  const namedPreset = marker.label ? LABEL_TO_PRESET[marker.label as keyof typeof LABEL_TO_PRESET] : undefined
+  if (namedPreset) {
+    canvasStore.setTimePreset(namedPreset)
+  } else {
+    canvasStore.setTimeOffset(match.ms)
   }
 }
 </script>
@@ -179,27 +187,20 @@ function handleMarkerClick(marker: { position: number; label?: string }) {
       <span class="text-[10px] text-text-subtle shrink-0">Now</span>
     </div>
 
-    <!-- Live toggle -->
-    <div
-      class="flex items-center gap-1.5 text-xs cursor-pointer shrink-0"
-      :class="canvasStore.activeCanvas?.live ? 'text-success' : 'text-text-muted'"
-      @click="toggleLive(!(canvasStore.activeCanvas?.live ?? false))"
-    >
-      <div @click.stop>
-        <LCheckbox
-          :model-value="canvasStore.activeCanvas?.live ?? false"
-          @update:model-value="toggleLive"
-        />
-      </div>
-      <span class="flex items-center gap-1">
-        <span v-if="canvasStore.activeCanvas?.live" class="relative flex h-1.5 w-1.5">
-          <span
-            class="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"
-          ></span>
-          <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-success"></span>
-        </span>
-        Live
+    <!-- Refresh interval -->
+    <div class="flex items-center gap-1.5 shrink-0">
+      <span v-if="isScrubberDisabled" class="relative flex h-1.5 w-1.5">
+        <span
+          class="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"
+        ></span>
+        <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-success"></span>
       </span>
+      <LSelect
+        :model-value="canvasStore.activeCanvas?.refreshInterval ?? 0"
+        :options="REFRESH_OPTIONS"
+        size="xs"
+        @update:model-value="onRefreshIntervalChange"
+      />
     </div>
   </section>
 </template>

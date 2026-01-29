@@ -250,7 +250,7 @@ function updateConnectLabel(label: EdgeRelationship) {
 // Time range label
 const timeRangeLabel = computed(() => {
   const preset = canvasStore.activeCanvas?.timeRange.preset ?? '7d'
-  const live = canvasStore.activeCanvas?.live ? ' (live)' : ''
+  const live = canvasStore.isLive ? ' (live)' : ''
   return `Last ${preset}${live}`
 })
 

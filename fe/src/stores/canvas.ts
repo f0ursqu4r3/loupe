@@ -26,7 +26,7 @@ function createEmptyCanvas(name: string = 'Untitled Canvas'): CanvasState {
     nodes: [],
     edges: [],
     timeRange: { preset: 'now', offset: 0 },
-    live: false,
+    refreshInterval: 0,
     createdAt: now,
     updatedAt: now,
   }
@@ -58,6 +58,11 @@ export const useCanvasStore = defineStore('canvas', () => {
         for (const canvas of canvases.value) {
           if (canvas.timeRange.offset === undefined) {
             canvas.timeRange.offset = 0
+          }
+          // Migrate: live boolean -> refreshInterval
+          if (canvas.refreshInterval === undefined) {
+            canvas.refreshInterval = (canvas as any).live ? 30000 : 0
+            delete (canvas as any).live
           }
         }
 
@@ -308,16 +313,14 @@ export const useCanvasStore = defineStore('canvas', () => {
     save()
   }
 
-  function setLive(live: boolean): void {
+  function setRefreshInterval(intervalMs: number): void {
     if (!activeCanvas.value) return
-    activeCanvas.value.live = live
-    if (live) {
-      // Reset offset when going live
-      activeCanvas.value.timeRange = { ...activeCanvas.value.timeRange, offset: 0 }
-    }
+    activeCanvas.value.refreshInterval = intervalMs
     touch()
     save()
   }
+
+  const isLive = computed(() => (activeCanvas.value?.refreshInterval ?? 0) > 0)
 
   // Initialize on store creation
   load()
@@ -355,6 +358,7 @@ export const useCanvasStore = defineStore('canvas', () => {
     // Time range
     setTimePreset,
     setTimeOffset,
-    setLive,
+    setRefreshInterval,
+    isLive,
   }
 })

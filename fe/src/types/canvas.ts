@@ -83,7 +83,7 @@ export interface CanvasState {
   nodes: CanvasNode[]
   edges: CanvasEdge[]
   timeRange: TimeRange
-  live: boolean
+  refreshInterval: number // 0 = off, otherwise ms between refreshes (e.g. 5000, 10000, 30000)
   createdAt: string
   updatedAt: string
 }
