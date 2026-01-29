@@ -595,7 +595,7 @@ defineExpose({
     />
 
     <!-- Minimap (fixed position, outside camera transform) -->
-    <div class="absolute bottom-4 right-4 z-10 shadow-lg">
+    <div class="absolute bottom-4 right-4 z-20 shadow-lg">
       <LMinimap
         :nodes="minimapNodes"
         :edges="minimapEdges"

@@ -1,3 +1,4 @@
+mod canvas;
 mod dashboard;
 mod datasource;
 mod query;
@@ -9,6 +10,7 @@ mod visualization;
 #[cfg(test)]
 mod tests;
 
+pub use canvas::*;
 pub use dashboard::*;
 pub use datasource::*;
 pub use query::*;

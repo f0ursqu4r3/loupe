@@ -328,13 +328,13 @@ async function runSelectedQuery() {
     <template #header-left>
       <CanvasToolbar @new-canvas="handleNewCanvas" />
     </template>
-    <div class="h-full grid grid-rows-[64px_1fr] bg-surface text-text">
+    <div class="h-full grid grid-rows-[64px_1fr] bg-surface text-text overflow-hidden">
       <!-- Timeline scrubber -->
       <CanvasTimeline />
 
       <!-- Main -->
       <Splitpanes
-        class="default-theme h-full"
+        class="default-theme h-full min-h-0 overflow-hidden"
         :horizontal="splitDirection === 'horizontal'"
         @resized="onPaneResized"
       >

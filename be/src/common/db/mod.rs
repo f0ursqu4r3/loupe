@@ -1000,4 +1000,320 @@ impl Database {
 
         Ok(schedule)
     }
+
+    // ==================== Canvases ====================
+
+    pub async fn create_canvas(
+        &self,
+        org_id: Uuid,
+        name: &str,
+        time_preset: &str,
+        time_offset: i64,
+        time_custom_start: Option<chrono::DateTime<chrono::Utc>>,
+        time_custom_end: Option<chrono::DateTime<chrono::Utc>>,
+        live: bool,
+        created_by: Uuid,
+    ) -> Result<Canvas> {
+        let canvas = sqlx::query_as::<_, Canvas>(
+            r#"
+            INSERT INTO canvases (id, org_id, name, time_preset, time_offset, time_custom_start, time_custom_end, live, created_by, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+            RETURNING *
+            "#,
+        )
+        .bind(Uuid::new_v4())
+        .bind(org_id)
+        .bind(name)
+        .bind(time_preset)
+        .bind(time_offset)
+        .bind(time_custom_start)
+        .bind(time_custom_end)
+        .bind(live)
+        .bind(created_by)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(canvas)
+    }
+
+    pub async fn get_canvas(&self, id: Uuid, org_id: Uuid) -> Result<Canvas> {
+        let canvas = sqlx::query_as::<_, Canvas>(
+            "SELECT * FROM canvases WHERE id = $1 AND org_id = $2",
+        )
+        .bind(id)
+        .bind(org_id)
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or_else(|| Error::NotFound("Canvas not found".into()))?;
+
+        Ok(canvas)
+    }
+
+    pub async fn list_canvases(&self, org_id: Uuid) -> Result<Vec<Canvas>> {
+        let canvases = sqlx::query_as::<_, Canvas>(
+            "SELECT * FROM canvases WHERE org_id = $1 ORDER BY updated_at DESC",
+        )
+        .bind(org_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(canvases)
+    }
+
+    pub async fn update_canvas(
+        &self,
+        id: Uuid,
+        org_id: Uuid,
+        name: Option<&str>,
+        time_preset: Option<&str>,
+        time_offset: Option<i64>,
+        time_custom_start: Option<chrono::DateTime<chrono::Utc>>,
+        time_custom_end: Option<chrono::DateTime<chrono::Utc>>,
+        live: Option<bool>,
+    ) -> Result<Canvas> {
+        let canvas = sqlx::query_as::<_, Canvas>(
+            r#"
+            UPDATE canvases
+            SET name = COALESCE($3, name),
+                time_preset = COALESCE($4, time_preset),
+                time_offset = COALESCE($5, time_offset),
+                time_custom_start = COALESCE($6, time_custom_start),
+                time_custom_end = COALESCE($7, time_custom_end),
+                live = COALESCE($8, live),
+                updated_at = NOW()
+            WHERE id = $1 AND org_id = $2
+            RETURNING *
+            "#,
+        )
+        .bind(id)
+        .bind(org_id)
+        .bind(name)
+        .bind(time_preset)
+        .bind(time_offset)
+        .bind(time_custom_start)
+        .bind(time_custom_end)
+        .bind(live)
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or_else(|| Error::NotFound("Canvas not found".into()))?;
+
+        Ok(canvas)
+    }
+
+    pub async fn delete_canvas(&self, id: Uuid, org_id: Uuid) -> Result<()> {
+        let result = sqlx::query("DELETE FROM canvases WHERE id = $1 AND org_id = $2")
+            .bind(id)
+            .bind(org_id)
+            .execute(&self.pool)
+            .await?;
+
+        if result.rows_affected() == 0 {
+            return Err(Error::NotFound("Canvas not found".into()));
+        }
+
+        Ok(())
+    }
+
+    // ==================== Canvas Nodes ====================
+
+    pub async fn create_canvas_node(
+        &self,
+        canvas_id: Uuid,
+        node_type: &str,
+        title: &str,
+        pos_x: f64,
+        pos_y: f64,
+        width: f64,
+        height: f64,
+        meta: &serde_json::Value,
+    ) -> Result<CanvasNode> {
+        let node = sqlx::query_as::<_, CanvasNode>(
+            r#"
+            INSERT INTO canvas_nodes (id, canvas_id, node_type, title, pos_x, pos_y, width, height, meta, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+            RETURNING *
+            "#,
+        )
+        .bind(Uuid::new_v4())
+        .bind(canvas_id)
+        .bind(node_type)
+        .bind(title)
+        .bind(pos_x)
+        .bind(pos_y)
+        .bind(width)
+        .bind(height)
+        .bind(meta)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(node)
+    }
+
+    pub async fn get_canvas_node(&self, id: Uuid, canvas_id: Uuid) -> Result<CanvasNode> {
+        let node = sqlx::query_as::<_, CanvasNode>(
+            "SELECT * FROM canvas_nodes WHERE id = $1 AND canvas_id = $2",
+        )
+        .bind(id)
+        .bind(canvas_id)
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or_else(|| Error::NotFound("Canvas node not found".into()))?;
+
+        Ok(node)
+    }
+
+    pub async fn list_canvas_nodes(&self, canvas_id: Uuid) -> Result<Vec<CanvasNode>> {
+        let nodes = sqlx::query_as::<_, CanvasNode>(
+            "SELECT * FROM canvas_nodes WHERE canvas_id = $1 ORDER BY created_at ASC",
+        )
+        .bind(canvas_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(nodes)
+    }
+
+    pub async fn update_canvas_node(
+        &self,
+        id: Uuid,
+        canvas_id: Uuid,
+        title: Option<&str>,
+        pos_x: Option<f64>,
+        pos_y: Option<f64>,
+        width: Option<f64>,
+        height: Option<f64>,
+        meta: Option<&serde_json::Value>,
+    ) -> Result<CanvasNode> {
+        let node = sqlx::query_as::<_, CanvasNode>(
+            r#"
+            UPDATE canvas_nodes
+            SET title = COALESCE($3, title),
+                pos_x = COALESCE($4, pos_x),
+                pos_y = COALESCE($5, pos_y),
+                width = COALESCE($6, width),
+                height = COALESCE($7, height),
+                meta = COALESCE($8, meta),
+                updated_at = NOW()
+            WHERE id = $1 AND canvas_id = $2
+            RETURNING *
+            "#,
+        )
+        .bind(id)
+        .bind(canvas_id)
+        .bind(title)
+        .bind(pos_x)
+        .bind(pos_y)
+        .bind(width)
+        .bind(height)
+        .bind(meta)
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or_else(|| Error::NotFound("Canvas node not found".into()))?;
+
+        Ok(node)
+    }
+
+    pub async fn delete_canvas_node(&self, id: Uuid, canvas_id: Uuid) -> Result<()> {
+        let result = sqlx::query("DELETE FROM canvas_nodes WHERE id = $1 AND canvas_id = $2")
+            .bind(id)
+            .bind(canvas_id)
+            .execute(&self.pool)
+            .await?;
+
+        if result.rows_affected() == 0 {
+            return Err(Error::NotFound("Canvas node not found".into()));
+        }
+
+        Ok(())
+    }
+
+    // ==================== Canvas Edges ====================
+
+    pub async fn create_canvas_edge(
+        &self,
+        canvas_id: Uuid,
+        from_node_id: Uuid,
+        to_node_id: Uuid,
+        label: &str,
+    ) -> Result<CanvasEdge> {
+        let edge = sqlx::query_as::<_, CanvasEdge>(
+            r#"
+            INSERT INTO canvas_edges (id, canvas_id, from_node_id, to_node_id, label, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+            RETURNING *
+            "#,
+        )
+        .bind(Uuid::new_v4())
+        .bind(canvas_id)
+        .bind(from_node_id)
+        .bind(to_node_id)
+        .bind(label)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(edge)
+    }
+
+    pub async fn get_canvas_edge(&self, id: Uuid, canvas_id: Uuid) -> Result<CanvasEdge> {
+        let edge = sqlx::query_as::<_, CanvasEdge>(
+            "SELECT * FROM canvas_edges WHERE id = $1 AND canvas_id = $2",
+        )
+        .bind(id)
+        .bind(canvas_id)
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or_else(|| Error::NotFound("Canvas edge not found".into()))?;
+
+        Ok(edge)
+    }
+
+    pub async fn list_canvas_edges(&self, canvas_id: Uuid) -> Result<Vec<CanvasEdge>> {
+        let edges = sqlx::query_as::<_, CanvasEdge>(
+            "SELECT * FROM canvas_edges WHERE canvas_id = $1 ORDER BY created_at ASC",
+        )
+        .bind(canvas_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(edges)
+    }
+
+    pub async fn update_canvas_edge(
+        &self,
+        id: Uuid,
+        canvas_id: Uuid,
+        label: Option<&str>,
+    ) -> Result<CanvasEdge> {
+        let edge = sqlx::query_as::<_, CanvasEdge>(
+            r#"
+            UPDATE canvas_edges
+            SET label = COALESCE($3, label),
+                updated_at = NOW()
+            WHERE id = $1 AND canvas_id = $2
+            RETURNING *
+            "#,
+        )
+        .bind(id)
+        .bind(canvas_id)
+        .bind(label)
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or_else(|| Error::NotFound("Canvas edge not found".into()))?;
+
+        Ok(edge)
+    }
+
+    pub async fn delete_canvas_edge(&self, id: Uuid, canvas_id: Uuid) -> Result<()> {
+        let result = sqlx::query("DELETE FROM canvas_edges WHERE id = $1 AND canvas_id = $2")
+            .bind(id)
+            .bind(canvas_id)
+            .execute(&self.pool)
+            .await?;
+
+        if result.rows_affected() == 0 {
+            return Err(Error::NotFound("Canvas edge not found".into()));
+        }
+
+        Ok(())
+    }
 }

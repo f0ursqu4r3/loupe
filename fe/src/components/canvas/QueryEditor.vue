@@ -157,8 +157,8 @@ function togglePane(which: 'sql' | 'viz') {
 
     <!-- Visualization pane -->
     <Pane :size="100 - splitPct" :min-size="20" :max-size="80">
-      <div class="h-full grid grid-rows-[auto_1fr] overflow-hidden bg-surface-raised">
-      <div class="border-b border-border">
+      <div class="h-full grid grid-rows-[auto_minmax(100px,1fr)] overflow-hidden bg-surface-raised">
+      <div class="border-b border-border max-h-40 overflow-y-auto">
         <!-- Viz header -->
         <div
           class="flex items-center justify-between px-2.5 py-2 font-semibold text-xs"

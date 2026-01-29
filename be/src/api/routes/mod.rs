@@ -1,11 +1,12 @@
 mod auth;
+mod canvases;
+mod dashboards;
 mod datasources;
+mod health;
 mod queries;
 mod runs;
-mod dashboards;
-mod visualizations;
 mod schedules;
-mod health;
+mod visualizations;
 
 use actix_web::web;
 
@@ -19,6 +20,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .configure(runs::configure)
             .configure(dashboards::configure)
             .configure(visualizations::configure)
-            .configure(schedules::configure),
+            .configure(schedules::configure)
+            .configure(canvases::configure),
     );
 }
