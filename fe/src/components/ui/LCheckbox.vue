@@ -7,6 +7,7 @@ type Size = 'xs' | 'sm' | 'md' | 'lg' | 'xl'
 interface Props {
   modelValue?: boolean
   disabled?: boolean
+  label?: string
   id?: string
   size?: Size
 }
@@ -46,22 +47,28 @@ function toggle() {
 </script>
 
 <template>
-  <button
-    type="button"
-    role="checkbox"
-    :aria-checked="isChecked"
-    :disabled="disabled"
-    :id="id"
-    class="rounded border transition-colors focus-ring flex items-center justify-center"
-    :class="[
-      sizeClasses[props.size],
-      isChecked
-        ? 'bg-primary-600 border-primary-600 text-white'
-        : 'bg-surface border-border hover:border-border-strong',
-      props.disabled && 'opacity-50 cursor-not-allowed',
-    ]"
+  <div
+    class="inline-flex items-center gap-2 cursor-pointer"
+    :class="props.disabled && 'opacity-50 cursor-not-allowed'"
     @click="toggle"
   >
-    <Check v-if="isChecked" :class="iconSizes[props.size]" />
-  </button>
+    <div
+      role="checkbox"
+      :aria-checked="isChecked"
+      :id="id"
+      tabindex="0"
+      class="rounded border transition-colors focus-ring flex items-center justify-center shrink-0"
+      :class="[
+        sizeClasses[props.size],
+        isChecked
+          ? 'bg-primary-600 border-primary-600 text-white'
+          : 'bg-surface border-border hover:border-border-strong',
+      ]"
+      @keydown.space.prevent="toggle"
+      @keydown.enter.prevent="toggle"
+    >
+      <Check v-if="isChecked" :class="iconSizes[props.size]" />
+    </div>
+    <span v-if="props.label" class="select-none text-sm text-text-muted">{{ props.label }}</span>
+  </div>
 </template>

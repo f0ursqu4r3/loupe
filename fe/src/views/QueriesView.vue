@@ -16,7 +16,15 @@ import {
 } from 'lucide-vue-next'
 import { format as formatSql } from 'sql-formatter'
 import { AppLayout } from '@/components/layout'
-import { LButton, LCard, LBadge, LEmptyState, LSpinner, LTagFilter } from '@/components/ui'
+import {
+  LButton,
+  LCard,
+  LCheckbox,
+  LBadge,
+  LEmptyState,
+  LSpinner,
+  LTagFilter,
+} from '@/components/ui'
 import { ParameterInputs } from '@/components/query'
 import { queriesApi, runsApi, datasourcesApi } from '@/services/api'
 import { formatDateTimeShort } from '@/utils/dateTime'
@@ -39,6 +47,7 @@ const runningQueries = ref<Set<string>>(new Set())
 
 // Tag filtering
 const selectedTags = ref<string[]>([])
+const showCanvasQueries = ref(false)
 
 // Import modal state
 const showImportModal = ref(false)
@@ -51,23 +60,37 @@ const importResult = ref<{ imported: number; skipped: number; skipped_names: str
   null,
 )
 
-// Get all unique tags across queries
+// Get all unique tags across queries (excludes 'canvas' when toggle is off)
 const allTags = computed(() => {
   const tags = new Set<string>()
   for (const query of queries.value) {
     for (const tag of query.tags || []) {
+      if (tag === 'canvas' && !showCanvasQueries.value) continue
       tags.add(tag)
     }
   }
   return Array.from(tags)
 })
 
-// Filter queries by selected tags
+// Filter queries by selected tags (excludes 'canvas' queries when toggle is off)
 const filteredQueries = computed(() => {
-  if (selectedTags.value.length === 0) return queries.value
-  return queries.value.filter((q) =>
-    selectedTags.value.every((tag) => (q.tags || []).includes(tag)),
-  )
+  let result = queries.value
+
+  if (!showCanvasQueries.value) {
+    result = result.filter((q) => !(q.tags || []).includes('canvas'))
+  }
+
+  if (selectedTags.value.length > 0) {
+    result = result.filter((q) => selectedTags.value.every((tag) => (q.tags || []).includes(tag)))
+  }
+
+  return result
+})
+
+// Check if there are hidden canvas queries
+const hasHiddenCanvasQueries = computed(() => {
+  if (showCanvasQueries.value) return false
+  return queries.value.some((q) => (q.tags || []).includes('canvas'))
 })
 
 async function loadQueries() {
@@ -293,32 +316,40 @@ function closeImportModal() {
       <LSpinner size="lg" />
     </div>
 
-    <!-- Empty state -->
-    <LEmptyState
-      v-else-if="queries.length === 0"
-      title="No queries yet"
-      description="Write your first SQL query to start exploring your data."
-    >
-      <template #icon>
-        <FileCode :size="32" class="text-text-subtle" />
-      </template>
-      <template #action>
-        <LButton @click="openEditor()">
-          <Plus :size="16" />
-          Create Query
-        </LButton>
-      </template>
-    </LEmptyState>
+    <!-- Empty state (no queries or only canvas queries) -->
+    <div v-else-if="filteredQueries.length === 0 && selectedTags.length === 0" class="space-y-4">
+      <div v-if="hasHiddenCanvasQueries" class="flex justify-end">
+        <LCheckbox v-model="showCanvasQueries" label="Show canvas queries" />
+      </div>
+      <LEmptyState
+        title="No queries yet"
+        description="Write your first SQL query to start exploring your data."
+      >
+        <template #icon>
+          <FileCode :size="32" class="text-text-subtle" />
+        </template>
+        <template #action>
+          <LButton @click="openEditor()">
+            <Plus :size="16" />
+            Create Query
+          </LButton>
+        </template>
+      </LEmptyState>
+    </div>
 
     <!-- Queries list -->
     <div v-else class="space-y-4">
-      <!-- Tag filter -->
-      <LTagFilter
-        v-if="allTags.length > 0"
-        :all-tags="allTags"
-        :selected-tags="selectedTags"
-        @update:selected-tags="selectedTags = $event"
-      />
+      <!-- Tag filter and canvas toggle -->
+      <div class="flex items-center justify-between gap-4">
+        <LTagFilter
+          v-if="allTags.length > 0"
+          :all-tags="allTags"
+          :selected-tags="selectedTags"
+          @update:selected-tags="selectedTags = $event"
+        />
+        <div class="m-auto"></div>
+        <LCheckbox v-model="showCanvasQueries" label="Show canvas queries" />
+      </div>
 
       <!-- Empty filter result -->
       <div
@@ -397,14 +428,16 @@ function closeImportModal() {
               </span>
               <CheckCircle
                 v-if="lastRuns[query.id]!.status === 'completed'"
-                :size="14" class="text-success"
+                :size="14"
+                class="text-success"
               />
               <XCircle
                 v-else-if="
                   lastRuns[query.id]!.status === 'failed' ||
                   lastRuns[query.id]!.status === 'timeout'
                 "
-                :size="14" class="text-error"
+                :size="14"
+                class="text-error"
               />
             </template>
             <span v-else class="text-text-subtle">Never run</span>
@@ -512,3 +545,4 @@ function closeImportModal() {
     </Teleport>
   </AppLayout>
 </template>
+, LCheckbox
