@@ -84,11 +84,11 @@ function updateDatasource(value: string | number) {
             :loading="props.isRunning"
             @click="$emit('run')"
           >
-            <Play class="h-4 w-4" />
+            <Play :size="16" />
             Run
           </LButton>
           <LButton variant="secondary" @click="$emit('center')">
-            <Crosshair class="h-4 w-4" />
+            <Crosshair :size="16" />
             Center
           </LButton>
         </div>

@@ -48,7 +48,7 @@ function clearTags() {
       class="text-xs text-text-muted hover:text-text flex items-center gap-0.5 ml-2"
       @click="clearTags"
     >
-      <X class="h-3 w-3" />
+      <X :size="12" />
       Clear
     </button>
   </div>

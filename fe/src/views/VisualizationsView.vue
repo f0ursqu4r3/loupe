@@ -130,7 +130,7 @@ async function deleteVisualization(id: string, event: Event) {
           @click="viewMode = 'grid'"
           title="Grid view"
         >
-          <LayoutGrid class="h-4 w-4" />
+          <LayoutGrid :size="16" />
         </button>
         <button
           type="button"
@@ -143,11 +143,11 @@ async function deleteVisualization(id: string, event: Event) {
           @click="viewMode = 'list'"
           title="List view"
         >
-          <List class="h-4 w-4" />
+          <List :size="16" />
         </button>
       </div>
       <LButton @click="showNewModal = true">
-        <Plus class="h-4 w-4" />
+        <Plus :size="16" />
         New Visualization
       </LButton>
     </template>
@@ -164,11 +164,11 @@ async function deleteVisualization(id: string, event: Event) {
       description="Create a visualization from one of your queries."
     >
       <template #icon>
-        <BarChart3 class="h-8 w-8 text-text-subtle" />
+        <BarChart3 :size="32" class="text-text-subtle" />
       </template>
       <template #action>
         <LButton @click="showNewModal = true">
-          <Plus class="h-4 w-4" />
+          <Plus :size="16" />
           Create Visualization
         </LButton>
       </template>
@@ -210,7 +210,7 @@ async function deleteVisualization(id: string, event: Event) {
               <div
                 class="w-10 h-10 shrink-0 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center"
               >
-                <component :is="chartTypeIcons[viz.chart_type]" class="h-5 w-5 text-primary-600" />
+                <component :is="chartTypeIcons[viz.chart_type]" :size="20" class="text-primary-600" />
               </div>
               <div>
                 <h3 class="font-medium text-text group-hover:text-primary-600 transition-colors">
@@ -225,21 +225,21 @@ async function deleteVisualization(id: string, event: Event) {
               @click="deleteVisualization(viz.id, $event)"
               :disabled="deleting === viz.id"
             >
-              <Trash2 class="h-4 w-4" />
+              <Trash2 :size="16" />
             </button>
           </div>
 
           <!-- Tags display -->
           <div v-if="viz.tags && viz.tags.length > 0" class="flex flex-wrap gap-1 mb-3">
             <LBadge v-for="tag in viz.tags" :key="tag" size="sm">
-              <Tag class="h-3 w-3 mr-1" />
+              <Tag :size="12" class="mr-1" />
               {{ tag }}
             </LBadge>
           </div>
 
           <!-- Preview placeholder -->
           <div class="h-32 bg-surface-sunken rounded-lg flex items-center justify-center mb-3">
-            <component :is="chartTypeIcons[viz.chart_type]" class="h-12 w-12 text-text-subtle/30" />
+            <component :is="chartTypeIcons[viz.chart_type]" :size="48" class="text-text-subtle/30" />
           </div>
 
           <div class="text-xs text-text-subtle">Updated {{ formatDateShort(viz.updated_at) }}</div>
@@ -259,7 +259,7 @@ async function deleteVisualization(id: string, event: Event) {
               <div
                 class="w-10 h-10 shrink-0 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center"
               >
-                <component :is="chartTypeIcons[viz.chart_type]" class="h-5 w-5 text-primary-600" />
+                <component :is="chartTypeIcons[viz.chart_type]" :size="20" class="text-primary-600" />
               </div>
               <div class="min-w-0">
                 <h3 class="font-medium text-text group-hover:text-primary-600 transition-colors">
@@ -286,7 +286,7 @@ async function deleteVisualization(id: string, event: Event) {
                 @click="deleteVisualization(viz.id, $event)"
                 :disabled="deleting === viz.id"
               >
-                <Trash2 class="h-4 w-4" />
+                <Trash2 :size="16" />
               </button>
             </div>
           </div>

@@ -20,7 +20,7 @@ const classes = computed(() => [
   <div :class="classes">
     <div class="w-16 h-16 rounded-full bg-surface-sunken flex items-center justify-center mb-4">
       <slot name="icon">
-        <FileQuestion class="h-8 w-8 text-text-subtle" />
+        <FileQuestion :size="32" class="text-text-subtle" />
       </slot>
     </div>
     <h3 v-if="title" class="text-lg font-medium text-text mb-1">

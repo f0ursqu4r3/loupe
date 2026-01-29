@@ -101,7 +101,7 @@ function addMissingParams() {
       v-if="missingParams.length > 0"
       class="flex items-start gap-2 p-3 bg-warning-muted text-warning rounded-lg text-sm"
     >
-      <AlertTriangle class="h-4 w-4 shrink-0 mt-0.5" />
+      <AlertTriangle :size="16" class="shrink-0 mt-0.5" />
       <div class="flex-1">
         <p class="font-medium">Missing parameter definitions</p>
         <p class="text-xs mt-1">
@@ -111,7 +111,7 @@ function addMissingParams() {
           </code>
         </p>
         <LButton variant="ghost" size="sm" class="mt-2 -ml-2" @click="addMissingParams">
-          <Plus class="h-3.5 w-3.5" />
+          <Plus :size="14" />
           Add missing parameters
         </LButton>
       </div>
@@ -158,7 +158,7 @@ function addMissingParams() {
 
         <div class="pt-5">
           <LButton variant="ghost" size="sm" @click="removeParameter(index)">
-            <Trash2 class="h-4 w-4 text-error" />
+            <Trash2 :size="16" class="text-error" />
           </LButton>
         </div>
       </div>
@@ -167,7 +167,7 @@ function addMissingParams() {
     <!-- Empty state / Add button -->
     <div class="flex items-center gap-3">
       <LButton variant="secondary" size="sm" @click="addParameter()">
-        <Plus class="h-4 w-4" />
+        <Plus :size="16" />
         Add Parameter
       </LButton>
       <p v-if="modelValue.length === 0" class="text-xs text-text-muted">

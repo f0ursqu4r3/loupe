@@ -298,7 +298,7 @@ defineExpose({ startDrag })
       @mousedown="startDrag"
       @touchstart="startDrag"
     >
-      <GripVertical class="h-4 w-4 text-text-muted" />
+      <GripVertical :size="16" class="text-text-muted" />
     </div>
 
     <!-- Resize handles -->

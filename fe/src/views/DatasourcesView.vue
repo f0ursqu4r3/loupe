@@ -139,7 +139,7 @@ const dsTypeOptions = [{ value: 'postgres', label: 'PostgreSQL' }]
   <AppLayout title="Datasources">
     <template #header-actions>
       <LButton @click="showCreateModal = true">
-        <Plus class="h-4 w-4" />
+        <Plus :size="16" />
         New Datasource
       </LButton>
     </template>
@@ -157,7 +157,7 @@ const dsTypeOptions = [{ value: 'postgres', label: 'PostgreSQL' }]
     >
       <template #action>
         <LButton @click="showCreateModal = true">
-          <Plus class="h-4 w-4" />
+          <Plus :size="16" />
           Add Datasource
         </LButton>
       </template>
@@ -183,8 +183,8 @@ const dsTypeOptions = [{ value: 'postgres', label: 'PostgreSQL' }]
         <div class="flex items-center gap-3">
           <!-- Test result -->
           <div v-if="testResults[ds.id]" class="flex items-center gap-2">
-            <CheckCircle v-if="testResults[ds.id]?.success" class="h-4 w-4 text-success" />
-            <XCircle v-else class="h-4 w-4 text-error" />
+            <CheckCircle v-if="testResults[ds.id]?.success" :size="16" class="text-success" />
+            <XCircle v-else :size="16" class="text-error" />
             <span
               class="text-sm"
               :class="testResults[ds.id]?.success ? 'text-success' : 'text-error'"
@@ -199,17 +199,17 @@ const dsTypeOptions = [{ value: 'postgres', label: 'PostgreSQL' }]
             :loading="testingId === ds.id"
             @click="testConnection(ds.id)"
           >
-            <TestTube class="h-4 w-4" />
+            <TestTube :size="16" />
             Test
           </LButton>
 
           <LButton variant="secondary" size="sm" @click="openEditModal(ds)">
-            <Pencil class="h-4 w-4" />
+            <Pencil :size="16" />
             Edit
           </LButton>
 
           <LButton variant="secondary" size="sm" @click="openDeleteModal(ds)">
-            <Trash2 class="h-4 w-4" />
+            <Trash2 :size="16" />
             Delete
           </LButton>
         </div>

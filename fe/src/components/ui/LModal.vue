@@ -104,7 +104,7 @@ const sizeClasses = {
               class="p-1 rounded-md text-text-muted hover:text-text hover:bg-surface-sunken transition-colors focus-ring ml-auto"
               @click="close"
             >
-              <X class="h-5 w-5" />
+              <X :size="20" />
             </button>
           </div>
 

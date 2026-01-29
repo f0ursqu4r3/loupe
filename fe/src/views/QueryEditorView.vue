@@ -390,17 +390,17 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
         @click="router.push({ name: 'schedule-new', query: { query_id: query.id || queryId } })"
         title="Schedule this query"
       >
-        <CalendarClock class="h-4 w-4" />
+        <CalendarClock :size="16" />
         Schedule
       </LButton>
       <LButton variant="secondary" :disabled="saving" @click="saveQuery">
-        <Loader2 v-if="saving" class="h-4 w-4 animate-spin" />
-        <Save v-else class="h-4 w-4" />
+        <Loader2 v-if="saving" :size="16" class="animate-spin" />
+        <Save v-else :size="16" />
         {{ saving ? 'Saving...' : 'Save' }}
       </LButton>
       <LButton :disabled="running || !query.sql?.trim()" @click="runQuery">
-        <Loader2 v-if="running" class="h-4 w-4 animate-spin" />
-        <Play v-else class="h-4 w-4" />
+        <Loader2 v-if="running" :size="16" class="animate-spin" />
+        <Play v-else :size="16" />
         {{ running ? 'Running...' : 'Run' }}
       </LButton>
     </template>
@@ -416,10 +416,10 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
         v-if="error"
         class="flex items-center gap-3 p-3 bg-error-muted text-error rounded-lg text-sm"
       >
-        <AlertCircle class="h-5 w-5 shrink-0" />
+        <AlertCircle :size="20" class="shrink-0" />
         <span class="flex-1">{{ error }}</span>
         <button @click="error = null" class="p-1 hover:bg-error/20 rounded">
-          <X class="h-4 w-4" />
+          <X :size="16" />
         </button>
       </div>
 
@@ -428,7 +428,7 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
         v-if="saveSuccess"
         class="flex items-center gap-3 p-3 bg-success-muted text-success rounded-lg text-sm"
       >
-        <CheckCircle class="h-5 w-5 shrink-0" />
+        <CheckCircle :size="20" class="shrink-0" />
         <span>Query saved successfully</span>
       </div>
 
@@ -448,7 +448,7 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
               placeholder="Select datasource..."
             >
               <template #prefix>
-                <Database class="h-4 w-4 text-text-muted" />
+                <Database :size="16" class="text-text-muted" />
               </template>
             </LSelect>
           </div>
@@ -458,7 +458,7 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
             <div class="relative">
               <LInput v-model.number="query.timeout_seconds" type="number" :min="1" :max="300" />
               <div class="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted text-sm">
-                <Clock class="h-4 w-4" />
+                <Clock :size="16" />
               </div>
             </div>
           </div>
@@ -468,7 +468,7 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
             <div class="relative">
               <LInput v-model.number="query.max_rows" type="number" :min="1" :max="100000" />
               <div class="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted text-sm">
-                <Rows3 class="h-4 w-4" />
+                <Rows3 :size="16" />
               </div>
             </div>
           </div>
@@ -501,7 +501,7 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
             @click="showParameters = !showParameters"
           >
             <ChevronDown
-              class="h-4 w-4 transition-transform"
+              :size="16" class="transition-transform"
               :class="{ '-rotate-90': !showParameters }"
             />
             Parameters
@@ -526,10 +526,10 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
             @click="showSchedules = !showSchedules"
           >
             <ChevronDown
-              class="h-4 w-4 transition-transform"
+              :size="16" class="transition-transform"
               :class="{ '-rotate-90': !showSchedules }"
             />
-            <CalendarClock class="h-4 w-4" />
+            <CalendarClock :size="16" />
             Schedules
             <span v-if="schedules.length" class="text-xs text-text-muted">
               ({{ schedules.length }})
@@ -567,7 +567,7 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
                 router.push({ name: 'schedule-new', query: { query_id: query.id || queryId } })
               "
             >
-              <CalendarClock class="h-4 w-4" />
+              <CalendarClock :size="16" />
               Add Schedule
             </LButton>
           </div>
@@ -592,7 +592,7 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
               @click="sqlEditorRef?.format()"
               title="Format SQL (⌘I)"
             >
-              <WandSparkles class="h-3.5 w-3.5" />
+              <WandSparkles :size="14" />
               Format
             </button>
             <span class="text-xs text-text-subtle">⌘+Enter to run</span>
@@ -611,7 +611,8 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
           @mousedown="startResize"
         >
           <GripHorizontal
-            class="h-3 w-3 text-text-subtle group-hover:text-primary-500 transition-colors"
+            :size="12"
+            class="text-text-subtle group-hover:text-primary-500 transition-colors"
           />
         </div>
       </LCard>
@@ -645,11 +646,11 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
                 router.push({ name: 'visualization-new', query: { query_id: query.id || queryId } })
               "
             >
-              <BarChart3 class="h-4 w-4" />
+              <BarChart3 :size="16" />
               Visualize
             </LButton>
-            <ChevronUp v-if="showResults" class="h-4 w-4 text-text-muted" />
-            <ChevronDown v-else class="h-4 w-4 text-text-muted" />
+            <ChevronUp v-if="showResults" :size="16" class="text-text-muted" />
+            <ChevronDown v-else :size="16" class="text-text-muted" />
           </div>
         </button>
 
@@ -665,7 +666,7 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
           <!-- Error state -->
           <div v-else-if="resultError" class="p-4 bg-error-muted text-error text-sm">
             <div class="flex items-start gap-2">
-              <AlertCircle class="h-5 w-5 shrink-0 mt-0.5" />
+              <AlertCircle :size="20" class="shrink-0 mt-0.5" />
               <pre class="whitespace-pre-wrap font-mono text-xs">{{ resultError }}</pre>
             </div>
           </div>

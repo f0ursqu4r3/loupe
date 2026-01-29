@@ -61,7 +61,7 @@ function handleKeydown(e: KeyboardEvent) {
         class="ml-0.5 hover:text-error"
         @click.stop="removeTag(tag)"
       >
-        <X class="h-3 w-3" />
+        <X :size="12" />
       </button>
     </LBadge>
     <div v-if="!disabled" class="flex items-center gap-1 flex-1 min-w-20">
@@ -79,7 +79,7 @@ function handleKeydown(e: KeyboardEvent) {
         class="h-6 w-6 p-0"
         @click="addTag"
       >
-        <Plus class="h-3 w-3" />
+        <Plus :size="12" />
       </LButton>
     </div>
   </div>

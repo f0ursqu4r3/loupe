@@ -83,7 +83,7 @@ async function deleteDashboard(id: string, event: Event) {
   <AppLayout title="Dashboards">
     <template #header-actions>
       <LButton @click="createDashboard">
-        <Plus class="h-4 w-4" />
+        <Plus :size="16" />
         New Dashboard
       </LButton>
     </template>
@@ -100,11 +100,11 @@ async function deleteDashboard(id: string, event: Event) {
       description="Create your first dashboard to start visualizing your data."
     >
       <template #icon>
-        <LayoutGrid class="h-8 w-8 text-text-subtle" />
+        <LayoutGrid :size="32" class="text-text-subtle" />
       </template>
       <template #action>
         <LButton @click="createDashboard">
-          <Plus class="h-4 w-4" />
+          <Plus :size="16" />
           Create Dashboard
         </LButton>
       </template>
@@ -145,14 +145,14 @@ async function deleteDashboard(id: string, event: Event) {
               @click="deleteDashboard(dashboard.id, $event)"
               :disabled="deleting === dashboard.id"
             >
-              <Trash2 class="h-4 w-4" />
+              <Trash2 :size="16" />
             </button>
           </div>
 
           <!-- Tags display -->
           <div v-if="dashboard.tags && dashboard.tags.length > 0" class="flex flex-wrap gap-1 mb-2">
             <LBadge v-for="tag in dashboard.tags" :key="tag" size="sm">
-              <Tag class="h-3 w-3 mr-1" />
+              <Tag :size="12" class="mr-1" />
               {{ tag }}
             </LBadge>
           </div>

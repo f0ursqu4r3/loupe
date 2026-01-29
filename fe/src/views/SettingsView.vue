@@ -33,7 +33,7 @@ function formatDate(dateStr: string | undefined) {
           <div
             class="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center shrink-0"
           >
-            <User class="w-8 h-8 text-primary" />
+            <User :size="32" class="text-primary" />
           </div>
           <div class="flex-1 min-w-0">
             <h2 class="text-xl font-semibold text-text truncate">
@@ -42,7 +42,7 @@ function formatDate(dateStr: string | undefined) {
             <p class="text-sm text-text-muted truncate">{{ authStore.user?.email }}</p>
             <div class="flex items-center gap-2 mt-2">
               <LBadge variant="primary">
-                <Shield class="w-3 h-3 mr-1" />
+                <Shield :size="12" class="mr-1" />
                 {{ authStore.user?.role || 'user' }}
               </LBadge>
             </div>
@@ -56,7 +56,7 @@ function formatDate(dateStr: string | undefined) {
 
         <div class="space-y-4">
           <div class="flex items-center gap-3 p-3 bg-surface-alt rounded-lg">
-            <Mail class="w-5 h-5 text-text-muted" />
+            <Mail :size="20" class="text-text-muted" />
             <div class="flex-1 min-w-0">
               <p class="text-xs text-text-muted">Email</p>
               <p class="text-sm text-text truncate">{{ authStore.user?.email }}</p>
@@ -64,7 +64,7 @@ function formatDate(dateStr: string | undefined) {
           </div>
 
           <div class="flex items-center gap-3 p-3 bg-surface-alt rounded-lg">
-            <Building2 class="w-5 h-5 text-text-muted" />
+            <Building2 :size="20" class="text-text-muted" />
             <div class="flex-1 min-w-0">
               <p class="text-xs text-text-muted">Organization ID</p>
               <p class="text-sm text-text font-mono truncate">{{ authStore.user?.org_id }}</p>
@@ -72,7 +72,7 @@ function formatDate(dateStr: string | undefined) {
           </div>
 
           <div class="flex items-center gap-3 p-3 bg-surface-alt rounded-lg">
-            <Calendar class="w-5 h-5 text-text-muted" />
+            <Calendar :size="20" class="text-text-muted" />
             <div class="flex-1 min-w-0">
               <p class="text-xs text-text-muted">Member Since</p>
               <p class="text-sm text-text">{{ formatDate(authStore.user?.created_at) }}</p>

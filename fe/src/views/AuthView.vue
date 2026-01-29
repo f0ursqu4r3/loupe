@@ -64,7 +64,7 @@ function toggleMode() {
     <div class="hidden lg:flex lg:w-1/2 bg-primary-600 p-12 flex-col justify-between">
       <div class="flex items-center gap-3">
         <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
-          <Search class="h-5 w-5 text-white" />
+          <Search :size="20" class="text-white" />
         </div>
         <span class="font-bold text-2xl text-white">Loupe</span>
       </div>
@@ -91,7 +91,7 @@ function toggleMode() {
           <!-- Mobile logo -->
           <div class="lg:hidden flex items-center gap-3 mb-8">
             <div class="w-10 h-10 rounded-xl bg-primary-600 flex items-center justify-center">
-              <Search class="h-5 w-5 text-white" />
+              <Search :size="20" class="text-white" />
             </div>
             <span class="font-bold text-2xl text-text">Loupe</span>
           </div>
@@ -142,7 +142,7 @@ function toggleMode() {
                   class="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text"
                   @click="showPassword = !showPassword"
                 >
-                  <component :is="showPassword ? EyeOff : Eye" class="h-4 w-4" />
+                  <component :is="showPassword ? EyeOff : Eye" :size="16" />
                 </button>
               </div>
             </div>

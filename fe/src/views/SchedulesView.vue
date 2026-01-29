@@ -159,7 +159,7 @@ function describeCron(expr: string): string {
   <AppLayout title="Schedules">
     <template #header-actions>
       <LButton @click="router.push({ name: 'schedule-new' })">
-        <Plus class="h-4 w-4" />
+        <Plus :size="16" />
         New Schedule
       </LButton>
     </template>
@@ -176,11 +176,11 @@ function describeCron(expr: string): string {
       description="Schedule your queries to run automatically at specified intervals."
     >
       <template #icon>
-        <CalendarIcon class="h-8 w-8 text-text-subtle" />
+        <CalendarIcon :size="32" class="text-text-subtle" />
       </template>
       <template #action>
         <LButton @click="router.push({ name: 'schedule-new' })">
-          <Plus class="h-4 w-4" />
+          <Plus :size="16" />
           Create Schedule
         </LButton>
       </template>
@@ -213,7 +213,7 @@ function describeCron(expr: string): string {
                 schedule.enabled ? 'bg-success-muted' : 'bg-surface-sunken',
               ]"
             >
-              <Clock :class="['h-5 w-5', schedule.enabled ? 'text-success' : 'text-text-subtle']" />
+              <Clock :size="20" :class="[schedule.enabled ? 'text-success' : 'text-text-subtle']" />
             </div>
             <div>
               <div class="flex items-center gap-2">
@@ -239,7 +239,7 @@ function describeCron(expr: string): string {
                 class="flex flex-wrap gap-1 mt-1"
               >
                 <LBadge v-for="tag in schedule.tags" :key="tag" size="sm">
-                  <Tag class="h-3 w-3 mr-1" />
+                  <Tag :size="12" class="mr-1" />
                   {{ tag }}
                 </LBadge>
               </div>
@@ -263,7 +263,7 @@ function describeCron(expr: string): string {
                 title="Run now"
                 @click="triggerSchedule(schedule.id)"
               >
-                <Play class="h-4 w-4" />
+                <Play :size="16" />
               </LButton>
               <LButton
                 variant="ghost"
@@ -271,13 +271,13 @@ function describeCron(expr: string): string {
                 title="Edit"
                 @click="router.push({ name: 'schedule-editor', params: { id: schedule.id } })"
               >
-                <Pencil class="h-4 w-4" />
+                <Pencil :size="16" />
               </LButton>
               <LButton variant="ghost" size="sm" title="Delete" @click="confirmDelete(schedule)">
-                <Trash2 class="h-4 w-4" />
+                <Trash2 :size="16" />
               </LButton>
               <LButton variant="secondary" size="sm" @click="toggleSchedule(schedule)">
-                <component :is="schedule.enabled ? Pause : Play" class="h-4 w-4" />
+                <component :is="schedule.enabled ? Pause : Play" :size="16" />
                 {{ schedule.enabled ? 'Pause' : 'Enable' }}
               </LButton>
             </div>
@@ -300,7 +300,7 @@ function describeCron(expr: string): string {
         <div class="flex justify-end gap-2">
           <LButton variant="ghost" @click="showDeleteConfirm = false">Cancel</LButton>
           <LButton variant="danger" @click="deleteSchedule" :disabled="deleting">
-            <Loader2 v-if="deleting" class="h-4 w-4 animate-spin" />
+            <Loader2 v-if="deleting" :size="16" class="animate-spin" />
             Delete
           </LButton>
         </div>

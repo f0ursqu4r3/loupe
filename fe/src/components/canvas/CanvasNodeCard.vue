@@ -67,21 +67,21 @@ const statusClass = computed(() => {
           title="Connect"
           @click.stop="$emit('connect', props.node.id)"
         >
-          <Link class="h-3.5 w-3.5" />
+          <Link :size="14" />
         </button>
         <button
           class="w-6 h-6 rounded-lg border border-border bg-surface hover:bg-surface-sunken text-xs flex items-center justify-center"
           title="Duplicate"
           @click.stop="$emit('duplicate', props.node.id)"
         >
-          <Copy class="h-3.5 w-3.5" />
+          <Copy :size="14" />
         </button>
         <button
           class="w-6 h-6 rounded-lg border border-border bg-surface hover:bg-surface-sunken text-xs flex items-center justify-center"
           title="Delete"
           @click.stop="$emit('delete', props.node.id)"
         >
-          <X class="h-3.5 w-3.5" />
+          <X :size="14" />
         </button>
       </div>
     </div>

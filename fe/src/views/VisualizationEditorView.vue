@@ -325,8 +325,8 @@ watch(
   >
     <template #header-actions>
       <LButton variant="secondary" :disabled="saving" @click="saveVisualization">
-        <Loader2 v-if="saving" class="h-4 w-4 animate-spin" />
-        <Save v-else class="h-4 w-4" />
+        <Loader2 v-if="saving" :size="16" class="animate-spin" />
+        <Save v-else :size="16" />
         {{ saving ? 'Saving...' : 'Save' }}
       </LButton>
     </template>
@@ -344,10 +344,10 @@ watch(
           v-if="error"
           class="flex items-center gap-3 p-3 bg-error-muted text-error rounded-lg text-sm"
         >
-          <AlertCircle class="h-5 w-5 shrink-0" />
+          <AlertCircle :size="20" class="shrink-0" />
           <span class="flex-1 text-xs">{{ error }}</span>
           <button @click="error = null" class="p-1 hover:bg-error/20 rounded">
-            <X class="h-4 w-4" />
+            <X :size="16" />
           </button>
         </div>
 
@@ -356,7 +356,7 @@ watch(
           v-if="saveSuccess"
           class="flex items-center gap-3 p-3 bg-success-muted text-success rounded-lg text-sm"
         >
-          <CheckCircle class="h-5 w-5 shrink-0" />
+          <CheckCircle :size="20" class="shrink-0" />
           <span>Saved successfully</span>
         </div>
 
@@ -386,12 +386,12 @@ watch(
                 >
                   <component
                     :is="opt.icon"
-                    class="h-5 w-5"
-                    :class="
+                    :size="20"
+                    :class="[
                       visualization.chart_type === opt.value
                         ? 'text-primary-600'
                         : 'text-text-muted'
-                    "
+                    ]"
                   />
                   <span
                     class="text-xs"
@@ -597,8 +597,8 @@ watch(
                 :disabled="running || !query"
                 @click="runQueryForPreview"
               >
-                <Loader2 v-if="running" class="h-4 w-4 animate-spin" />
-                <Play v-else class="h-4 w-4" />
+                <Loader2 v-if="running" :size="16" class="animate-spin" />
+                <Play v-else :size="16" />
                 {{ running ? 'Loading...' : 'Refresh' }}
               </LButton>
               <span v-if="result" class="text-xs text-text-muted">

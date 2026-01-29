@@ -274,15 +274,15 @@ function closeImportModal() {
     <template #header-actions>
       <div class="flex items-center gap-2">
         <LButton variant="secondary" @click="exportQueries" :disabled="queries.length === 0">
-          <Download class="h-4 w-4" />
+          <Download :size="16" />
           Export
         </LButton>
         <LButton variant="secondary" @click="showImportModal = true">
-          <Upload class="h-4 w-4" />
+          <Upload :size="16" />
           Import
         </LButton>
         <LButton @click="openEditor()">
-          <Plus class="h-4 w-4" />
+          <Plus :size="16" />
           New Query
         </LButton>
       </div>
@@ -300,11 +300,11 @@ function closeImportModal() {
       description="Write your first SQL query to start exploring your data."
     >
       <template #icon>
-        <FileCode class="h-8 w-8 text-text-subtle" />
+        <FileCode :size="32" class="text-text-subtle" />
       </template>
       <template #action>
         <LButton @click="openEditor()">
-          <Plus class="h-4 w-4" />
+          <Plus :size="16" />
           Create Query
         </LButton>
       </template>
@@ -345,7 +345,7 @@ function closeImportModal() {
             <!-- Tags display -->
             <div v-if="query.tags && query.tags.length > 0" class="flex flex-wrap gap-1 mb-2">
               <LBadge v-for="tag in query.tags" :key="tag" size="sm">
-                <Tag class="h-3 w-3 mr-1" />
+                <Tag :size="12" class="mr-1" />
                 {{ tag }}
               </LBadge>
             </div>
@@ -360,7 +360,7 @@ function closeImportModal() {
 
           <div class="flex items-center gap-2 ml-4" @click.stop>
             <LButton variant="ghost" size="sm" @click="openEditor(query.id)">
-              <Edit class="h-4 w-4" />
+              <Edit :size="16" />
             </LButton>
             <LButton
               variant="ghost"
@@ -368,8 +368,8 @@ function closeImportModal() {
               :disabled="runningQueries.has(query.id)"
               @click="runQuery(query, $event)"
             >
-              <Loader2 v-if="runningQueries.has(query.id)" class="h-4 w-4 animate-spin" />
-              <Play v-else class="h-4 w-4" />
+              <Loader2 v-if="runningQueries.has(query.id)" :size="16" class="animate-spin" />
+              <Play v-else :size="16" />
             </LButton>
           </div>
         </div>
@@ -387,7 +387,7 @@ function closeImportModal() {
           <!-- Last run info -->
           <div class="flex items-center gap-2 text-xs">
             <template v-if="lastRuns[query.id]">
-              <Clock class="h-3.5 w-3.5 text-text-subtle" />
+              <Clock :size="14" class="text-text-subtle" />
               <span class="text-text-subtle">Last run:</span>
               <span :class="getStatusColor(lastRuns[query.id]!.status)">
                 {{ lastRuns[query.id]!.status }}
@@ -397,14 +397,14 @@ function closeImportModal() {
               </span>
               <CheckCircle
                 v-if="lastRuns[query.id]!.status === 'completed'"
-                class="h-3.5 w-3.5 text-success"
+                :size="14" class="text-success"
               />
               <XCircle
                 v-else-if="
                   lastRuns[query.id]!.status === 'failed' ||
                   lastRuns[query.id]!.status === 'timeout'
                 "
-                class="h-3.5 w-3.5 text-error"
+                :size="14" class="text-error"
               />
             </template>
             <span v-else class="text-text-subtle">Never run</span>
@@ -501,8 +501,8 @@ function closeImportModal() {
                 @click="importQueries"
                 :disabled="!importFile || !importDatasourceId || importing"
               >
-                <Loader2 v-if="importing" class="h-4 w-4 animate-spin" />
-                <Upload v-else class="h-4 w-4" />
+                <Loader2 v-if="importing" :size="16" class="animate-spin" />
+                <Upload v-else :size="16" />
                 Import
               </LButton>
             </div>

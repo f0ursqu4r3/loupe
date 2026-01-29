@@ -464,15 +464,15 @@ watch(
         :class="{ 'text-primary-500': !settingsCollapsed }"
         title="Toggle settings"
       >
-        <Settings class="h-4 w-4" />
+        <Settings :size="16" />
       </LButton>
       <LButton v-if="!isNew" variant="secondary" @click="openAddTileModal">
-        <Plus class="h-4 w-4" />
+        <Plus :size="16" />
         Add Tile
       </LButton>
       <LButton :disabled="saving" @click="saveDashboard">
-        <Loader2 v-if="saving" class="h-4 w-4 animate-spin" />
-        <Save v-else class="h-4 w-4" />
+        <Loader2 v-if="saving" :size="16" class="animate-spin" />
+        <Save v-else :size="16" />
         {{ saving ? 'Saving...' : 'Save' }}
       </LButton>
     </template>
@@ -488,10 +488,10 @@ watch(
         v-if="error"
         class="flex items-center gap-3 p-3 bg-error-muted text-error rounded-lg text-sm"
       >
-        <AlertCircle class="h-5 w-5 shrink-0" />
+        <AlertCircle :size="20" class="shrink-0" />
         <span class="flex-1">{{ error }}</span>
         <button @click="error = null" class="p-1 hover:bg-error/20 rounded">
-          <X class="h-4 w-4" />
+          <X :size="16" />
         </button>
       </div>
 
@@ -500,7 +500,7 @@ watch(
         v-if="saveSuccess"
         class="flex items-center gap-3 p-3 bg-success-muted text-success rounded-lg text-sm"
       >
-        <CheckCircle class="h-5 w-5 shrink-0" />
+        <CheckCircle :size="20" class="shrink-0" />
         <span>Dashboard saved successfully</span>
       </div>
 
@@ -534,7 +534,7 @@ watch(
         >
           <template #action>
             <LButton @click="saveDashboard" :disabled="saving">
-              <Save class="h-4 w-4" />
+              <Save :size="16" />
               Save Dashboard
             </LButton>
           </template>
@@ -548,7 +548,7 @@ watch(
         >
           <template #action>
             <LButton @click="openAddTileModal">
-              <Plus class="h-4 w-4" />
+              <Plus :size="16" />
               Add Tile
             </LButton>
           </template>
@@ -604,7 +604,7 @@ watch(
                   @mousedown="tileRefs[tile.id]?.startDrag($event)"
                   @touchstart="tileRefs[tile.id]?.startDrag($event)"
                 >
-                  <GripVertical class="h-4 w-4" />
+                  <GripVertical :size="16" />
                 </button>
                 <span class="text-sm font-medium text-text truncate">
                   {{ tile.title || vizCache[tile.visualization_id]?.name || 'Untitled' }}
@@ -615,7 +615,7 @@ watch(
                 class="p-1 rounded hover:bg-surface-sunken text-text-muted hover:text-error transition-colors shrink-0"
                 @click="deleteTile(tile.id)"
               >
-                <Trash2 class="h-4 w-4" />
+                <Trash2 :size="16" />
               </button>
             </div>
 
@@ -669,7 +669,7 @@ watch(
       <template #footer>
         <LButton variant="secondary" @click="showAddTileModal = false">Cancel</LButton>
         <LButton :disabled="!selectedVisualizationId || addingTile" @click="addTile">
-          <Loader2 v-if="addingTile" class="h-4 w-4 animate-spin" />
+          <Loader2 v-if="addingTile" :size="16" class="animate-spin" />
           Add Tile
         </LButton>
       </template>

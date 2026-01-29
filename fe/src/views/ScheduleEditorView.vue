@@ -288,13 +288,13 @@ watch(
       <div class="flex items-center gap-2">
         <div v-if="!isNew" class="flex items-center gap-2">
           <LButton variant="danger" size="sm" @click="showDeleteConfirm = true">
-            <Trash2 class="h-4 w-4" />
+            <Trash2 :size="16" />
           </LButton>
         </div>
 
         <LButton @click="saveSchedule" :disabled="saving">
-          <Loader2 v-if="saving" class="h-4 w-4 animate-spin" />
-          <Save v-else class="h-4 w-4" />
+          <Loader2 v-if="saving" :size="16" class="animate-spin" />
+          <Save v-else :size="16" />
           {{ isNew ? 'Create' : 'Save' }}
         </LButton>
       </div>
@@ -311,10 +311,10 @@ watch(
         v-if="error"
         class="flex items-center gap-2 p-3 rounded-lg bg-error-muted text-error text-sm"
       >
-        <AlertCircle class="h-4 w-4 shrink-0" />
+        <AlertCircle :size="16" class="shrink-0" />
         {{ error }}
         <button @click="error = null" class="ml-auto hover:opacity-80">
-          <X class="h-4 w-4" />
+          <X :size="16" />
         </button>
       </div>
 
@@ -323,7 +323,7 @@ watch(
         v-if="saveSuccess"
         class="flex items-center gap-2 p-3 rounded-lg bg-success-muted text-success text-sm"
       >
-        <CheckCircle class="h-4 w-4 shrink-0" />
+        <CheckCircle :size="16" class="shrink-0" />
         Schedule saved successfully
       </div>
 
@@ -386,7 +386,7 @@ watch(
               Cron Expression
               <LTooltip>
                 <template #trigger>
-                  <HelpCircle class="inline h-3.5 w-3.5 text-text-muted ml-1" />
+                  <HelpCircle :size="14" class="inline text-text-muted ml-1" />
                 </template>
                 <div class="text-xs">
                   <p class="font-medium mb-1">Format: minute hour day month weekday</p>
@@ -402,7 +402,7 @@ watch(
 
           <!-- Preview -->
           <div class="flex items-center gap-2 p-3 bg-surface-sunken rounded-lg">
-            <Clock class="h-4 w-4 text-text-muted" />
+            <Clock :size="16" class="text-text-muted" />
             <span class="text-sm text-text">
               Runs: <strong>{{ describeCron(schedule.cron_expression || '') }}</strong>
             </span>
@@ -435,7 +435,7 @@ watch(
           <div class="flex justify-end gap-2">
             <LButton variant="ghost" @click="showDeleteConfirm = false">Cancel</LButton>
             <LButton variant="danger" @click="deleteSchedule" :disabled="deleting">
-              <Loader2 v-if="deleting" class="h-4 w-4 animate-spin" />
+              <Loader2 v-if="deleting" :size="16" class="animate-spin" />
               Delete
             </LButton>
           </div>
