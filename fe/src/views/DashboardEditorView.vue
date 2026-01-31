@@ -59,6 +59,10 @@ const visualizations = ref<Visualization[]>([])
 const selectedVisualizationId = ref<string | null>(null)
 const addingTile = ref(false)
 
+// Delete tile modal
+const showDeleteTileModal = ref(false)
+const tileToDelete = ref<string | null>(null)
+
 // Settings panel collapsed state (default collapsed for existing dashboards)
 const settingsCollapsed = ref(true)
 
@@ -254,13 +258,20 @@ async function addTile() {
 }
 
 // Delete a tile
-async function deleteTile(tileId: string) {
-  if (!confirm('Remove this tile from the dashboard?')) return
+function deleteTile(tileId: string) {
+  tileToDelete.value = tileId
+  showDeleteTileModal.value = true
+}
+
+async function confirmDeleteTile() {
+  if (!tileToDelete.value) return
 
   try {
-    await dashboardsApi.deleteTile(dashboardId.value!, tileId)
-    dashboard.value.tiles = dashboard.value.tiles?.filter((t) => t.id !== tileId)
-    delete tileData.value[tileId]
+    await dashboardsApi.deleteTile(dashboardId.value!, tileToDelete.value)
+    dashboard.value.tiles = dashboard.value.tiles?.filter((t) => t.id !== tileToDelete.value)
+    delete tileData.value[tileToDelete.value]
+    showDeleteTileModal.value = false
+    tileToDelete.value = null
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to delete tile'
   }
@@ -672,6 +683,17 @@ watch(
           <Loader2 v-if="addingTile" :size="16" class="animate-spin" />
           Add Tile
         </LButton>
+      </template>
+    </LModal>
+
+    <!-- Delete tile confirmation modal -->
+    <LModal v-model="showDeleteTileModal" title="Remove Tile" size="sm">
+      <p class="text-text">Are you sure you want to remove this tile from the dashboard?</p>
+      <p class="text-sm text-text-muted mt-2">This action cannot be undone.</p>
+
+      <template #footer>
+        <LButton variant="secondary" @click="showDeleteTileModal = false">Cancel</LButton>
+        <LButton variant="danger" @click="confirmDeleteTile">Remove Tile</LButton>
       </template>
     </LModal>
   </AppLayout>

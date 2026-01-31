@@ -33,7 +33,7 @@ function formatDate(dateStr: string | undefined) {
           <div
             class="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center shrink-0"
           >
-            <User :size="32" class="text-primary" />
+            <User :size="48" class="text-primary" />
           </div>
           <div class="flex-1 min-w-0">
             <h2 class="text-xl font-semibold text-text truncate">

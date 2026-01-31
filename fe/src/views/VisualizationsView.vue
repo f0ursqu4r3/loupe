@@ -56,6 +56,10 @@ const showNewModal = ref(false)
 const selectedQueryId = ref<string | null>(null)
 const deleting = ref<string | null>(null)
 
+// Delete confirmation modal
+const showDeleteModal = ref(false)
+const visualizationToDelete = ref<Visualization | null>(null)
+
 async function loadVisualizations() {
   try {
     loading.value = true
@@ -98,14 +102,24 @@ function createFromQuery() {
   router.push({ name: 'visualization-new', query: { query_id: selectedQueryId.value } })
 }
 
-async function deleteVisualization(id: string, event: Event) {
+function deleteVisualization(id: string, event: Event) {
   event.stopPropagation()
-  if (!confirm('Are you sure you want to delete this visualization?')) return
+  const viz = visualizations.value.find((v) => v.id === id)
+  if (viz) {
+    visualizationToDelete.value = viz
+    showDeleteModal.value = true
+  }
+}
+
+async function confirmDelete() {
+  if (!visualizationToDelete.value) return
 
   try {
-    deleting.value = id
-    await visualizationsApi.delete(id)
-    visualizations.value = visualizations.value.filter((v) => v.id !== id)
+    deleting.value = visualizationToDelete.value.id
+    await visualizationsApi.delete(visualizationToDelete.value.id)
+    visualizations.value = visualizations.value.filter((v) => v.id !== visualizationToDelete.value!.id)
+    showDeleteModal.value = false
+    visualizationToDelete.value = null
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to delete visualization'
   } finally {
@@ -164,7 +178,7 @@ async function deleteVisualization(id: string, event: Event) {
       description="Create a visualization from one of your queries."
     >
       <template #icon>
-        <BarChart3 :size="32" class="text-text-subtle" />
+        <BarChart3 :size="48" class="text-text-subtle" />
       </template>
       <template #action>
         <LButton @click="showNewModal = true">
@@ -202,7 +216,7 @@ async function deleteVisualization(id: string, event: Event) {
           v-if="viewMode === 'grid'"
           v-for="viz in filteredVisualizations"
           :key="viz.id"
-          class="group hover:border-primary-500/50 transition-colors cursor-pointer"
+          class="group hover:border-primary-500/50 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
           @click="openVisualization(viz)"
         >
           <div class="flex items-start justify-between mb-3">
@@ -251,7 +265,7 @@ async function deleteVisualization(id: string, event: Event) {
           v-for="viz in filteredVisualizations"
           :key="viz.id"
           padding="sm"
-          class="group hover:border-primary-500/50 transition-colors cursor-pointer"
+          class="group hover:border-primary-500/50 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
           @click="openVisualization(viz)"
         >
           <div class="flex items-center justify-between">
@@ -332,6 +346,23 @@ async function deleteVisualization(id: string, event: Event) {
       <template #footer>
         <LButton variant="secondary" @click="showNewModal = false">Cancel</LButton>
         <LButton :disabled="!selectedQueryId" @click="createFromQuery">Create</LButton>
+      </template>
+    </LModal>
+
+    <!-- Delete confirmation modal -->
+    <LModal v-model="showDeleteModal" title="Delete Visualization" size="sm">
+      <p class="text-text">
+        Are you sure you want to delete
+        <strong>{{ visualizationToDelete?.name }}</strong
+        >?
+      </p>
+      <p class="text-sm text-text-muted mt-2">This action cannot be undone.</p>
+
+      <template #footer>
+        <LButton variant="secondary" @click="showDeleteModal = false">Cancel</LButton>
+        <LButton variant="danger" :loading="deleting !== null" @click="confirmDelete">
+          Delete Visualization
+        </LButton>
       </template>
     </LModal>
   </AppLayout>

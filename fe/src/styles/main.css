@@ -137,6 +137,16 @@
   --loupe-transition-fast: 150ms;
   --loupe-transition-base: 200ms;
   --loupe-transition-slow: 300ms;
+
+  /* Icon Sizes (Documentation)
+   * Standardized icon sizes by context:
+   * - Sidebar navigation: 20px
+   * - Header actions: 16-18px
+   * - Inline buttons: 16px
+   * - Empty states: 48px
+   * - Status indicators: 14px
+   * - Logo/Brand: 16px
+   */
 }
 
 /* ===== Dark Theme ===== */

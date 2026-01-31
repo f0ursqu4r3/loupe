@@ -18,18 +18,18 @@ const classes = computed(() => [
 
 <template>
   <div :class="classes">
-    <div class="w-16 h-16 rounded-full bg-surface-sunken flex items-center justify-center mb-4">
+    <div class="w-20 h-20 rounded-full bg-surface-sunken flex items-center justify-center mb-6">
       <slot name="icon">
-        <FileQuestion :size="32" class="text-text-subtle" />
+        <FileQuestion :size="48" class="text-text-subtle" />
       </slot>
     </div>
-    <h3 v-if="title" class="text-lg font-medium text-text mb-1">
+    <h3 v-if="title" class="text-xl font-semibold text-text mb-2">
       {{ title }}
     </h3>
-    <p v-if="description" class="text-sm text-text-muted max-w-sm">
+    <p v-if="description" class="text-text-muted max-w-md mb-1">
       {{ description }}
     </p>
-    <div v-if="$slots.action" class="mt-4">
+    <div v-if="$slots.action" class="mt-6">
       <slot name="action" />
     </div>
   </div>

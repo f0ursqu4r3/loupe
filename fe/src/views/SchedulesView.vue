@@ -176,7 +176,7 @@ function describeCron(expr: string): string {
       description="Schedule your queries to run automatically at specified intervals."
     >
       <template #icon>
-        <CalendarIcon :size="32" class="text-text-subtle" />
+        <CalendarIcon :size="48" class="text-text-subtle" />
       </template>
       <template #action>
         <LButton @click="router.push({ name: 'schedule-new' })">

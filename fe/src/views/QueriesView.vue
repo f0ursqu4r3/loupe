@@ -326,7 +326,7 @@ function closeImportModal() {
         description="Write your first SQL query to start exploring your data."
       >
         <template #icon>
-          <FileCode :size="32" class="text-text-subtle" />
+          <FileCode :size="48" class="text-text-subtle" />
         </template>
         <template #action>
           <LButton @click="openEditor()">

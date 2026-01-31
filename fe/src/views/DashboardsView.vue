@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Plus, Trash2, LayoutGrid, Tag } from 'lucide-vue-next'
 import { AppLayout } from '@/components/layout'
-import { LButton, LCard, LEmptyState, LSpinner, LBadge, LTagFilter } from '@/components/ui'
+import { LButton, LCard, LEmptyState, LSpinner, LBadge, LTagFilter, LModal } from '@/components/ui'
 import { dashboardsApi } from '@/services/api'
 import { clearLastDashboardId } from '@/utils/dashboardHistory'
 import { formatDateShort } from '@/utils/dateTime'
@@ -15,6 +15,10 @@ const dashboards = ref<Dashboard[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
 const deleting = ref<string | null>(null)
+
+// Delete confirmation modal
+const showDeleteModal = ref(false)
+const dashboardToDelete = ref<Dashboard | null>(null)
 
 // Tag filtering
 const selectedTags = ref<string[]>([])
@@ -63,14 +67,24 @@ function createDashboard() {
   router.push({ name: 'dashboard-new' })
 }
 
-async function deleteDashboard(id: string, event: Event) {
+function deleteDashboard(id: string, event: Event) {
   event.stopPropagation()
-  if (!confirm('Are you sure you want to delete this dashboard?')) return
+  const dashboard = dashboards.value.find((d) => d.id === id)
+  if (dashboard) {
+    dashboardToDelete.value = dashboard
+    showDeleteModal.value = true
+  }
+}
+
+async function confirmDelete() {
+  if (!dashboardToDelete.value) return
 
   try {
-    deleting.value = id
-    await dashboardsApi.delete(id)
-    dashboards.value = dashboards.value.filter((d) => d.id !== id)
+    deleting.value = dashboardToDelete.value.id
+    await dashboardsApi.delete(dashboardToDelete.value.id)
+    dashboards.value = dashboards.value.filter((d) => d.id !== dashboardToDelete.value!.id)
+    showDeleteModal.value = false
+    dashboardToDelete.value = null
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to delete dashboard'
   } finally {
@@ -100,7 +114,7 @@ async function deleteDashboard(id: string, event: Event) {
       description="Create your first dashboard to start visualizing your data."
     >
       <template #icon>
-        <LayoutGrid :size="32" class="text-text-subtle" />
+        <LayoutGrid :size="48" class="text-text-subtle" />
       </template>
       <template #action>
         <LButton @click="createDashboard">
@@ -132,7 +146,7 @@ async function deleteDashboard(id: string, event: Event) {
         <LCard
           v-for="dashboard in filteredDashboards"
           :key="dashboard.id"
-          class="group hover:border-primary-500/50 transition-colors cursor-pointer"
+          class="group hover:border-primary-500/50 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
           @click="openDashboard(dashboard)"
         >
           <div class="flex items-start justify-between mb-3">
@@ -168,5 +182,22 @@ async function deleteDashboard(id: string, event: Event) {
         </LCard>
       </div>
     </div>
+
+    <!-- Delete confirmation modal -->
+    <LModal v-model="showDeleteModal" title="Delete Dashboard" size="sm">
+      <p class="text-text">
+        Are you sure you want to delete
+        <strong>{{ dashboardToDelete?.name }}</strong
+        >?
+      </p>
+      <p class="text-sm text-text-muted mt-2">This action cannot be undone.</p>
+
+      <template #footer>
+        <LButton variant="secondary" @click="showDeleteModal = false">Cancel</LButton>
+        <LButton variant="danger" :loading="deleting !== null" @click="confirmDelete">
+          Delete Dashboard
+        </LButton>
+      </template>
+    </LModal>
   </AppLayout>
 </template>

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Bell, User } from 'lucide-vue-next'
 import ThemeToggle from './ThemeToggle.vue'
 import { LButton } from '@/components/ui'
 import { useRouter } from 'vue-router'
@@ -32,17 +31,9 @@ defineProps<Props>()
     <!-- Actions -->
     <slot name="actions" />
 
-    <!-- User menu -->
+    <!-- Right side -->
     <div class="flex items-center gap-3">
       <ThemeToggle />
-
-      <LButton variant="ghost" size="sm" square>
-        <Bell :size="16" />
-      </LButton>
-
-      <LButton variant="ghost" size="sm" square>
-        <User :size="16" />
-      </LButton>
     </div>
   </header>
 </template>
