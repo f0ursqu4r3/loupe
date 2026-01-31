@@ -2,11 +2,14 @@
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { X } from 'lucide-vue-next'
 
+type Variant = 'default' | 'danger' | 'warning' | 'info' | 'success'
+
 interface Props {
   modelValue?: boolean
   /** Alias for modelValue for convenience */
   open?: boolean
   title?: string
+  variant?: Variant
   size?: 'sm' | 'md' | 'lg' | 'xl' | 'full'
   closable?: boolean
   closeOnOverlay?: boolean
@@ -16,6 +19,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   modelValue: undefined,
   open: undefined,
+  variant: 'default',
   size: 'md',
   closable: true,
   closeOnOverlay: true,
@@ -30,12 +34,29 @@ const emit = defineEmits<{
 // Support both modelValue and open props
 const isOpen = ref(props.modelValue ?? props.open ?? false)
 
+// Scroll lock
+watch(isOpen, (open) => {
+  if (open) {
+    document.body.style.overflow = 'hidden'
+  } else {
+    document.body.style.overflow = ''
+  }
+})
+
 watch(
   () => props.modelValue ?? props.open,
   (value) => {
     isOpen.value = value ?? false
   },
 )
+
+const headerVariantClasses: Record<Variant, string> = {
+  default: '',
+  danger: 'bg-error-muted border-b-error',
+  warning: 'bg-warning-muted border-b-warning',
+  info: 'bg-info-muted border-b-info',
+  success: 'bg-success-muted border-b-success',
+}
 
 function close() {
   if (props.closable) {
@@ -63,6 +84,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.removeEventListener('keydown', onKeydown)
+  // Cleanup scroll lock
+  document.body.style.overflow = ''
 })
 
 const sizeClasses = {
@@ -93,7 +116,10 @@ const sizeClasses = {
           <!-- Header -->
           <div
             v-if="title || closable"
-            class="flex items-center justify-between px-6 py-4 border-b border-border"
+            :class="[
+              'flex items-center justify-between px-6 py-4 border-b',
+              headerVariantClasses[variant] || 'border-border',
+            ]"
           >
             <h2 v-if="title" class="text-lg font-semibold text-text">
               {{ title }}

@@ -253,38 +253,38 @@ hover:border-primary-500/50 hover:shadow-lg hover:-translate-y-0.5 transition-al
 
 ### 15. Form Input Improvements
 
-- [ ] Add floating label variant to LInput
-- [ ] Add inline validation feedback
-- [ ] Add better error state styling
-- [ ] Add input masks/formatters
-- [ ] Add prefix/suffix slot support
-- [ ] Add clear button for text inputs
-- [ ] Add character counter for textarea
-- [ ] Add auto-resize for textarea
-- [ ] Improve focus states
+- [x] Add floating label variant to LInput
+- [x] Add inline validation feedback
+- [x] Add better error state styling
+- [x] Add input masks/formatters
+- [x] Add prefix/suffix slot support
+- [x] Add clear button for text inputs
+- [x] Add character counter for textarea
+- [x] Add auto-resize for textarea
+- [x] Improve focus states
 
 ### 16. Enhanced Modal Component
 
-- [ ] Add modal size variants beyond current
-- [ ] Add modal animations (slide, fade, zoom)
-- [ ] Add persistent footer for long content
-- [ ] Add modal header variants (danger, warning, info)
-- [ ] Add confirmation variant helper
-- [ ] Improve close button positioning
-- [ ] Add keyboard shortcuts (ESC, Enter)
-- [ ] Add focus trap
-- [ ] Add scroll lock
+- [x] Add modal size variants beyond current
+- [x] Add modal animations (slide, fade, zoom)
+- [x] Add persistent footer for long content
+- [x] Add modal header variants (danger, warning, info)
+- [x] Add confirmation variant helper
+- [x] Improve close button positioning
+- [x] Add keyboard shortcuts (ESC, Enter)
+- [x] Add focus trap
+- [x] Add scroll lock
 
 ### 17. Badge & Tag Improvements
 
-- [ ] Review LBadge component
-- [ ] Add dot variant (just colored dot)
-- [ ] Add outline variant
-- [ ] Add removable variant with X button
-- [ ] Add icon support
-- [ ] Add pulse animation for live badges
-- [ ] Improve tag input UX
-- [ ] Add tag autocomplete
+- [x] Review LBadge component
+- [x] Add dot variant (just colored dot)
+- [x] Add outline variant
+- [x] Add removable variant with X button
+- [x] Add icon support
+- [x] Add pulse animation for live badges
+- [x] Improve tag input UX
+- [x] Add tag autocomplete
 
 ### 18. Table Enhancements
 
