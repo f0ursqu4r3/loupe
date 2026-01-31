@@ -226,14 +226,14 @@ hover:border-primary-500/50 hover:shadow-lg hover:-translate-y-0.5 transition-al
 
 ### 13. Improve Card Design
 
-- [ ] Add subtle gradient to [LCard.vue:21](../fe/src/components/ui/LCard.vue#L21)
-- [ ] Increase shadow for better elevation
-- [ ] Add inner shadow for depth
-- [ ] Create card variants (outlined, filled, elevated, interactive)
-- [ ] Add optional header/footer slots
-- [ ] Add optional accent border
-- [ ] Test different border radius values
-- [ ] Add card examples to docs
+- [x] Add subtle gradient to [LCard.vue:21](../fe/src/components/ui/LCard.vue#L21)
+- [x] Increase shadow for better elevation
+- [x] Add inner shadow for depth
+- [x] Create card variants (outlined, filled, elevated, interactive)
+- [x] Add optional header/footer slots
+- [x] Add optional accent border
+- [x] Test different border radius values
+- [x] Add card examples to docs
 
 ---
 
@@ -241,15 +241,15 @@ hover:border-primary-500/50 hover:shadow-lg hover:-translate-y-0.5 transition-al
 
 ### 14. Enhanced Button Component
 
-- [ ] Review [LButton.vue](../fe/src/components/ui/LButton.vue)
-- [ ] Add soft variant (colored background with opacity)
-- [ ] Add link variant (underline on hover)
-- [ ] Add floating action button (FAB) variant
-- [ ] Add icon-only variant with tooltip support
-- [ ] Improve loading state animation
-- [ ] Add ripple effect on click (optional)
-- [ ] Add button group support
-- [ ] Test all variants in light/dark mode
+- [x] Review [LButton.vue](../fe/src/components/ui/LButton.vue)
+- [x] Add soft variant (colored background with opacity)
+- [x] Add link variant (underline on hover)
+- [x] Add floating action button (FAB) variant
+- [x] Add icon-only variant with tooltip support
+- [x] Improve loading state animation
+- [x] Add ripple effect on click (optional)
+- [x] Add button group support
+- [x] Test all variants in light/dark mode
 
 ### 15. Form Input Improvements
 
@@ -305,15 +305,15 @@ hover:border-primary-500/50 hover:shadow-lg hover:-translate-y-0.5 transition-al
 
 ### 19. Toast Notification System
 
-- [ ] Create LToast component
-- [ ] Create toast manager/container
-- [ ] Add variants: success, error, warning, info
-- [ ] Add position options (top-right, top-center, etc.)
-- [ ] Add auto-dismiss with countdown
-- [ ] Add action button support
-- [ ] Add stacking behavior
-- [ ] Add entrance/exit animations
-- [ ] Create composable: `useToast()`
+- [x] Create LToast component
+- [x] Create toast manager/container
+- [x] Add variants: success, error, warning, info
+- [x] Add position options (top-right, top-center, etc.)
+- [x] Add auto-dismiss with countdown
+- [x] Add action button support
+- [x] Add stacking behavior
+- [x] Add entrance/exit animations
+- [x] Create composable: `useToast()`
 
 ### 20. Loading States & Transitions
 

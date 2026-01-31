@@ -3,7 +3,7 @@ import { computed, type HTMLAttributes } from 'vue'
 import { Loader2 } from 'lucide-vue-next'
 
 type Size = 'xs' | 'sm' | 'md' | 'lg' | 'xl'
-type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline' | 'text'
+type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline' | 'text' | 'soft' | 'link'
 
 interface Props {
   variant?: Variant
@@ -34,6 +34,8 @@ const variantClasses: Record<Variant, string> = {
   outline:
     'border border-primary-600 text-primary-600 hover:bg-primary-50 active:bg-primary-100 dark:hover:bg-primary-950 dark:active:bg-primary-900',
   text: 'text-text-muted hover:text-text active:text-text',
+  soft: 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-900/50 active:bg-primary-300 dark:active:bg-primary-900/70',
+  link: 'text-primary-600 hover:text-primary-700 active:text-primary-800 underline-offset-4 hover:underline',
 }
 
 const sizeClasses: Record<Size, string> = {
