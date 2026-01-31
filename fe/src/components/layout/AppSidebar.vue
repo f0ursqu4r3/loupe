@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Network,
+  Palette,
 } from 'lucide-vue-next'
 
 interface Props {
@@ -36,7 +37,10 @@ const navItems = [
   { to: '/canvases', icon: Network, label: 'Canvases' },
 ]
 
-const bottomNavItems = [{ to: '/settings', icon: Settings, label: 'Settings' }]
+const bottomNavItems = [
+  { to: '/style-guide', icon: Palette, label: 'Style Guide' },
+  { to: '/settings', icon: Settings, label: 'Settings' },
+]
 
 function isActive(to: string): boolean {
   if (to === '/') return route.path === '/' || route.path.startsWith('/dashboards')

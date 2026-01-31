@@ -108,6 +108,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/style-guide',
+      name: 'style-guide',
+      component: () => import('@/views/StyleGuide.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/canvases',
       name: 'canvases',
       component: () => import('@/views/CanvasView.vue'),
@@ -124,6 +130,11 @@ const router = createRouter({
       name: 'canvas-editor',
       component: () => import('@/views/CanvasEditorView.vue'),
       meta: { requiresAuth: true },
+    },
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      redirect: { name: 'dashboard-entry' },
     },
   ],
 })
