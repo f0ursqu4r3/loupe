@@ -543,10 +543,22 @@ defineExpose({
       class="absolute top-4 left-4 z-10 flex items-center gap-1 p-1.5 rounded-lg bg-surface-overlay/90 backdrop-blur-sm border border-border shadow-lg"
     >
       <!-- Add node buttons -->
-      <LButton title="Add Query Node" variant="ghost" size="sm" @click.stop="$emit('add-query')">
+      <LButton
+        title="Add Query Node"
+        aria-label="Add query node to canvas"
+        variant="ghost"
+        size="sm"
+        @click.stop="$emit('add-query')"
+      >
         <BrainCircuit :size="16" />
       </LButton>
-      <LButton title="Add Note" variant="ghost" size="sm" @click.stop="$emit('add-note')">
+      <LButton
+        title="Add Note"
+        aria-label="Add note to canvas"
+        variant="ghost"
+        size="sm"
+        @click.stop="$emit('add-note')"
+      >
         <StickyNote :size="16" />
       </LButton>
 
@@ -557,6 +569,7 @@ defineExpose({
         variant="ghost"
         size="sm"
         :title="props.showGrid ? 'Hide Grid' : 'Show Grid'"
+        :aria-label="props.showGrid ? 'Hide canvas grid' : 'Show canvas grid'"
         @click.stop="$emit('update:showGrid', !props.showGrid)"
       >
         <Grid2X2Check v-if="props.showGrid" :size="16" />
@@ -571,6 +584,11 @@ defineExpose({
           props.splitDirection === 'vertical'
             ? 'Switch to Horizontal Split'
             : 'Switch to Vertical Split'
+        "
+        :aria-label="
+          props.splitDirection === 'vertical'
+            ? 'Switch to horizontal split view'
+            : 'Switch to vertical split view'
         "
         @click.stop="
           $emit(

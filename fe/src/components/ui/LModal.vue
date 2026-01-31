@@ -128,6 +128,7 @@ const sizeClasses = {
               v-if="closable"
               type="button"
               class="p-1 rounded-md text-text-muted hover:text-text hover:bg-surface-sunken transition-colors focus-ring ml-auto"
+              aria-label="Close modal"
               @click="close"
             >
               <X :size="20" />

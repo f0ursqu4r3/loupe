@@ -435,6 +435,75 @@ body {
   outline-offset: 2px;
 }
 
+/* ===== Reduced Motion Support ===== */
+@media (prefers-reduced-motion: reduce) {
+  /* Disable animations for users who prefer reduced motion */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Remove transform animations */
+  .animate-slide-in-right,
+  .animate-slide-in-left,
+  .animate-slide-in-top,
+  .animate-slide-in-bottom {
+    animation: fade-in 0.01ms ease-out !important;
+  }
+
+  /* Keep pulse animation but make it subtle */
+  .animate-pulse {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+
+  /* Disable button press effect */
+  button,
+  [role='button'] {
+    transform: none !important;
+  }
+}
+
+/* ===== Animation Performance Optimizations ===== */
+/* Use GPU acceleration for animations by promoting to own layer */
+.animate-fade-in,
+.animate-slide-in-right,
+.animate-slide-in-left,
+.animate-slide-in-top,
+.animate-slide-in-bottom,
+.animate-spin,
+.animate-pulse {
+  will-change: transform, opacity;
+}
+
+/* Remove will-change after animation completes to free up resources */
+.animate-fade-in,
+.animate-slide-in-right,
+.animate-slide-in-left,
+.animate-slide-in-top,
+.animate-slide-in-bottom {
+  animation-fill-mode: forwards;
+}
+
+/* Optimize transitions for better performance */
+.transition-transform,
+.transition-all {
+  will-change: transform;
+}
+
+.transition-opacity {
+  will-change: opacity;
+}
+
+/* Clean up will-change after transition */
+*:not(:hover):not(:focus):not(:active) {
+  will-change: auto;
+}
+
 /* ===== Splitpanes Theme Override ===== */
 .splitpanes.default-theme {
   background-color: transparent !important;

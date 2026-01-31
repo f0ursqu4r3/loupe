@@ -50,6 +50,7 @@ onMounted(() => {
       v-for="t in themes"
       :key="t.value"
       :title="t.label"
+      :aria-label="`Switch to ${t.label.toLowerCase()} theme`"
       :variant="theme === t.value ? 'secondary' : 'ghost'"
       size="xs"
       square

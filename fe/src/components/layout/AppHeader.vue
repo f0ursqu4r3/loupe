@@ -18,7 +18,14 @@ defineProps<Props>()
   <header class="h-16 flex items-center justify-between px-6 border-b border-border bg-surface">
     <!-- Page title / breadcrumbs -->
     <div class="flex items-center gap-4">
-      <LButton v-if="back" variant="ghost" size="sm" @click="router.push({ name: back })" square>
+      <LButton
+        v-if="back"
+        variant="ghost"
+        size="sm"
+        aria-label="Go back"
+        @click="router.push({ name: back })"
+        square
+      >
         <ArrowLeft :size="16" />
       </LButton>
 

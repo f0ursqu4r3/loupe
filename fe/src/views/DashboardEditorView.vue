@@ -474,6 +474,7 @@ watch(
         @click="settingsCollapsed = !settingsCollapsed"
         :class="{ 'text-primary-500': !settingsCollapsed }"
         title="Toggle settings"
+        aria-label="Toggle settings panel"
       >
         <Settings :size="16" />
       </LButton>
@@ -501,7 +502,11 @@ watch(
       >
         <AlertCircle :size="20" class="shrink-0" />
         <span class="flex-1">{{ error }}</span>
-        <button @click="error = null" class="p-1 hover:bg-error/20 rounded">
+        <button
+          @click="error = null"
+          class="p-1 hover:bg-error/20 rounded"
+          aria-label="Dismiss error"
+        >
           <X :size="16" />
         </button>
       </div>
@@ -612,6 +617,7 @@ watch(
                 <button
                   type="button"
                   class="p-1 rounded cursor-move hover:bg-surface-sunken text-text-muted transition-colors shrink-0"
+                  aria-label="Drag to reposition tile"
                   @mousedown="tileRefs[tile.id]?.startDrag($event)"
                   @touchstart="tileRefs[tile.id]?.startDrag($event)"
                 >
@@ -624,6 +630,7 @@ watch(
               <button
                 type="button"
                 class="p-1 rounded hover:bg-surface-sunken text-text-muted hover:text-error transition-colors shrink-0"
+                aria-label="Remove tile from dashboard"
                 @click="deleteTile(tile.id)"
               >
                 <Trash2 :size="16" />

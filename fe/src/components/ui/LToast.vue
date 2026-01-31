@@ -103,6 +103,7 @@ function handleAction() {
       v-if="closable"
       type="button"
       class="shrink-0 p-1 rounded hover:bg-surface-sunken transition-colors text-text-muted hover:text-text"
+      aria-label="Close notification"
       @click="handleClose"
     >
       <X :size="16" />

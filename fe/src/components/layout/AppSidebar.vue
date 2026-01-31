@@ -118,6 +118,7 @@ function toggleCollapse() {
             'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-text-muted hover:text-text hover:bg-surface-sunken transition-colors',
             collapsed && 'justify-center',
           ]"
+          :aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
           @click="toggleCollapse"
         >
           <component :is="collapsed ? ChevronRight : ChevronLeft" :size="20" class="shrink-0" />
