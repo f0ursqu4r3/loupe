@@ -23,7 +23,7 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const baseClasses =
-  'inline-flex items-center justify-center font-medium transition-colors focus-ring rounded-md cursor-pointer disabled:opacity-50 disabled:pointer-events-none cursor-pointer'
+  'inline-flex items-center justify-center font-medium transition-all focus-ring rounded-md cursor-pointer disabled:opacity-50 disabled:pointer-events-none active:scale-95'
 
 const variantClasses: Record<Variant, string> = {
   primary: 'bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800',

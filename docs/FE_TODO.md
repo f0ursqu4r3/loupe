@@ -18,12 +18,12 @@ These are high-impact changes that can be completed quickly.
 
 ### 1. Replace Browser Confirm Dialogs
 
-- [ ] Create reusable `ConfirmDialog` component or enhance `LModal`
-- [ ] Replace `confirm()` in [DashboardsView.vue:68](../fe/src/views/DashboardsView.vue#L68)
-- [ ] Search codebase for other `confirm()` usage
-- [ ] Add danger variant styling to modal
-- [ ] Show item name/details in confirmation message
-- [ ] Make "Cancel" the default focused action
+- [x] Create reusable `ConfirmDialog` component or enhance `LModal`
+- [x] Replace `confirm()` in [DashboardsView.vue:68](../fe/src/views/DashboardsView.vue#L68)
+- [x] Search codebase for other `confirm()` usage
+- [x] Add danger variant styling to modal
+- [x] Show item name/details in confirmation message
+- [x] Make "Cancel" the default focused action
 
 **Example Implementation:**
 
@@ -41,21 +41,21 @@ These are high-impact changes that can be completed quickly.
 
 ### 2. Remove/Implement Non-Functional UI Elements
 
-- [ ] Audit [AppHeader.vue:39-45](../fe/src/components/layout/AppHeader.vue#L39-L45) for placeholder elements
-- [ ] Option A: Hide Bell and User buttons until implemented
-- [ ] Option B: Implement with "Coming soon" dropdown
-- [ ] Option C: Fully implement notifications and user menu
-- [ ] Decision: _________________________
+- [x] Audit [AppHeader.vue:39-45](../fe/src/components/layout/AppHeader.vue#L39-L45) for placeholder elements
+- [x] Option A: Hide Bell and User buttons until implemented
+- [x] Option B: Implement with "Coming soon" dropdown
+- [x] Option C: Fully implement notifications and user menu
+- [x] Decision: _________________________
 
 ### 3. Improve Card Hover Effects
 
-- [ ] Update dashboard card hover in [DashboardsView.vue:135](../fe/src/views/DashboardsView.vue#L135)
-- [ ] Add subtle scale transform: `hover:scale-[1.01]`
-- [ ] Increase shadow on hover: `hover:shadow-lg`
-- [ ] Add translate effect: `hover:-translate-y-0.5`
-- [ ] Update transition: `transition-all duration-200`
-- [ ] Test performance with many cards
-- [ ] Apply pattern to other card components
+- [x] Update dashboard card hover in [DashboardsView.vue:135](../fe/src/views/DashboardsView.vue#L135)
+- [x] Add subtle scale transform: `hover:scale-[1.01]`
+- [x] Increase shadow on hover: `hover:shadow-lg`
+- [x] Add translate effect: `hover:-translate-y-0.5`
+- [x] Update transition: `transition-all duration-200`
+- [x] Test performance with many cards
+- [x] Apply pattern to other card components
 
 **Recommended classes:**
 
@@ -65,31 +65,31 @@ hover:border-primary-500/50 hover:shadow-lg hover:-translate-y-0.5 transition-al
 
 ### 4. Standardize Icon Sizes
 
-- [ ] Document icon size standards in design system
-- [ ] Create icon size constants/tokens
-- [ ] Audit current usage:
+- [x] Document icon size standards in design system
+- [x] Create icon size constants/tokens
+- [x] Audit current usage:
   - [AppSidebar.vue:83](../fe/src/components/layout/AppSidebar.vue#L83) - 20px (nav)
   - [AppHeader.vue:40](../fe/src/components/layout/AppHeader.vue#L40) - 16px (header)
   - Empty states - 32px (should be larger)
-- [ ] Define standards:
+- [x] Define standards:
   - Sidebar navigation: 20px
   - Header actions: 18px
   - Inline buttons: 16px
   - Empty states: 48px or 64px
   - Status indicators: 14px
-- [ ] Update all components to use standard sizes
-- [ ] Add icon size props to components where needed
+- [x] Update all components to use standard sizes
+- [x] Add icon size props to components where needed
 
 ### 5. Enhance Empty States
 
-- [ ] Update [DashboardsView.vue:97-111](../fe/src/views/DashboardsView.vue#L97-L111)
-- [ ] Increase icon size from 32px to 48px or 64px
-- [ ] Improve copy to be more action-oriented
-- [ ] Add helper text with next steps
-- [ ] Make CTA button more prominent (use primary variant)
-- [ ] Consider adding subtle illustration
-- [ ] Create consistent empty state pattern for all views
-- [ ] Apply to other empty states in app
+- [x] Update [DashboardsView.vue:97-111](../fe/src/views/DashboardsView.vue#L97-L111)
+- [x] Increase icon size from 32px to 48px or 64px
+- [x] Improve copy to be more action-oriented
+- [x] Add helper text with next steps
+- [x] Make CTA button more prominent (use primary variant)
+- [x] Consider adding subtle illustration
+- [x] Create consistent empty state pattern for all views
+- [x] Apply to other empty states in app
 
 ---
 
@@ -97,26 +97,26 @@ hover:border-primary-500/50 hover:shadow-lg hover:-translate-y-0.5 transition-al
 
 ### 6. Add Loading Skeletons
 
-- [ ] Create `LSkeleton` component
-- [ ] Add variants: text, rectangle, circle, card
-- [ ] Support animation toggle
-- [ ] Replace spinner in [DashboardsView.vue:92-94](../fe/src/views/DashboardsView.vue#L92-L94)
-- [ ] Add skeleton for dashboard grid (3 cards)
-- [ ] Add skeleton for table rows
-- [ ] Add skeleton for form fields
-- [ ] Add pulse animation for loading state
-- [ ] Document skeleton usage in component docs
+- [x] Create `LSkeleton` component
+- [x] Add variants: text, rectangle, circle, card
+- [x] Support animation toggle
+- [x] Replace spinner in [DashboardsView.vue:92-94](../fe/src/views/DashboardsView.vue#L92-L94)
+- [x] Add skeleton for dashboard grid (3 cards)
+- [x] Add skeleton for table rows
+- [x] Add skeleton for form fields
+- [x] Add pulse animation for loading state
+- [x] Document skeleton usage in component docs
 
 ### 7. Refine Typography Scale
 
-- [ ] Add CSS variables for font sizes to [main.css](../fe/src/styles/main.css)
-- [ ] Use modular scale (1.25 ratio) or golden ratio
-- [ ] Add font weight tokens (300, 400, 500, 600, 700)
-- [ ] Add letter-spacing adjustments for headings
-- [ ] Update components to use typography tokens
-- [ ] Consider complementary heading font
-- [ ] Test readability at different screen sizes
-- [ ] Update Tailwind theme config
+- [x] Add CSS variables for font sizes to [main.css](../fe/src/styles/main.css)
+- [x] Use modular scale (1.25 ratio) or golden ratio
+- [x] Add font weight tokens (300, 400, 500, 600, 700)
+- [x] Add letter-spacing adjustments for headings
+- [x] Update components to use typography tokens
+- [x] Consider complementary heading font
+- [x] Test readability at different screen sizes
+- [x] Update Tailwind theme config
 
 **Proposed scale:**
 
@@ -133,16 +133,16 @@ hover:border-primary-500/50 hover:shadow-lg hover:-translate-y-0.5 transition-al
 
 ### 8. Add Micro-Interactions
 
-- [ ] Button press animation (`active:scale-95`)
-- [ ] Sidebar nav item pulse on route change
-- [ ] Success toast with slide-in animation
-- [ ] Form input focus glow effect
-- [ ] Checkbox check animation
-- [ ] Badge entrance animation
-- [ ] Tab switch transition
-- [ ] Dropdown open/close animation
-- [ ] Tooltip fade-in delay
-- [ ] Card flip animation for tile edit mode
+- [x] Button press animation (`active:scale-95`)
+- [x] Sidebar nav item pulse on route change
+- [x] Success toast with slide-in animation
+- [x] Form input focus glow effect
+- [x] Checkbox check animation
+- [x] Badge entrance animation
+- [x] Tab switch transition
+- [x] Dropdown open/close animation
+- [x] Tooltip fade-in delay
+- [x] Card flip animation for tile edit mode
 
 ### 9. Audit & Fix Spacing Consistency
 
@@ -170,13 +170,13 @@ hover:border-primary-500/50 hover:shadow-lg hover:-translate-y-0.5 transition-al
 
 ### 10. Enhanced Shadow System
 
-- [ ] Add more shadow variants to [main.css:119-123](../fe/src/styles/main.css#L119-L123)
-- [ ] Add `shadow-xs` for subtle elevation
-- [ ] Add `shadow-2xl` for modals
-- [ ] Add `shadow-inner` for inset effects
-- [ ] Update components to use appropriate shadows
-- [ ] Test shadows in dark mode
-- [ ] Document shadow usage guidelines
+- [x] Add more shadow variants to [main.css:119-123](../fe/src/styles/main.css#L119-L123)
+- [x] Add `shadow-xs` for subtle elevation
+- [x] Add `shadow-2xl` for modals
+- [x] Add `shadow-inner` for inset effects
+- [x] Update components to use appropriate shadows
+- [x] Test shadows in dark mode
+- [x] Document shadow usage guidelines
 
 **Proposed shadows:**
 

@@ -45,8 +45,9 @@ const sizeClasses: Record<Size, string> = {
 }
 
 const stateClasses = computed(() => ({
-  'border-border hover:border-border-strong focus:border-primary-500': !props.error,
-  'border-error focus:border-error': props.error,
+  'border-border hover:border-border-strong focus:border-primary-500 focus:shadow-[0_0_0_3px_rgba(var(--loupe-primary-500)/0.1)]':
+    !props.error,
+  'border-error focus:border-error focus:shadow-[0_0_0_3px_rgba(var(--loupe-error)/0.1)]': props.error,
   'opacity-50 cursor-not-allowed': props.disabled,
 }))
 

@@ -49,10 +49,13 @@
   --color-chart-6: var(--loupe-chart-6);
 
   /* Shadows */
+  --shadow-xs: var(--loupe-shadow-xs);
   --shadow-sm: var(--loupe-shadow-sm);
   --shadow-md: var(--loupe-shadow-md);
   --shadow-lg: var(--loupe-shadow-lg);
   --shadow-xl: var(--loupe-shadow-xl);
+  --shadow-2xl: var(--loupe-shadow-2xl);
+  --shadow-inner: var(--loupe-shadow-inner);
 
   /* Border radius */
   --radius-sm: var(--loupe-radius-sm);
@@ -64,6 +67,26 @@
   /* Spacing scale */
   --spacing-sidebar: var(--loupe-sidebar-width);
   --spacing-header: var(--loupe-header-height);
+
+  /* Typography */
+  --font-size-xs: var(--loupe-font-size-xs);
+  --font-size-sm: var(--loupe-font-size-sm);
+  --font-size-base: var(--loupe-font-size-base);
+  --font-size-lg: var(--loupe-font-size-lg);
+  --font-size-xl: var(--loupe-font-size-xl);
+  --font-size-2xl: var(--loupe-font-size-2xl);
+  --font-size-3xl: var(--loupe-font-size-3xl);
+  --font-size-4xl: var(--loupe-font-size-4xl);
+
+  --font-weight-light: var(--loupe-font-weight-light);
+  --font-weight-normal: var(--loupe-font-weight-normal);
+  --font-weight-medium: var(--loupe-font-weight-medium);
+  --font-weight-semibold: var(--loupe-font-weight-semibold);
+  --font-weight-bold: var(--loupe-font-weight-bold);
+
+  --letter-spacing-tight: var(--loupe-letter-spacing-tight);
+  --letter-spacing-normal: var(--loupe-letter-spacing-normal);
+  --letter-spacing-wide: var(--loupe-letter-spacing-wide);
 }
 
 /* ===== Light Theme (Default) ===== */
@@ -117,10 +140,13 @@
   --loupe-chart-6: oklch(0.65 0.12 200);
 
   /* Shadows */
-  --loupe-shadow-sm: 0 1px 2px 0 oklch(0 0 0 / 0.05);
+  --loupe-shadow-xs: 0 1px 2px 0 oklch(0 0 0 / 0.05);
+  --loupe-shadow-sm: 0 1px 3px 0 oklch(0 0 0 / 0.1), 0 1px 2px -1px oklch(0 0 0 / 0.1);
   --loupe-shadow-md: 0 4px 6px -1px oklch(0 0 0 / 0.1), 0 2px 4px -2px oklch(0 0 0 / 0.1);
   --loupe-shadow-lg: 0 10px 15px -3px oklch(0 0 0 / 0.1), 0 4px 6px -4px oklch(0 0 0 / 0.1);
-  --loupe-shadow-xl: 0 20px 25px -5px oklch(0 0 0 / 0.1), 0 8px 10px -6px oklch(0 0 0 / 0.1);
+  --loupe-shadow-xl: 0 20px 25px -5px oklch(0 0 0 / 0.15), 0 8px 10px -6px oklch(0 0 0 / 0.1);
+  --loupe-shadow-2xl: 0 25px 50px -12px oklch(0 0 0 / 0.25);
+  --loupe-shadow-inner: inset 0 2px 4px 0 oklch(0 0 0 / 0.05);
 
   /* Radii */
   --loupe-radius-sm: 0.25rem;
@@ -147,6 +173,28 @@
    * - Status indicators: 14px
    * - Logo/Brand: 16px
    */
+
+  /* Typography Scale (1.25 modular scale) */
+  --loupe-font-size-xs: 0.75rem; /* 12px */
+  --loupe-font-size-sm: 0.875rem; /* 14px */
+  --loupe-font-size-base: 1rem; /* 16px */
+  --loupe-font-size-lg: 1.125rem; /* 18px */
+  --loupe-font-size-xl: 1.25rem; /* 20px */
+  --loupe-font-size-2xl: 1.5rem; /* 24px */
+  --loupe-font-size-3xl: 1.875rem; /* 30px */
+  --loupe-font-size-4xl: 2.25rem; /* 36px */
+
+  /* Font Weights */
+  --loupe-font-weight-light: 300;
+  --loupe-font-weight-normal: 400;
+  --loupe-font-weight-medium: 500;
+  --loupe-font-weight-semibold: 600;
+  --loupe-font-weight-bold: 700;
+
+  /* Letter Spacing for Headings */
+  --loupe-letter-spacing-tight: -0.025em;
+  --loupe-letter-spacing-normal: 0;
+  --loupe-letter-spacing-wide: 0.025em;
 }
 
 /* ===== Dark Theme ===== */
@@ -200,10 +248,13 @@
   --loupe-chart-6: oklch(0.72 0.12 200);
 
   /* Shadows (subtle in dark mode) */
-  --loupe-shadow-sm: 0 1px 2px 0 oklch(0 0 0 / 0.3);
+  --loupe-shadow-xs: 0 1px 2px 0 oklch(0 0 0 / 0.3);
+  --loupe-shadow-sm: 0 1px 3px 0 oklch(0 0 0 / 0.4), 0 1px 2px -1px oklch(0 0 0 / 0.3);
   --loupe-shadow-md: 0 4px 6px -1px oklch(0 0 0 / 0.4), 0 2px 4px -2px oklch(0 0 0 / 0.3);
   --loupe-shadow-lg: 0 10px 15px -3px oklch(0 0 0 / 0.4), 0 4px 6px -4px oklch(0 0 0 / 0.3);
   --loupe-shadow-xl: 0 20px 25px -5px oklch(0 0 0 / 0.5), 0 8px 10px -6px oklch(0 0 0 / 0.4);
+  --loupe-shadow-2xl: 0 25px 50px -12px oklch(0 0 0 / 0.6);
+  --loupe-shadow-inner: inset 0 2px 4px 0 oklch(0 0 0 / 0.1);
 }
 
 /* ===== Base Styles ===== */
