@@ -300,12 +300,12 @@ mod tests {
 
     #[test]
     fn test_redact_secret() {
-        assert_eq!(redact_secret("short"), "short");
         assert_eq!(redact_secret("a"), "a");
         assert_eq!(redact_secret("ab"), "ab");
         assert_eq!(redact_secret("abc"), "abc");
         assert_eq!(redact_secret("abcd"), "abcd");
         assert_eq!(redact_secret("abcde"), "ab***de");
+        assert_eq!(redact_secret("short"), "sh***rt");
         assert_eq!(redact_secret("my_secret_key_12345"), "my***45");
     }
 
