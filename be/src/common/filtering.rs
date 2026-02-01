@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::Deserialize;
 
 /// Sort parameters - reusable across all endpoints
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct SortParams {
     /// Column to sort by (validated against whitelist)
     pub sort_by: Option<String>,
@@ -46,7 +46,7 @@ impl SortParams {
 }
 
 /// Text search parameter (ILIKE for PostgreSQL)
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct SearchParams {
     /// Search term for text fields
     pub search: Option<String>,
@@ -66,7 +66,7 @@ impl SearchParams {
 }
 
 /// Date range filter
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct DateRangeParams {
     pub start_date: Option<DateTime<Utc>>,
     pub end_date: Option<DateTime<Utc>>,

@@ -25,17 +25,27 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 
 #[derive(serde::Deserialize)]
 pub struct ListRunsQuery {
+    // Filter parameters
     query_id: Option<Uuid>,
     status: Option<String>,
 
-    #[serde(flatten)]
-    date_range: DateRangeParams,
+    // Date range parameters
+    start_date: Option<chrono::DateTime<chrono::Utc>>,
+    end_date: Option<chrono::DateTime<chrono::Utc>>,
 
-    #[serde(flatten)]
-    sort: SortParams,
+    // Sort parameters
+    sort_by: Option<String>,
+    sort_direction: Option<String>,
 
-    #[serde(flatten)]
-    pagination: PaginationParams,
+    // Pagination parameters
+    #[serde(default = "default_limit")]
+    limit: i64,
+    #[serde(default)]
+    offset: i64,
+}
+
+fn default_limit() -> i64 {
+    20
 }
 
 async fn list_runs(
@@ -46,11 +56,19 @@ async fn list_runs(
     let (_, org_id, role) = get_user_context(&state, &req).await?;
     require_permission(role, Permission::Viewer)?;
 
-    let mut pagination = query.pagination.clone();
+    // Create pagination params
+    let mut pagination = PaginationParams {
+        limit: query.limit,
+        offset: query.offset,
+    };
     pagination.validate();
 
-    // Validate and build sort params
-    let (sort_column, sort_direction) = query.sort.validate_and_build(
+    // Create sort params and validate
+    let sort = SortParams {
+        sort_by: query.sort_by.clone(),
+        sort_direction: query.sort_direction.clone(),
+    };
+    let (sort_column, sort_direction) = sort.validate_and_build(
         SortableColumns::RUNS,
         "created_at",
     );
@@ -72,8 +90,8 @@ async fn list_runs(
             org_id,
             query.query_id,
             status,
-            query.date_range.start_date,
-            query.date_range.end_date,
+            query.start_date,
+            query.end_date,
             &sort_column,
             &sort_direction,
             pagination.limit,
