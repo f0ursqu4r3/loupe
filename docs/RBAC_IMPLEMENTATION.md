@@ -186,6 +186,22 @@ async fn handler(
 | `/:id/edges/:edge_id`   | PUT    | Editor     | Update edge      |
 | `/:id/edges/:edge_id`   | DELETE | Editor     | Delete edge      |
 
+### Organizations (`/api/v1/organizations`)
+
+| Endpoint                    | Method | Permission  | Description                 |
+| --------------------------- | ------ | ----------- | --------------------------- |
+| `/users`                    | GET    | Viewer      | List organization users     |
+| `/users/:user_id/role`      | PUT    | **Admin** ⚠️ | Update user role            |
+| `/users/:user_id`           | DELETE | **Admin** ⚠️ | Remove user from org        |
+
+**Note:** User role management requires Admin permission. Users cannot modify their own role or remove themselves from the organization.
+
+**Business Rules:**
+- Admins cannot change their own role (prevents accidental lockout)
+- Admins cannot remove themselves from the organization (prevents accidental lockout)
+- Only users within the same organization can be modified
+- All role changes are logged in the `updated_at` timestamp
+
 ---
 
 ## Error Responses

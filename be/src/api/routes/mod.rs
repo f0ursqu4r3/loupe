@@ -3,6 +3,7 @@ mod canvases;
 mod dashboards;
 mod datasources;
 mod health;
+mod organizations;
 mod queries;
 mod runs;
 mod schedules;
@@ -21,6 +22,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .configure(dashboards::configure)
             .configure(visualizations::configure)
             .configure(schedules::configure)
-            .configure(canvases::configure),
+            .configure(canvases::configure)
+            .configure(organizations::configure),
     );
 }

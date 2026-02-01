@@ -102,6 +102,74 @@ impl Database {
         Ok(user)
     }
 
+    // ==================== Organization User Management ====================
+
+    /// List all users in an organization
+    pub async fn list_organization_users(&self, org_id: Uuid) -> Result<Vec<User>> {
+        let users = sqlx::query_as::<_, User>(
+            "SELECT * FROM users WHERE org_id = $1 ORDER BY created_at DESC",
+        )
+        .bind(org_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(users)
+    }
+
+    /// Get a specific user within an organization (for verification)
+    pub async fn get_user_in_organization(&self, user_id: Uuid, org_id: Uuid) -> Result<User> {
+        let user = sqlx::query_as::<_, User>(
+            "SELECT * FROM users WHERE id = $1 AND org_id = $2",
+        )
+        .bind(user_id)
+        .bind(org_id)
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or_else(|| Error::NotFound("User not found in this organization".into()))?;
+
+        Ok(user)
+    }
+
+    /// Update a user's role within an organization
+    pub async fn update_user_role(
+        &self,
+        user_id: Uuid,
+        org_id: Uuid,
+        new_role: OrgRole,
+    ) -> Result<User> {
+        let user = sqlx::query_as::<_, User>(
+            r#"
+            UPDATE users
+            SET role = $3, updated_at = NOW()
+            WHERE id = $1 AND org_id = $2
+            RETURNING *
+            "#,
+        )
+        .bind(user_id)
+        .bind(org_id)
+        .bind(new_role)
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or_else(|| Error::NotFound("User not found in this organization".into()))?;
+
+        Ok(user)
+    }
+
+    /// Remove a user from an organization
+    pub async fn remove_user_from_organization(&self, user_id: Uuid, org_id: Uuid) -> Result<()> {
+        let result = sqlx::query("DELETE FROM users WHERE id = $1 AND org_id = $2")
+            .bind(user_id)
+            .bind(org_id)
+            .execute(&self.pool)
+            .await?;
+
+        if result.rows_affected() == 0 {
+            return Err(Error::NotFound("User not found in this organization".into()));
+        }
+
+        Ok(())
+    }
+
     // ==================== Datasources ====================
 
     pub async fn create_datasource(
