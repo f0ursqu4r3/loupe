@@ -8,6 +8,7 @@ use loupe::models::{
     UpdateDatasourceRequest,
 };
 use loupe::validation::validate_request;
+use loupe::{PaginatedResponse, PaginationParams};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -27,13 +28,23 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 async fn list_datasources(
     state: web::Data<Arc<AppState>>,
     req: HttpRequest,
+    params: web::Query<PaginationParams>,
 ) -> Result<HttpResponse, Error> {
     let (_, org_id, role) = get_user_context(&state, &req).await?;
     require_permission(role, Permission::Viewer)?;
 
-    let datasources = state.db.list_datasources(org_id).await?;
-    let response: Vec<DatasourceResponse> = datasources.into_iter().map(Into::into).collect();
-    Ok(HttpResponse::Ok().json(response))
+    let mut pagination = params.into_inner();
+    pagination.validate();
+
+    let (datasources, total) = state
+        .db
+        .list_datasources_paginated(org_id, pagination.limit, pagination.offset)
+        .await?;
+
+    let items: Vec<DatasourceResponse> = datasources.into_iter().map(Into::into).collect();
+
+    let paginated = PaginatedResponse::new(items, total, &pagination);
+    Ok(HttpResponse::Ok().json(paginated))
 }
 
 async fn create_datasource(

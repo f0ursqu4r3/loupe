@@ -4,6 +4,7 @@ use actix_web::{HttpRequest, HttpResponse, web};
 use loupe::Error;
 use loupe::models::{CreateScheduleRequest, ScheduleResponse, UpdateScheduleRequest};
 use loupe::validation::validate_request;
+use loupe::{PaginatedResponse, PaginationParams};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -24,13 +25,23 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 async fn list_schedules(
     state: web::Data<Arc<AppState>>,
     req: HttpRequest,
+    params: web::Query<PaginationParams>,
 ) -> Result<HttpResponse, Error> {
     let (_, org_id, role) = get_user_context(&state, &req).await?;
     require_permission(role, Permission::Viewer)?;
 
-    let schedules = state.db.list_schedules(org_id).await?;
-    let response: Vec<ScheduleResponse> = schedules.into_iter().map(Into::into).collect();
-    Ok(HttpResponse::Ok().json(response))
+    let mut pagination = params.into_inner();
+    pagination.validate();
+
+    let (schedules, total) = state
+        .db
+        .list_schedules_paginated(org_id, pagination.limit, pagination.offset)
+        .await?;
+
+    let items: Vec<ScheduleResponse> = schedules.into_iter().map(Into::into).collect();
+
+    let paginated = PaginatedResponse::new(items, total, &pagination);
+    Ok(HttpResponse::Ok().json(paginated))
 }
 
 async fn get_schedule(

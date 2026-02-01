@@ -6,6 +6,7 @@ use loupe::models::{
     CreateVisualizationRequest, UpdateVisualizationRequest, VisualizationResponse,
 };
 use loupe::validation::validate_request;
+use loupe::{PaginatedResponse, PaginationParams};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -23,6 +24,8 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 #[derive(serde::Deserialize)]
 pub struct ListVisualizationsQuery {
     query_id: Option<Uuid>,
+    #[serde(flatten)]
+    pagination: PaginationParams,
 }
 
 async fn list_visualizations(
@@ -33,9 +36,18 @@ async fn list_visualizations(
     let (_, org_id, role) = get_user_context(&state, &req).await?;
     require_permission(role, Permission::Viewer)?;
 
-    let vizs = state.db.list_visualizations(org_id, query.query_id).await?;
-    let response: Vec<VisualizationResponse> = vizs.into_iter().map(Into::into).collect();
-    Ok(HttpResponse::Ok().json(response))
+    let mut pagination = query.pagination.clone();
+    pagination.validate();
+
+    let (vizs, total) = state
+        .db
+        .list_visualizations_paginated(org_id, query.query_id, pagination.limit, pagination.offset)
+        .await?;
+
+    let items: Vec<VisualizationResponse> = vizs.into_iter().map(Into::into).collect();
+
+    let paginated = PaginatedResponse::new(items, total, &pagination);
+    Ok(HttpResponse::Ok().json(paginated))
 }
 
 async fn create_visualization(

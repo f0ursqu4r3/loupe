@@ -266,6 +266,33 @@ impl Database {
         Ok(users)
     }
 
+    pub async fn list_organization_users_paginated(
+        &self,
+        org_id: Uuid,
+        limit: i64,
+        offset: i64,
+    ) -> Result<(Vec<User>, i64)> {
+        // Get paginated results
+        let users = sqlx::query_as::<_, User>(
+            "SELECT * FROM users WHERE org_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3",
+        )
+        .bind(org_id)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(&self.pool)
+        .await?;
+
+        // Get total count
+        let total: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM users WHERE org_id = $1",
+        )
+        .bind(org_id)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok((users, total.0))
+    }
+
     /// Get a specific user within an organization (for verification)
     pub async fn get_user_in_organization(&self, user_id: Uuid, org_id: Uuid) -> Result<User> {
         let user = sqlx::query_as::<_, User>(
@@ -372,6 +399,33 @@ impl Database {
         Ok(datasources)
     }
 
+    pub async fn list_datasources_paginated(
+        &self,
+        org_id: Uuid,
+        limit: i64,
+        offset: i64,
+    ) -> Result<(Vec<Datasource>, i64)> {
+        // Get paginated results
+        let datasources = sqlx::query_as::<_, Datasource>(
+            "SELECT * FROM datasources WHERE org_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3",
+        )
+        .bind(org_id)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(&self.pool)
+        .await?;
+
+        // Get total count
+        let total: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM datasources WHERE org_id = $1",
+        )
+        .bind(org_id)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok((datasources, total.0))
+    }
+
     pub async fn update_datasource(
         &self,
         id: Uuid,
@@ -468,6 +522,33 @@ impl Database {
         .await?;
 
         Ok(queries)
+    }
+
+    pub async fn list_queries_paginated(
+        &self,
+        org_id: Uuid,
+        limit: i64,
+        offset: i64,
+    ) -> Result<(Vec<Query>, i64)> {
+        // Get paginated results
+        let queries = sqlx::query_as::<_, Query>(
+            "SELECT * FROM queries WHERE org_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3",
+        )
+        .bind(org_id)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(&self.pool)
+        .await?;
+
+        // Get total count
+        let total: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM queries WHERE org_id = $1",
+        )
+        .bind(org_id)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok((queries, total.0))
     }
 
     pub async fn update_query(
@@ -586,6 +667,56 @@ impl Database {
         };
 
         Ok(runs)
+    }
+
+    pub async fn list_runs_paginated(
+        &self,
+        org_id: Uuid,
+        query_id: Option<Uuid>,
+        limit: i64,
+        offset: i64,
+    ) -> Result<(Vec<Run>, i64)> {
+        // Get paginated results
+        let runs = if let Some(qid) = query_id {
+            sqlx::query_as::<_, Run>(
+                "SELECT * FROM runs WHERE org_id = $1 AND query_id = $2 ORDER BY created_at DESC LIMIT $3 OFFSET $4",
+            )
+            .bind(org_id)
+            .bind(qid)
+            .bind(limit)
+            .bind(offset)
+            .fetch_all(&self.pool)
+            .await?
+        } else {
+            sqlx::query_as::<_, Run>(
+                "SELECT * FROM runs WHERE org_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3",
+            )
+            .bind(org_id)
+            .bind(limit)
+            .bind(offset)
+            .fetch_all(&self.pool)
+            .await?
+        };
+
+        // Get total count
+        let total: (i64,) = if let Some(qid) = query_id {
+            sqlx::query_as(
+                "SELECT COUNT(*) FROM runs WHERE org_id = $1 AND query_id = $2",
+            )
+            .bind(org_id)
+            .bind(qid)
+            .fetch_one(&self.pool)
+            .await?
+        } else {
+            sqlx::query_as(
+                "SELECT COUNT(*) FROM runs WHERE org_id = $1",
+            )
+            .bind(org_id)
+            .fetch_one(&self.pool)
+            .await?
+        };
+
+        Ok((runs, total.0))
     }
 
     /// Claim a queued run for execution (called by runner)
@@ -773,6 +904,56 @@ impl Database {
         Ok(vizs)
     }
 
+    pub async fn list_visualizations_paginated(
+        &self,
+        org_id: Uuid,
+        query_id: Option<Uuid>,
+        limit: i64,
+        offset: i64,
+    ) -> Result<(Vec<Visualization>, i64)> {
+        // Get paginated results
+        let vizs = if let Some(qid) = query_id {
+            sqlx::query_as::<_, Visualization>(
+                "SELECT * FROM visualizations WHERE org_id = $1 AND query_id = $2 ORDER BY created_at DESC LIMIT $3 OFFSET $4",
+            )
+            .bind(org_id)
+            .bind(qid)
+            .bind(limit)
+            .bind(offset)
+            .fetch_all(&self.pool)
+            .await?
+        } else {
+            sqlx::query_as::<_, Visualization>(
+                "SELECT * FROM visualizations WHERE org_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3",
+            )
+            .bind(org_id)
+            .bind(limit)
+            .bind(offset)
+            .fetch_all(&self.pool)
+            .await?
+        };
+
+        // Get total count
+        let total: (i64,) = if let Some(qid) = query_id {
+            sqlx::query_as(
+                "SELECT COUNT(*) FROM visualizations WHERE org_id = $1 AND query_id = $2",
+            )
+            .bind(org_id)
+            .bind(qid)
+            .fetch_one(&self.pool)
+            .await?
+        } else {
+            sqlx::query_as(
+                "SELECT COUNT(*) FROM visualizations WHERE org_id = $1",
+            )
+            .bind(org_id)
+            .fetch_one(&self.pool)
+            .await?
+        };
+
+        Ok((vizs, total.0))
+    }
+
     pub async fn delete_visualization(&self, id: Uuid, org_id: Uuid) -> Result<()> {
         sqlx::query("DELETE FROM visualizations WHERE id = $1 AND org_id = $2")
             .bind(id)
@@ -871,6 +1052,33 @@ impl Database {
         .await?;
 
         Ok(dashboards)
+    }
+
+    pub async fn list_dashboards_paginated(
+        &self,
+        org_id: Uuid,
+        limit: i64,
+        offset: i64,
+    ) -> Result<(Vec<Dashboard>, i64)> {
+        // Get paginated results
+        let dashboards = sqlx::query_as::<_, Dashboard>(
+            "SELECT * FROM dashboards WHERE org_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3",
+        )
+        .bind(org_id)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(&self.pool)
+        .await?;
+
+        // Get total count
+        let total: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM dashboards WHERE org_id = $1",
+        )
+        .bind(org_id)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok((dashboards, total.0))
     }
 
     pub async fn delete_dashboard(&self, id: Uuid, org_id: Uuid) -> Result<()> {
@@ -1086,6 +1294,33 @@ impl Database {
         Ok(schedules)
     }
 
+    pub async fn list_schedules_paginated(
+        &self,
+        org_id: Uuid,
+        limit: i64,
+        offset: i64,
+    ) -> Result<(Vec<Schedule>, i64)> {
+        // Get paginated results
+        let schedules = sqlx::query_as::<_, Schedule>(
+            "SELECT * FROM schedules WHERE org_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3",
+        )
+        .bind(org_id)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(&self.pool)
+        .await?;
+
+        // Get total count
+        let total: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM schedules WHERE org_id = $1",
+        )
+        .bind(org_id)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok((schedules, total.0))
+    }
+
     pub async fn get_due_schedules(&self) -> Result<Vec<Schedule>> {
         let schedules = sqlx::query_as::<_, Schedule>(
             "SELECT * FROM schedules WHERE enabled = true AND (next_run_at IS NULL OR next_run_at <= NOW())",
@@ -1276,6 +1511,33 @@ impl Database {
         .await?;
 
         Ok(canvases)
+    }
+
+    pub async fn list_canvases_paginated(
+        &self,
+        org_id: Uuid,
+        limit: i64,
+        offset: i64,
+    ) -> Result<(Vec<Canvas>, i64)> {
+        // Get paginated results
+        let canvases = sqlx::query_as::<_, Canvas>(
+            "SELECT * FROM canvases WHERE org_id = $1 ORDER BY updated_at DESC LIMIT $2 OFFSET $3",
+        )
+        .bind(org_id)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(&self.pool)
+        .await?;
+
+        // Get total count
+        let total: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM canvases WHERE org_id = $1",
+        )
+        .bind(org_id)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok((canvases, total.0))
     }
 
     pub async fn update_canvas(

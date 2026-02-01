@@ -101,8 +101,12 @@ async function loadQueries() {
   try {
     loading.value = true
     error.value = null
-    queries.value = await queriesApi.list()
-    datasources.value = await datasourcesApi.list()
+    const [queriesResponse, datasourcesResponse] = await Promise.all([
+      queriesApi.list(),
+      datasourcesApi.list()
+    ])
+    queries.value = queriesResponse.items
+    datasources.value = datasourcesResponse.items
 
     // Set default datasource for import
     if (datasources.value.length > 0 && !importDatasourceId.value) {
@@ -120,8 +124,8 @@ async function loadQueries() {
 
       // Fetch last run
       try {
-        const runs = await runsApi.list(query.id)
-        lastRuns.value[query.id] = runs.length > 0 ? runs[0]! : null
+        const runsResponse = await runsApi.list(query.id)
+        lastRuns.value[query.id] = runsResponse.items.length > 0 ? runsResponse.items[0]! : null
       } catch {
         lastRuns.value[query.id] = null
       }

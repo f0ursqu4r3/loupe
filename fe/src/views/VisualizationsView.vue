@@ -69,8 +69,8 @@ async function loadVisualizations() {
     loading.value = true
     error.value = null
     const [vizs, qs] = await Promise.all([visualizationsApi.list(), queriesApi.list()])
-    visualizations.value = vizs
-    queries.value = qs
+    visualizations.value = vizs.items
+    queries.value = qs.items
   } catch (e) {
     handleError(e, 'Failed to load visualizations')
     error.value = e instanceof Error ? e.message : 'Failed to load visualizations'

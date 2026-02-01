@@ -5,11 +5,13 @@ import type {
   UpdateDatasourceRequest,
   ConnectionTestResult,
   UUID,
+  PaginatedResponse,
+  PaginationParams,
 } from '@/types'
 
 export const datasourcesApi = {
-  list(): Promise<Datasource[]> {
-    return api.get<Datasource[]>('/datasources')
+  list(params?: PaginationParams): Promise<PaginatedResponse<Datasource>> {
+    return api.get<PaginatedResponse<Datasource>>('/datasources', { params })
   },
 
   get(id: UUID): Promise<Datasource> {

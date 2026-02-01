@@ -219,7 +219,8 @@ async function saveDashboard() {
 async function openAddTileModal() {
   showAddTileModal.value = true
   try {
-    visualizations.value = await visualizationsApi.list()
+    const response = await visualizationsApi.list()
+    visualizations.value = response.items
   } catch (e) {
     console.error('Failed to load visualizations:', e)
   }

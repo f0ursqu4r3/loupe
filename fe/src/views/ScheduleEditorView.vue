@@ -111,7 +111,8 @@ watch(selectedPreset, (value) => {
 // Load all queries for the selector
 async function loadQueries() {
   try {
-    allQueries.value = await queriesApi.list()
+    const response = await queriesApi.list()
+    allQueries.value = response.items
   } catch (e) {
     console.error('Failed to load queries:', e)
   }

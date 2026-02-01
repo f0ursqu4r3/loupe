@@ -4,11 +4,14 @@ import type {
   CreateVisualizationRequest,
   UpdateVisualizationRequest,
   UUID,
+  PaginatedResponse,
+  PaginationParams,
 } from '@/types'
 
 export const visualizationsApi = {
-  list(queryId?: UUID): Promise<Visualization[]> {
-    return api.get<Visualization[]>('/visualizations', { params: { query_id: queryId } })
+  list(queryId?: UUID, paginationParams?: PaginationParams): Promise<PaginatedResponse<Visualization>> {
+    const params = { ...paginationParams, query_id: queryId }
+    return api.get<PaginatedResponse<Visualization>>('/visualizations', { params })
   },
 
   get(id: UUID): Promise<Visualization> {

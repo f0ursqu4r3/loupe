@@ -59,7 +59,8 @@ function formatDate(dateStr: string | undefined) {
 async function loadUsers() {
   try {
     loadingUsers.value = true
-    users.value = await organizationsApi.listUsers()
+    const response = await organizationsApi.listUsers()
+    users.value = response.items
   } catch (e) {
     handleError(e, 'Failed to load organization users')
   } finally {

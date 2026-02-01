@@ -6,6 +6,7 @@ use loupe::models::{
     CreateRunRequest, ExecuteAdHocRequest, ParamDef, RunResponse, RunResultResponse,
 };
 use loupe::params::{ParamSchema, bind_params};
+use loupe::{PaginatedResponse, PaginationParams};
 use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -24,6 +25,8 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 #[derive(serde::Deserialize)]
 pub struct ListRunsQuery {
     query_id: Option<Uuid>,
+    #[serde(flatten)]
+    pagination: PaginationParams,
 }
 
 async fn list_runs(
@@ -34,9 +37,18 @@ async fn list_runs(
     let (_, org_id, role) = get_user_context(&state, &req).await?;
     require_permission(role, Permission::Viewer)?;
 
-    let runs = state.db.list_runs(org_id, query.query_id).await?;
-    let response: Vec<RunResponse> = runs.into_iter().map(Into::into).collect();
-    Ok(HttpResponse::Ok().json(response))
+    let mut pagination = query.pagination.clone();
+    pagination.validate();
+
+    let (runs, total) = state
+        .db
+        .list_runs_paginated(org_id, query.query_id, pagination.limit, pagination.offset)
+        .await?;
+
+    let items: Vec<RunResponse> = runs.into_iter().map(Into::into).collect();
+
+    let paginated = PaginatedResponse::new(items, total, &pagination);
+    Ok(HttpResponse::Ok().json(paginated))
 }
 
 async fn create_run(

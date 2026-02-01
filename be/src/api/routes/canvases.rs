@@ -7,6 +7,7 @@ use loupe::models::{
     UpdateCanvasRequest,
 };
 use loupe::validation::validate_request;
+use loupe::{PaginatedResponse, PaginationParams};
 use loupe::Error;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -35,24 +36,32 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 async fn list_canvases(
     state: web::Data<Arc<AppState>>,
     req: HttpRequest,
+    params: web::Query<PaginationParams>,
 ) -> Result<HttpResponse, Error> {
     let (_, org_id, role) = get_user_context(&state, &req).await?;
     require_permission(role, Permission::Viewer)?;
 
-    let canvases = state.db.list_canvases(org_id).await?;
+    let mut pagination = params.into_inner();
+    pagination.validate();
 
-    let mut response = Vec::new();
+    let (canvases, total) = state
+        .db
+        .list_canvases_paginated(org_id, pagination.limit, pagination.offset)
+        .await?;
+
+    let mut items = Vec::new();
     for canvas in canvases {
         let nodes = state.db.list_canvas_nodes(canvas.id).await?;
         let edges = state.db.list_canvas_edges(canvas.id).await?;
 
-        response.push(canvas.into_response(
+        items.push(canvas.into_response(
             nodes.into_iter().map(Into::into).collect(),
             edges.into_iter().map(Into::into).collect(),
         ));
     }
 
-    Ok(HttpResponse::Ok().json(response))
+    let paginated = PaginatedResponse::new(items, total, &pagination);
+    Ok(HttpResponse::Ok().json(paginated))
 }
 
 async fn create_canvas(

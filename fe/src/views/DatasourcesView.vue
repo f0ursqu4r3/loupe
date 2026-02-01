@@ -48,7 +48,8 @@ async function loadDatasources() {
   try {
     loading.value = true
     error.value = null
-    datasources.value = await datasourcesApi.list()
+    const response = await datasourcesApi.list()
+    datasources.value = response.items
   } catch (e) {
     handleError(e, 'Failed to load datasources')
     error.value =

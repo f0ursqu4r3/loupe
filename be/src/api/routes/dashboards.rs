@@ -6,6 +6,7 @@ use loupe::models::{
     CreateDashboardRequest, CreateTileRequest, DashboardResponse, TileResponse,
     UpdateDashboardRequest, UpdateTileRequest,
 };
+use loupe::{PaginatedResponse, PaginationParams};
 use loupe::validation::validate_request;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -27,17 +28,24 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 async fn list_dashboards(
     state: web::Data<Arc<AppState>>,
     req: HttpRequest,
+    params: web::Query<PaginationParams>,
 ) -> Result<HttpResponse, Error> {
     let (_, org_id, role) = get_user_context(&state, &req).await?;
     require_permission(role, Permission::Viewer)?;
 
-    let dashboards = state.db.list_dashboards(org_id).await?;
+    let mut pagination = params.into_inner();
+    pagination.validate();
 
-    let mut response = Vec::new();
+    let (dashboards, total) = state
+        .db
+        .list_dashboards_paginated(org_id, pagination.limit, pagination.offset)
+        .await?;
+
+    let mut items = Vec::new();
     for dashboard in dashboards {
         let tiles = state.db.list_tiles(dashboard.id).await?;
         let tags: Vec<String> = serde_json::from_value(dashboard.tags).unwrap_or_default();
-        response.push(DashboardResponse {
+        items.push(DashboardResponse {
             id: dashboard.id,
             org_id: dashboard.org_id,
             name: dashboard.name,
@@ -51,7 +59,8 @@ async fn list_dashboards(
         });
     }
 
-    Ok(HttpResponse::Ok().json(response))
+    let paginated = PaginatedResponse::new(items, total, &pagination);
+    Ok(HttpResponse::Ok().json(paginated))
 }
 
 async fn create_dashboard(

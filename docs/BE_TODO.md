@@ -188,18 +188,70 @@ These are high-priority security and data integrity improvements.
 - [ ] Test validation edge cases
 - [ ] Document validation rules
 
-### 8. Pagination Implementation
+### 8. Pagination Implementation ✅
 
-- [ ] Design consistent pagination pattern
-- [ ] Add `limit` and `offset` parameters
-- [ ] Add `cursor`-based pagination (optional)
-- [ ] Return total count in responses
-- [ ] Add pagination metadata (page, per_page, total)
-- [ ] Implement in dashboard list endpoint
-- [ ] Implement in query list endpoint
-- [ ] Implement in run history endpoint
-- [ ] Add default and max page sizes
-- [ ] Document pagination in API docs
+- [x] Design consistent pagination pattern
+- [x] Add `limit` and `offset` parameters
+- [ ] Add `cursor`-based pagination (optional, future enhancement)
+- [x] Return total count in responses
+- [x] Add pagination metadata (page, per_page, total, has_next, has_prev, total_pages)
+- [x] Implement in dashboard list endpoint
+- [x] Implement in query list endpoint
+- [x] Implement in run history endpoint
+- [x] Implement in visualization list endpoint
+- [x] Implement in schedule list endpoint
+- [x] Implement in canvas list endpoint
+- [x] Implement in datasource list endpoint
+- [x] Implement in organization users list endpoint
+- [x] Add default and max page sizes (DEFAULT_PAGE_SIZE=20, MAX_PAGE_SIZE=100)
+- [x] Update frontend API clients and views
+- [x] Document pagination in API docs
+
+**Status:** ✅ **COMPLETE** - Comprehensive pagination implemented across all list endpoints
+
+**Implementation Details:**
+
+- Created [pagination.rs](../be/src/common/pagination.rs) module with reusable types:
+  - `PaginationParams`: Query parameters with limit (default: 20), offset (default: 0)
+  - `PaginatedResponse<T>`: Generic wrapper with items, total, page, per_page, total_pages, has_next, has_prev
+  - Constants: DEFAULT_PAGE_SIZE (20), MAX_PAGE_SIZE (100)
+  - Automatic validation and clamping of limit and offset parameters
+  - Computed page number from offset/limit for easier navigation
+- Database layer enhancements ([db/mod.rs](../be/src/common/db/mod.rs)):
+  - Added 7 paginated methods: `list_*_paginated(org_id, limit, offset)`
+  - Each method returns `(Vec<T>, i64)` - items and total count
+  - Uses SQL LIMIT and OFFSET for efficient pagination
+  - Separate COUNT query for total count
+- Route handlers updated (8 endpoints):
+  - [dashboards.rs](../be/src/api/routes/dashboards.rs) - GET /dashboards
+  - [queries.rs](../be/src/api/routes/queries.rs) - GET /queries
+  - [runs.rs](../be/src/api/routes/runs.rs) - GET /runs (preserves query_id filter)
+  - [visualizations.rs](../be/src/api/routes/visualizations.rs) - GET /visualizations (preserves query_id filter)
+  - [schedules.rs](../be/src/api/routes/schedules.rs) - GET /schedules
+  - [canvases.rs](../be/src/api/routes/canvases.rs) - GET /canvases
+  - [datasources.rs](../be/src/api/routes/datasources.rs) - GET /datasources
+  - [organizations.rs](../be/src/api/routes/organizations.rs) - GET /organizations/users
+- Frontend updates:
+  - Created [pagination.ts](../fe/src/types/pagination.ts) with TypeScript types
+  - Updated 7 API clients to return `PaginatedResponse<T>` and accept `PaginationParams`
+  - Updated 11 Vue views to use `response.items` from paginated responses
+- Testing:
+  - 6 unit tests for pagination module (defaults, validation, page calculation, metadata)
+  - All tests passing
+  - Backend compilation successful
+
+**Files Modified:**
+
+- Backend:
+  - [pagination.rs](../be/src/common/pagination.rs) - New pagination module
+  - [db/mod.rs](../be/src/common/db/mod.rs) - Added 7 paginated database methods
+  - [mod.rs](../be/src/common/mod.rs) - Export pagination types
+  - 8 route handler files - Updated to use pagination
+- Frontend:
+  - [pagination.ts](../fe/src/types/pagination.ts) - New TypeScript types
+  - [index.ts](../fe/src/types/index.ts) - Export pagination types
+  - 7 API client files - Updated to handle PaginatedResponse
+  - 11 Vue view files - Updated to use .items from responses
 
 ### 9. Filtering & Sorting
 
@@ -752,7 +804,7 @@ be/src/
 **Last Updated:** 2026-01-31
 
 **Critical Security:** 5/5 (100%) ✅ - Input Validation ✅, SQL Injection ✅, Auth & RBAC ✅, Error Handling ✅, DB Connection ✅
-**API Design:** 0/4 (0%)
+**API Design:** 1/4 (25%) - Pagination Implementation ✅
 **Testing:** 0/4 (0%)
 **Database:** 0/4 (0%)
 **Performance:** 1/5 (20%) - Rate Limiting ✅
@@ -763,7 +815,7 @@ be/src/
 **DevOps:** 0/4 (0%)
 **Data Management:** 0/3 (0%)
 
-**Overall Progress:** 6/48 major tasks (12.5%)
+**Overall Progress:** 7/48 major tasks (14.6%)
 
 ---
 

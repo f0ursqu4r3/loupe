@@ -6,6 +6,7 @@ use loupe::models::{
     CreateQueryRequest, ImportQueriesRequest, ImportQueriesResponse, QueryExport, QueryResponse,
     UpdateQueryRequest,
 };
+use loupe::{PaginatedResponse, PaginationParams};
 use std::sync::Arc;
 use validator::Validate;
 use uuid::Uuid;
@@ -26,13 +27,23 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 async fn list_queries(
     state: web::Data<Arc<AppState>>,
     req: HttpRequest,
+    params: web::Query<PaginationParams>,
 ) -> Result<HttpResponse, Error> {
     let (_, org_id, role) = get_user_context(&state, &req).await?;
     require_permission(role, Permission::Viewer)?;
 
-    let queries = state.db.list_queries(org_id).await?;
-    let response: Vec<QueryResponse> = queries.into_iter().map(Into::into).collect();
-    Ok(HttpResponse::Ok().json(response))
+    let mut pagination = params.into_inner();
+    pagination.validate();
+
+    let (queries, total) = state
+        .db
+        .list_queries_paginated(org_id, pagination.limit, pagination.offset)
+        .await?;
+
+    let items: Vec<QueryResponse> = queries.into_iter().map(Into::into).collect();
+
+    let paginated = PaginatedResponse::new(items, total, &pagination);
+    Ok(HttpResponse::Ok().json(paginated))
 }
 
 async fn create_query(

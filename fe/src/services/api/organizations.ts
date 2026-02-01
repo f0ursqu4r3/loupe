@@ -1,5 +1,5 @@
 import { api } from './client'
-import type { User, UserRole } from '@/types'
+import type { User, UserRole, PaginatedResponse, PaginationParams } from '@/types'
 
 export interface UpdateUserRoleRequest {
   role: UserRole
@@ -9,8 +9,8 @@ export const organizationsApi = {
   /**
    * List all users in the current organization
    */
-  async listUsers(): Promise<User[]> {
-    return api.get<User[]>('/organizations/users')
+  async listUsers(params?: PaginationParams): Promise<PaginatedResponse<User>> {
+    return api.get<PaginatedResponse<User>>('/organizations/users', { params })
   },
 
   /**
