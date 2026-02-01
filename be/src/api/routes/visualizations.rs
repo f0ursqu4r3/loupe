@@ -2,6 +2,7 @@ use crate::AppState;
 use crate::permissions::{get_user_context, require_permission, Permission};
 use actix_web::{HttpRequest, HttpResponse, web};
 use loupe::Error;
+use loupe::filtering::{parse_tags, SearchParams, SortParams, SortableColumns};
 use loupe::models::{
     CreateVisualizationRequest, UpdateVisualizationRequest, VisualizationResponse,
 };
@@ -23,7 +24,15 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 
 #[derive(serde::Deserialize)]
 pub struct ListVisualizationsQuery {
-    query_id: Option<Uuid>,
+    #[serde(flatten)]
+    pub search: SearchParams,
+
+    pub query_id: Option<Uuid>,
+    pub tags: Option<String>,
+
+    #[serde(flatten)]
+    pub sort: SortParams,
+
     #[serde(flatten)]
     pagination: PaginationParams,
 }
@@ -39,9 +48,30 @@ async fn list_visualizations(
     let mut pagination = query.pagination.clone();
     pagination.validate();
 
+    // Validate and build sort params
+    let (sort_column, sort_direction) = query.sort.validate_and_build(
+        SortableColumns::VISUALIZATIONS,
+        "created_at",
+    );
+
+    // Parse tags filter
+    let tags = query.tags.as_ref().map(|t| parse_tags(t)).filter(|v| !v.is_empty());
+
+    // Get search pattern
+    let search = query.search.get_pattern();
+
     let (vizs, total) = state
         .db
-        .list_visualizations_paginated(org_id, query.query_id, pagination.limit, pagination.offset)
+        .list_visualizations_paginated(
+            org_id,
+            search,
+            query.query_id,
+            tags,
+            &sort_column,
+            &sort_direction,
+            pagination.limit,
+            pagination.offset,
+        )
         .await?;
 
     let items: Vec<VisualizationResponse> = vizs.into_iter().map(Into::into).collect();

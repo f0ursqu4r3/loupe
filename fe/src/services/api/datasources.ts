@@ -6,11 +6,11 @@ import type {
   ConnectionTestResult,
   UUID,
   PaginatedResponse,
-  PaginationParams,
+  DatasourceFilterParams,
 } from '@/types'
 
 export const datasourcesApi = {
-  list(params?: PaginationParams): Promise<PaginatedResponse<Datasource>> {
+  list(params?: DatasourceFilterParams): Promise<PaginatedResponse<Datasource>> {
     return api.get<PaginatedResponse<Datasource>>('/datasources', { params })
   },
 

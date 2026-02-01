@@ -402,26 +402,51 @@ impl Database {
     pub async fn list_datasources_paginated(
         &self,
         org_id: Uuid,
+        search: Option<String>,
+        sort_column: &str,
+        sort_direction: &str,
         limit: i64,
         offset: i64,
     ) -> Result<(Vec<Datasource>, i64)> {
-        // Get paginated results
-        let datasources = sqlx::query_as::<_, Datasource>(
-            "SELECT * FROM datasources WHERE org_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3",
-        )
-        .bind(org_id)
-        .bind(limit)
-        .bind(offset)
-        .fetch_all(&self.pool)
-        .await?;
+        let order_by = format!("{} {}", sort_column, sort_direction);
 
-        // Get total count
-        let total: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM datasources WHERE org_id = $1",
-        )
-        .bind(org_id)
-        .fetch_one(&self.pool)
-        .await?;
+        // Build query based on search filter
+        let datasources = if let Some(pattern) = search.as_ref() {
+            sqlx::query_as(&format!(
+                "SELECT * FROM datasources WHERE org_id = $1 AND name ILIKE $2 ORDER BY {} LIMIT $3 OFFSET $4",
+                order_by
+            ))
+            .bind(org_id)
+            .bind(pattern)
+            .bind(limit)
+            .bind(offset)
+            .fetch_all(&self.pool)
+            .await?
+        } else {
+            sqlx::query_as(&format!(
+                "SELECT * FROM datasources WHERE org_id = $1 ORDER BY {} LIMIT $2 OFFSET $3",
+                order_by
+            ))
+            .bind(org_id)
+            .bind(limit)
+            .bind(offset)
+            .fetch_all(&self.pool)
+            .await?
+        };
+
+        // Get total count with same filter
+        let total: (i64,) = if let Some(pattern) = search.as_ref() {
+            sqlx::query_as("SELECT COUNT(*) FROM datasources WHERE org_id = $1 AND name ILIKE $2")
+                .bind(org_id)
+                .bind(pattern)
+                .fetch_one(&self.pool)
+                .await?
+        } else {
+            sqlx::query_as("SELECT COUNT(*) FROM datasources WHERE org_id = $1")
+                .bind(org_id)
+                .fetch_one(&self.pool)
+                .await?
+        };
 
         Ok((datasources, total.0))
     }
@@ -527,26 +552,226 @@ impl Database {
     pub async fn list_queries_paginated(
         &self,
         org_id: Uuid,
+        search: Option<String>,
+        datasource_id: Option<Uuid>,
+        tags: Option<Vec<String>>,
+        sort_column: &str,
+        sort_direction: &str,
         limit: i64,
         offset: i64,
     ) -> Result<(Vec<Query>, i64)> {
-        // Get paginated results
-        let queries = sqlx::query_as::<_, Query>(
-            "SELECT * FROM queries WHERE org_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3",
-        )
-        .bind(org_id)
-        .bind(limit)
-        .bind(offset)
-        .fetch_all(&self.pool)
-        .await?;
+        let order_by = format!("{} {}", sort_column, sort_direction);
 
-        // Get total count
-        let total: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM queries WHERE org_id = $1",
-        )
-        .bind(org_id)
-        .fetch_one(&self.pool)
-        .await?;
+        // Build query based on filter combinations
+        let queries = match (search.as_ref(), datasource_id, tags.as_ref()) {
+            (None, None, None) => {
+                sqlx::query_as(&format!(
+                    "SELECT * FROM queries WHERE org_id = $1 ORDER BY {} LIMIT $2 OFFSET $3",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            (Some(pattern), None, None) => {
+                sqlx::query_as(&format!(
+                    "SELECT * FROM queries
+                     WHERE org_id = $1 AND (name ILIKE $2 OR description ILIKE $2 OR sql ILIKE $2)
+                     ORDER BY {} LIMIT $3 OFFSET $4",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(pattern)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            (None, Some(ds_id), None) => {
+                sqlx::query_as(&format!(
+                    "SELECT * FROM queries WHERE org_id = $1 AND datasource_id = $2 ORDER BY {} LIMIT $3 OFFSET $4",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(ds_id)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            (None, None, Some(tag_list)) => {
+                let tags_json = serde_json::to_value(tag_list).expect("Vec<String> to JSON should never fail");
+                sqlx::query_as(&format!(
+                    "SELECT * FROM queries WHERE org_id = $1 AND tags @> $2 ORDER BY {} LIMIT $3 OFFSET $4",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(tags_json)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            (Some(pattern), Some(ds_id), None) => {
+                sqlx::query_as(&format!(
+                    "SELECT * FROM queries
+                     WHERE org_id = $1 AND datasource_id = $2
+                     AND (name ILIKE $3 OR description ILIKE $3 OR sql ILIKE $3)
+                     ORDER BY {} LIMIT $4 OFFSET $5",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(ds_id)
+                .bind(pattern)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            (Some(pattern), None, Some(tag_list)) => {
+                let tags_json = serde_json::to_value(tag_list).expect("Vec<String> to JSON should never fail");
+                sqlx::query_as(&format!(
+                    "SELECT * FROM queries
+                     WHERE org_id = $1 AND (name ILIKE $2 OR description ILIKE $2 OR sql ILIKE $2)
+                     AND tags @> $3
+                     ORDER BY {} LIMIT $4 OFFSET $5",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(pattern)
+                .bind(tags_json)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            (None, Some(ds_id), Some(tag_list)) => {
+                let tags_json = serde_json::to_value(tag_list).expect("Vec<String> to JSON should never fail");
+                sqlx::query_as(&format!(
+                    "SELECT * FROM queries
+                     WHERE org_id = $1 AND datasource_id = $2 AND tags @> $3
+                     ORDER BY {} LIMIT $4 OFFSET $5",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(ds_id)
+                .bind(tags_json)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            (Some(pattern), Some(ds_id), Some(tag_list)) => {
+                let tags_json = serde_json::to_value(tag_list).expect("Vec<String> to JSON should never fail");
+                sqlx::query_as(&format!(
+                    "SELECT * FROM queries
+                     WHERE org_id = $1 AND datasource_id = $2
+                     AND (name ILIKE $3 OR description ILIKE $3 OR sql ILIKE $3)
+                     AND tags @> $4
+                     ORDER BY {} LIMIT $5 OFFSET $6",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(ds_id)
+                .bind(pattern)
+                .bind(tags_json)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+        };
+
+        // Get total count with same filter conditions
+        let total: (i64,) = match (search.as_ref(), datasource_id, tags.as_ref()) {
+            (None, None, None) => {
+                sqlx::query_as("SELECT COUNT(*) FROM queries WHERE org_id = $1")
+                    .bind(org_id)
+                    .fetch_one(&self.pool)
+                    .await?
+            }
+            (Some(pattern), None, None) => {
+                sqlx::query_as(
+                    "SELECT COUNT(*) FROM queries
+                     WHERE org_id = $1 AND (name ILIKE $2 OR description ILIKE $2 OR sql ILIKE $2)",
+                )
+                .bind(org_id)
+                .bind(pattern)
+                .fetch_one(&self.pool)
+                .await?
+            }
+            (None, Some(ds_id), None) => {
+                sqlx::query_as(
+                    "SELECT COUNT(*) FROM queries WHERE org_id = $1 AND datasource_id = $2",
+                )
+                .bind(org_id)
+                .bind(ds_id)
+                .fetch_one(&self.pool)
+                .await?
+            }
+            (None, None, Some(tag_list)) => {
+                let tags_json = serde_json::to_value(tag_list).expect("Vec<String> to JSON should never fail");
+                sqlx::query_as("SELECT COUNT(*) FROM queries WHERE org_id = $1 AND tags @> $2")
+                    .bind(org_id)
+                    .bind(tags_json)
+                    .fetch_one(&self.pool)
+                    .await?
+            }
+            (Some(pattern), Some(ds_id), None) => {
+                sqlx::query_as(
+                    "SELECT COUNT(*) FROM queries
+                     WHERE org_id = $1 AND datasource_id = $2
+                     AND (name ILIKE $3 OR description ILIKE $3 OR sql ILIKE $3)",
+                )
+                .bind(org_id)
+                .bind(ds_id)
+                .bind(pattern)
+                .fetch_one(&self.pool)
+                .await?
+            }
+            (Some(pattern), None, Some(tag_list)) => {
+                let tags_json = serde_json::to_value(tag_list).expect("Vec<String> to JSON should never fail");
+                sqlx::query_as(
+                    "SELECT COUNT(*) FROM queries
+                     WHERE org_id = $1 AND (name ILIKE $2 OR description ILIKE $2 OR sql ILIKE $2)
+                     AND tags @> $3",
+                )
+                .bind(org_id)
+                .bind(pattern)
+                .bind(tags_json)
+                .fetch_one(&self.pool)
+                .await?
+            }
+            (None, Some(ds_id), Some(tag_list)) => {
+                let tags_json = serde_json::to_value(tag_list).expect("Vec<String> to JSON should never fail");
+                sqlx::query_as(
+                    "SELECT COUNT(*) FROM queries
+                     WHERE org_id = $1 AND datasource_id = $2 AND tags @> $3",
+                )
+                .bind(org_id)
+                .bind(ds_id)
+                .bind(tags_json)
+                .fetch_one(&self.pool)
+                .await?
+            }
+            (Some(pattern), Some(ds_id), Some(tag_list)) => {
+                let tags_json = serde_json::to_value(tag_list).expect("Vec<String> to JSON should never fail");
+                sqlx::query_as(
+                    "SELECT COUNT(*) FROM queries
+                     WHERE org_id = $1 AND datasource_id = $2
+                     AND (name ILIKE $3 OR description ILIKE $3 OR sql ILIKE $3)
+                     AND tags @> $4",
+                )
+                .bind(org_id)
+                .bind(ds_id)
+                .bind(pattern)
+                .bind(tags_json)
+                .fetch_one(&self.pool)
+                .await?
+            }
+        };
 
         Ok((queries, total.0))
     }
@@ -673,47 +898,203 @@ impl Database {
         &self,
         org_id: Uuid,
         query_id: Option<Uuid>,
+        status: Option<String>,
+        start_date: Option<chrono::DateTime<chrono::Utc>>,
+        end_date: Option<chrono::DateTime<chrono::Utc>>,
+        sort_column: &str,
+        sort_direction: &str,
         limit: i64,
         offset: i64,
     ) -> Result<(Vec<Run>, i64)> {
+        let order_by = format!("{} {}", sort_column, sort_direction);
+
+        // Build date range condition
+        let has_date_filter = start_date.is_some() || end_date.is_some();
+
         // Get paginated results
-        let runs = if let Some(qid) = query_id {
-            sqlx::query_as::<_, Run>(
-                "SELECT * FROM runs WHERE org_id = $1 AND query_id = $2 ORDER BY created_at DESC LIMIT $3 OFFSET $4",
-            )
-            .bind(org_id)
-            .bind(qid)
-            .bind(limit)
-            .bind(offset)
-            .fetch_all(&self.pool)
-            .await?
-        } else {
-            sqlx::query_as::<_, Run>(
-                "SELECT * FROM runs WHERE org_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3",
-            )
-            .bind(org_id)
-            .bind(limit)
-            .bind(offset)
-            .fetch_all(&self.pool)
-            .await?
+        let runs = match (query_id, status.as_ref(), has_date_filter) {
+            (None, None, false) => {
+                sqlx::query_as(&format!(
+                    "SELECT * FROM runs WHERE org_id = $1 ORDER BY {} LIMIT $2 OFFSET $3",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            (Some(qid), None, false) => {
+                sqlx::query_as(&format!(
+                    "SELECT * FROM runs WHERE org_id = $1 AND query_id = $2 ORDER BY {} LIMIT $3 OFFSET $4",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(qid)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            (None, Some(st), false) => {
+                sqlx::query_as(&format!(
+                    "SELECT * FROM runs WHERE org_id = $1 AND status = $2 ORDER BY {} LIMIT $3 OFFSET $4",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(st)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            (None, None, true) => {
+                sqlx::query_as(&format!(
+                    "SELECT * FROM runs WHERE org_id = $1 AND created_at >= $2 AND created_at <= $3 ORDER BY {} LIMIT $4 OFFSET $5",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(start_date.unwrap_or_else(|| chrono::DateTime::UNIX_EPOCH))
+                .bind(end_date.unwrap_or_else(chrono::Utc::now))
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            (Some(qid), Some(st), false) => {
+                sqlx::query_as(&format!(
+                    "SELECT * FROM runs WHERE org_id = $1 AND query_id = $2 AND status = $3 ORDER BY {} LIMIT $4 OFFSET $5",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(qid)
+                .bind(st)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            (Some(qid), None, true) => {
+                sqlx::query_as(&format!(
+                    "SELECT * FROM runs WHERE org_id = $1 AND query_id = $2 AND created_at >= $3 AND created_at <= $4 ORDER BY {} LIMIT $5 OFFSET $6",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(qid)
+                .bind(start_date.unwrap_or_else(|| chrono::DateTime::UNIX_EPOCH))
+                .bind(end_date.unwrap_or_else(chrono::Utc::now))
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            (None, Some(st), true) => {
+                sqlx::query_as(&format!(
+                    "SELECT * FROM runs WHERE org_id = $1 AND status = $2 AND created_at >= $3 AND created_at <= $4 ORDER BY {} LIMIT $5 OFFSET $6",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(st)
+                .bind(start_date.unwrap_or_else(|| chrono::DateTime::UNIX_EPOCH))
+                .bind(end_date.unwrap_or_else(chrono::Utc::now))
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            (Some(qid), Some(st), true) => {
+                sqlx::query_as(&format!(
+                    "SELECT * FROM runs WHERE org_id = $1 AND query_id = $2 AND status = $3 AND created_at >= $4 AND created_at <= $5 ORDER BY {} LIMIT $6 OFFSET $7",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(qid)
+                .bind(st)
+                .bind(start_date.unwrap_or_else(|| chrono::DateTime::UNIX_EPOCH))
+                .bind(end_date.unwrap_or_else(chrono::Utc::now))
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
         };
 
-        // Get total count
-        let total: (i64,) = if let Some(qid) = query_id {
-            sqlx::query_as(
-                "SELECT COUNT(*) FROM runs WHERE org_id = $1 AND query_id = $2",
-            )
-            .bind(org_id)
-            .bind(qid)
-            .fetch_one(&self.pool)
-            .await?
-        } else {
-            sqlx::query_as(
-                "SELECT COUNT(*) FROM runs WHERE org_id = $1",
-            )
-            .bind(org_id)
-            .fetch_one(&self.pool)
-            .await?
+        // Get total count with same filter conditions
+        let total: (i64,) = match (query_id, status.as_ref(), has_date_filter) {
+            (None, None, false) => {
+                sqlx::query_as("SELECT COUNT(*) FROM runs WHERE org_id = $1")
+                    .bind(org_id)
+                    .fetch_one(&self.pool)
+                    .await?
+            }
+            (Some(qid), None, false) => {
+                sqlx::query_as("SELECT COUNT(*) FROM runs WHERE org_id = $1 AND query_id = $2")
+                    .bind(org_id)
+                    .bind(qid)
+                    .fetch_one(&self.pool)
+                    .await?
+            }
+            (None, Some(st), false) => {
+                sqlx::query_as("SELECT COUNT(*) FROM runs WHERE org_id = $1 AND status = $2")
+                    .bind(org_id)
+                    .bind(st)
+                    .fetch_one(&self.pool)
+                    .await?
+            }
+            (None, None, true) => {
+                sqlx::query_as(
+                    "SELECT COUNT(*) FROM runs WHERE org_id = $1 AND created_at >= $2 AND created_at <= $3",
+                )
+                .bind(org_id)
+                .bind(start_date.unwrap_or_else(|| chrono::DateTime::UNIX_EPOCH))
+                .bind(end_date.unwrap_or_else(chrono::Utc::now))
+                .fetch_one(&self.pool)
+                .await?
+            }
+            (Some(qid), Some(st), false) => {
+                sqlx::query_as(
+                    "SELECT COUNT(*) FROM runs WHERE org_id = $1 AND query_id = $2 AND status = $3",
+                )
+                .bind(org_id)
+                .bind(qid)
+                .bind(st)
+                .fetch_one(&self.pool)
+                .await?
+            }
+            (Some(qid), None, true) => {
+                sqlx::query_as(
+                    "SELECT COUNT(*) FROM runs WHERE org_id = $1 AND query_id = $2 AND created_at >= $3 AND created_at <= $4",
+                )
+                .bind(org_id)
+                .bind(qid)
+                .bind(start_date.unwrap_or_else(|| chrono::DateTime::UNIX_EPOCH))
+                .bind(end_date.unwrap_or_else(chrono::Utc::now))
+                .fetch_one(&self.pool)
+                .await?
+            }
+            (None, Some(st), true) => {
+                sqlx::query_as(
+                    "SELECT COUNT(*) FROM runs WHERE org_id = $1 AND status = $2 AND created_at >= $3 AND created_at <= $4",
+                )
+                .bind(org_id)
+                .bind(st)
+                .bind(start_date.unwrap_or_else(|| chrono::DateTime::UNIX_EPOCH))
+                .bind(end_date.unwrap_or_else(chrono::Utc::now))
+                .fetch_one(&self.pool)
+                .await?
+            }
+            (Some(qid), Some(st), true) => {
+                sqlx::query_as(
+                    "SELECT COUNT(*) FROM runs WHERE org_id = $1 AND query_id = $2 AND status = $3 AND created_at >= $4 AND created_at <= $5",
+                )
+                .bind(org_id)
+                .bind(qid)
+                .bind(st)
+                .bind(start_date.unwrap_or_else(|| chrono::DateTime::UNIX_EPOCH))
+                .bind(end_date.unwrap_or_else(chrono::Utc::now))
+                .fetch_one(&self.pool)
+                .await?
+            }
         };
 
         Ok((runs, total.0))
@@ -907,48 +1288,190 @@ impl Database {
     pub async fn list_visualizations_paginated(
         &self,
         org_id: Uuid,
+        search: Option<String>,
         query_id: Option<Uuid>,
+        tags: Option<Vec<String>>,
+        sort_column: &str,
+        sort_direction: &str,
         limit: i64,
         offset: i64,
     ) -> Result<(Vec<Visualization>, i64)> {
-        // Get paginated results
-        let vizs = if let Some(qid) = query_id {
-            sqlx::query_as::<_, Visualization>(
-                "SELECT * FROM visualizations WHERE org_id = $1 AND query_id = $2 ORDER BY created_at DESC LIMIT $3 OFFSET $4",
-            )
-            .bind(org_id)
-            .bind(qid)
-            .bind(limit)
-            .bind(offset)
-            .fetch_all(&self.pool)
-            .await?
-        } else {
-            sqlx::query_as::<_, Visualization>(
-                "SELECT * FROM visualizations WHERE org_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3",
-            )
-            .bind(org_id)
-            .bind(limit)
-            .bind(offset)
-            .fetch_all(&self.pool)
-            .await?
+        let order_by = format!("{} {}", sort_column, sort_direction);
+
+        // Build query based on filter combinations
+        let vizs = match (search.as_ref(), query_id, tags.as_ref()) {
+            (None, None, None) => {
+                sqlx::query_as(&format!(
+                    "SELECT * FROM visualizations WHERE org_id = $1 ORDER BY {} LIMIT $2 OFFSET $3",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            (Some(pattern), None, None) => {
+                sqlx::query_as(&format!(
+                    "SELECT * FROM visualizations WHERE org_id = $1 AND name ILIKE $2 ORDER BY {} LIMIT $3 OFFSET $4",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(pattern)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            (None, Some(qid), None) => {
+                sqlx::query_as(&format!(
+                    "SELECT * FROM visualizations WHERE org_id = $1 AND query_id = $2 ORDER BY {} LIMIT $3 OFFSET $4",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(qid)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            (None, None, Some(tag_list)) => {
+                let tags_json = serde_json::to_value(tag_list).expect("Vec<String> to JSON should never fail");
+                sqlx::query_as(&format!(
+                    "SELECT * FROM visualizations WHERE org_id = $1 AND tags @> $2 ORDER BY {} LIMIT $3 OFFSET $4",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(tags_json)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            (Some(pattern), Some(qid), None) => {
+                sqlx::query_as(&format!(
+                    "SELECT * FROM visualizations WHERE org_id = $1 AND query_id = $2 AND name ILIKE $3 ORDER BY {} LIMIT $4 OFFSET $5",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(qid)
+                .bind(pattern)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            (Some(pattern), None, Some(tag_list)) => {
+                let tags_json = serde_json::to_value(tag_list).expect("Vec<String> to JSON should never fail");
+                sqlx::query_as(&format!(
+                    "SELECT * FROM visualizations WHERE org_id = $1 AND name ILIKE $2 AND tags @> $3 ORDER BY {} LIMIT $4 OFFSET $5",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(pattern)
+                .bind(tags_json)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            (None, Some(qid), Some(tag_list)) => {
+                let tags_json = serde_json::to_value(tag_list).expect("Vec<String> to JSON should never fail");
+                sqlx::query_as(&format!(
+                    "SELECT * FROM visualizations WHERE org_id = $1 AND query_id = $2 AND tags @> $3 ORDER BY {} LIMIT $4 OFFSET $5",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(qid)
+                .bind(tags_json)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            (Some(pattern), Some(qid), Some(tag_list)) => {
+                let tags_json = serde_json::to_value(tag_list).expect("Vec<String> to JSON should never fail");
+                sqlx::query_as(&format!(
+                    "SELECT * FROM visualizations WHERE org_id = $1 AND query_id = $2 AND name ILIKE $3 AND tags @> $4 ORDER BY {} LIMIT $5 OFFSET $6",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(qid)
+                .bind(pattern)
+                .bind(tags_json)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
         };
 
-        // Get total count
-        let total: (i64,) = if let Some(qid) = query_id {
-            sqlx::query_as(
-                "SELECT COUNT(*) FROM visualizations WHERE org_id = $1 AND query_id = $2",
-            )
-            .bind(org_id)
-            .bind(qid)
-            .fetch_one(&self.pool)
-            .await?
-        } else {
-            sqlx::query_as(
-                "SELECT COUNT(*) FROM visualizations WHERE org_id = $1",
-            )
-            .bind(org_id)
-            .fetch_one(&self.pool)
-            .await?
+        // Get total count with same filter conditions
+        let total: (i64,) = match (search.as_ref(), query_id, tags.as_ref()) {
+            (None, None, None) => {
+                sqlx::query_as("SELECT COUNT(*) FROM visualizations WHERE org_id = $1")
+                    .bind(org_id)
+                    .fetch_one(&self.pool)
+                    .await?
+            }
+            (Some(pattern), None, None) => {
+                sqlx::query_as("SELECT COUNT(*) FROM visualizations WHERE org_id = $1 AND name ILIKE $2")
+                    .bind(org_id)
+                    .bind(pattern)
+                    .fetch_one(&self.pool)
+                    .await?
+            }
+            (None, Some(qid), None) => {
+                sqlx::query_as("SELECT COUNT(*) FROM visualizations WHERE org_id = $1 AND query_id = $2")
+                    .bind(org_id)
+                    .bind(qid)
+                    .fetch_one(&self.pool)
+                    .await?
+            }
+            (None, None, Some(tag_list)) => {
+                let tags_json = serde_json::to_value(tag_list).expect("Vec<String> to JSON should never fail");
+                sqlx::query_as("SELECT COUNT(*) FROM visualizations WHERE org_id = $1 AND tags @> $2")
+                    .bind(org_id)
+                    .bind(tags_json)
+                    .fetch_one(&self.pool)
+                    .await?
+            }
+            (Some(pattern), Some(qid), None) => {
+                sqlx::query_as("SELECT COUNT(*) FROM visualizations WHERE org_id = $1 AND query_id = $2 AND name ILIKE $3")
+                    .bind(org_id)
+                    .bind(qid)
+                    .bind(pattern)
+                    .fetch_one(&self.pool)
+                    .await?
+            }
+            (Some(pattern), None, Some(tag_list)) => {
+                let tags_json = serde_json::to_value(tag_list).expect("Vec<String> to JSON should never fail");
+                sqlx::query_as("SELECT COUNT(*) FROM visualizations WHERE org_id = $1 AND name ILIKE $2 AND tags @> $3")
+                    .bind(org_id)
+                    .bind(pattern)
+                    .bind(tags_json)
+                    .fetch_one(&self.pool)
+                    .await?
+            }
+            (None, Some(qid), Some(tag_list)) => {
+                let tags_json = serde_json::to_value(tag_list).expect("Vec<String> to JSON should never fail");
+                sqlx::query_as("SELECT COUNT(*) FROM visualizations WHERE org_id = $1 AND query_id = $2 AND tags @> $3")
+                    .bind(org_id)
+                    .bind(qid)
+                    .bind(tags_json)
+                    .fetch_one(&self.pool)
+                    .await?
+            }
+            (Some(pattern), Some(qid), Some(tag_list)) => {
+                let tags_json = serde_json::to_value(tag_list).expect("Vec<String> to JSON should never fail");
+                sqlx::query_as("SELECT COUNT(*) FROM visualizations WHERE org_id = $1 AND query_id = $2 AND name ILIKE $3 AND tags @> $4")
+                    .bind(org_id)
+                    .bind(qid)
+                    .bind(pattern)
+                    .bind(tags_json)
+                    .fetch_one(&self.pool)
+                    .await?
+            }
         };
 
         Ok((vizs, total.0))
@@ -1057,26 +1580,130 @@ impl Database {
     pub async fn list_dashboards_paginated(
         &self,
         org_id: Uuid,
+        search: Option<String>,
+        tags: Option<Vec<String>>,
+        sort_column: &str,
+        sort_direction: &str,
         limit: i64,
         offset: i64,
     ) -> Result<(Vec<Dashboard>, i64)> {
-        // Get paginated results
-        let dashboards = sqlx::query_as::<_, Dashboard>(
-            "SELECT * FROM dashboards WHERE org_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3",
-        )
-        .bind(org_id)
-        .bind(limit)
-        .bind(offset)
-        .fetch_all(&self.pool)
-        .await?;
+        // Build ORDER BY clause (safe - validated by SortParams)
+        let order_by = format!("{} {}", sort_column, sort_direction);
 
-        // Get total count
-        let total: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM dashboards WHERE org_id = $1",
-        )
-        .bind(org_id)
-        .fetch_one(&self.pool)
-        .await?;
+        // Get paginated results with conditional filtering
+        let dashboards = match (search.as_ref(), tags.as_ref()) {
+            // No filters
+            (None, None) => {
+                sqlx::query_as::<_, Dashboard>(&format!(
+                    "SELECT * FROM dashboards WHERE org_id = $1 ORDER BY {} LIMIT $2 OFFSET $3",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            // Search only
+            (Some(pattern), None) => {
+                sqlx::query_as::<_, Dashboard>(&format!(
+                    "SELECT * FROM dashboards
+                     WHERE org_id = $1
+                     AND (name ILIKE $2 OR description ILIKE $2)
+                     ORDER BY {} LIMIT $3 OFFSET $4",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(pattern)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            // Tags only (use GIN index with @> operator)
+            (None, Some(tag_list)) => {
+                let tags_json = serde_json::to_value(tag_list).expect("Vec<String> to JSON should never fail");
+                sqlx::query_as::<_, Dashboard>(&format!(
+                    "SELECT * FROM dashboards
+                     WHERE org_id = $1
+                     AND tags @> $2
+                     ORDER BY {} LIMIT $3 OFFSET $4",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(tags_json)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            // Both search and tags
+            (Some(pattern), Some(tag_list)) => {
+                let tags_json = serde_json::to_value(tag_list).expect("Vec<String> to JSON should never fail");
+                sqlx::query_as::<_, Dashboard>(&format!(
+                    "SELECT * FROM dashboards
+                     WHERE org_id = $1
+                     AND (name ILIKE $2 OR description ILIKE $2)
+                     AND tags @> $3
+                     ORDER BY {} LIMIT $4 OFFSET $5",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(pattern)
+                .bind(tags_json)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+        };
+
+        // Get total count with same filters
+        let total: (i64,) = match (search.as_ref(), tags.as_ref()) {
+            (None, None) => {
+                sqlx::query_as("SELECT COUNT(*) FROM dashboards WHERE org_id = $1")
+                    .bind(org_id)
+                    .fetch_one(&self.pool)
+                    .await?
+            }
+            (Some(pattern), None) => {
+                sqlx::query_as(
+                    "SELECT COUNT(*) FROM dashboards
+                     WHERE org_id = $1
+                     AND (name ILIKE $2 OR description ILIKE $2)",
+                )
+                .bind(org_id)
+                .bind(pattern)
+                .fetch_one(&self.pool)
+                .await?
+            }
+            (None, Some(tag_list)) => {
+                let tags_json = serde_json::to_value(tag_list).expect("Vec<String> to JSON should never fail");
+                sqlx::query_as(
+                    "SELECT COUNT(*) FROM dashboards
+                     WHERE org_id = $1
+                     AND tags @> $2",
+                )
+                .bind(org_id)
+                .bind(tags_json)
+                .fetch_one(&self.pool)
+                .await?
+            }
+            (Some(pattern), Some(tag_list)) => {
+                let tags_json = serde_json::to_value(tag_list).expect("Vec<String> to JSON should never fail");
+                sqlx::query_as(
+                    "SELECT COUNT(*) FROM dashboards
+                     WHERE org_id = $1
+                     AND (name ILIKE $2 OR description ILIKE $2)
+                     AND tags @> $3",
+                )
+                .bind(org_id)
+                .bind(pattern)
+                .bind(tags_json)
+                .fetch_one(&self.pool)
+                .await?
+            }
+        };
 
         Ok((dashboards, total.0))
     }
@@ -1297,26 +1924,191 @@ impl Database {
     pub async fn list_schedules_paginated(
         &self,
         org_id: Uuid,
+        search: Option<String>,
+        tags: Option<Vec<String>>,
+        enabled: Option<bool>,
+        sort_column: &str,
+        sort_direction: &str,
         limit: i64,
         offset: i64,
     ) -> Result<(Vec<Schedule>, i64)> {
-        // Get paginated results
-        let schedules = sqlx::query_as::<_, Schedule>(
-            "SELECT * FROM schedules WHERE org_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3",
-        )
-        .bind(org_id)
-        .bind(limit)
-        .bind(offset)
-        .fetch_all(&self.pool)
-        .await?;
+        let order_by = format!("{} {}", sort_column, sort_direction);
 
-        // Get total count
-        let total: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM schedules WHERE org_id = $1",
-        )
-        .bind(org_id)
-        .fetch_one(&self.pool)
-        .await?;
+        // Build query based on filter combinations
+        let schedules = match (search.as_ref(), tags.as_ref(), enabled) {
+            (None, None, None) => {
+                sqlx::query_as(&format!(
+                    "SELECT * FROM schedules WHERE org_id = $1 ORDER BY {} LIMIT $2 OFFSET $3",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            (Some(pattern), None, None) => {
+                sqlx::query_as(&format!(
+                    "SELECT * FROM schedules WHERE org_id = $1 AND name ILIKE $2 ORDER BY {} LIMIT $3 OFFSET $4",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(pattern)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            (None, Some(tag_list), None) => {
+                let tags_json = serde_json::to_value(tag_list).expect("Vec<String> to JSON should never fail");
+                sqlx::query_as(&format!(
+                    "SELECT * FROM schedules WHERE org_id = $1 AND tags @> $2 ORDER BY {} LIMIT $3 OFFSET $4",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(tags_json)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            (None, None, Some(en)) => {
+                sqlx::query_as(&format!(
+                    "SELECT * FROM schedules WHERE org_id = $1 AND enabled = $2 ORDER BY {} LIMIT $3 OFFSET $4",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(en)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            (Some(pattern), Some(tag_list), None) => {
+                let tags_json = serde_json::to_value(tag_list).expect("Vec<String> to JSON should never fail");
+                sqlx::query_as(&format!(
+                    "SELECT * FROM schedules WHERE org_id = $1 AND name ILIKE $2 AND tags @> $3 ORDER BY {} LIMIT $4 OFFSET $5",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(pattern)
+                .bind(tags_json)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            (Some(pattern), None, Some(en)) => {
+                sqlx::query_as(&format!(
+                    "SELECT * FROM schedules WHERE org_id = $1 AND name ILIKE $2 AND enabled = $3 ORDER BY {} LIMIT $4 OFFSET $5",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(pattern)
+                .bind(en)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            (None, Some(tag_list), Some(en)) => {
+                let tags_json = serde_json::to_value(tag_list).expect("Vec<String> to JSON should never fail");
+                sqlx::query_as(&format!(
+                    "SELECT * FROM schedules WHERE org_id = $1 AND tags @> $2 AND enabled = $3 ORDER BY {} LIMIT $4 OFFSET $5",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(tags_json)
+                .bind(en)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            (Some(pattern), Some(tag_list), Some(en)) => {
+                let tags_json = serde_json::to_value(tag_list).expect("Vec<String> to JSON should never fail");
+                sqlx::query_as(&format!(
+                    "SELECT * FROM schedules WHERE org_id = $1 AND name ILIKE $2 AND tags @> $3 AND enabled = $4 ORDER BY {} LIMIT $5 OFFSET $6",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(pattern)
+                .bind(tags_json)
+                .bind(en)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+        };
+
+        // Get total count with same filter conditions
+        let total: (i64,) = match (search.as_ref(), tags.as_ref(), enabled) {
+            (None, None, None) => {
+                sqlx::query_as("SELECT COUNT(*) FROM schedules WHERE org_id = $1")
+                    .bind(org_id)
+                    .fetch_one(&self.pool)
+                    .await?
+            }
+            (Some(pattern), None, None) => {
+                sqlx::query_as("SELECT COUNT(*) FROM schedules WHERE org_id = $1 AND name ILIKE $2")
+                    .bind(org_id)
+                    .bind(pattern)
+                    .fetch_one(&self.pool)
+                    .await?
+            }
+            (None, Some(tag_list), None) => {
+                let tags_json = serde_json::to_value(tag_list).expect("Vec<String> to JSON should never fail");
+                sqlx::query_as("SELECT COUNT(*) FROM schedules WHERE org_id = $1 AND tags @> $2")
+                    .bind(org_id)
+                    .bind(tags_json)
+                    .fetch_one(&self.pool)
+                    .await?
+            }
+            (None, None, Some(en)) => {
+                sqlx::query_as("SELECT COUNT(*) FROM schedules WHERE org_id = $1 AND enabled = $2")
+                    .bind(org_id)
+                    .bind(en)
+                    .fetch_one(&self.pool)
+                    .await?
+            }
+            (Some(pattern), Some(tag_list), None) => {
+                let tags_json = serde_json::to_value(tag_list).expect("Vec<String> to JSON should never fail");
+                sqlx::query_as("SELECT COUNT(*) FROM schedules WHERE org_id = $1 AND name ILIKE $2 AND tags @> $3")
+                    .bind(org_id)
+                    .bind(pattern)
+                    .bind(tags_json)
+                    .fetch_one(&self.pool)
+                    .await?
+            }
+            (Some(pattern), None, Some(en)) => {
+                sqlx::query_as("SELECT COUNT(*) FROM schedules WHERE org_id = $1 AND name ILIKE $2 AND enabled = $3")
+                    .bind(org_id)
+                    .bind(pattern)
+                    .bind(en)
+                    .fetch_one(&self.pool)
+                    .await?
+            }
+            (None, Some(tag_list), Some(en)) => {
+                let tags_json = serde_json::to_value(tag_list).expect("Vec<String> to JSON should never fail");
+                sqlx::query_as("SELECT COUNT(*) FROM schedules WHERE org_id = $1 AND tags @> $2 AND enabled = $3")
+                    .bind(org_id)
+                    .bind(tags_json)
+                    .bind(en)
+                    .fetch_one(&self.pool)
+                    .await?
+            }
+            (Some(pattern), Some(tag_list), Some(en)) => {
+                let tags_json = serde_json::to_value(tag_list).expect("Vec<String> to JSON should never fail");
+                sqlx::query_as("SELECT COUNT(*) FROM schedules WHERE org_id = $1 AND name ILIKE $2 AND tags @> $3 AND enabled = $4")
+                    .bind(org_id)
+                    .bind(pattern)
+                    .bind(tags_json)
+                    .bind(en)
+                    .fetch_one(&self.pool)
+                    .await?
+            }
+        };
 
         Ok((schedules, total.0))
     }
@@ -1516,26 +2308,102 @@ impl Database {
     pub async fn list_canvases_paginated(
         &self,
         org_id: Uuid,
+        search: Option<String>,
+        tags: Option<Vec<String>>,
+        sort_column: &str,
+        sort_direction: &str,
         limit: i64,
         offset: i64,
     ) -> Result<(Vec<Canvas>, i64)> {
-        // Get paginated results
-        let canvases = sqlx::query_as::<_, Canvas>(
-            "SELECT * FROM canvases WHERE org_id = $1 ORDER BY updated_at DESC LIMIT $2 OFFSET $3",
-        )
-        .bind(org_id)
-        .bind(limit)
-        .bind(offset)
-        .fetch_all(&self.pool)
-        .await?;
+        let order_by = format!("{} {}", sort_column, sort_direction);
 
-        // Get total count
-        let total: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM canvases WHERE org_id = $1",
-        )
-        .bind(org_id)
-        .fetch_one(&self.pool)
-        .await?;
+        // Build query based on filter combinations
+        let canvases = match (search.as_ref(), tags.as_ref()) {
+            (None, None) => {
+                sqlx::query_as(&format!(
+                    "SELECT * FROM canvases WHERE org_id = $1 ORDER BY {} LIMIT $2 OFFSET $3",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            (Some(pattern), None) => {
+                sqlx::query_as(&format!(
+                    "SELECT * FROM canvases WHERE org_id = $1 AND name ILIKE $2 ORDER BY {} LIMIT $3 OFFSET $4",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(pattern)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            (None, Some(tag_list)) => {
+                let tags_json = serde_json::to_value(tag_list).expect("Vec<String> to JSON should never fail");
+                sqlx::query_as(&format!(
+                    "SELECT * FROM canvases WHERE org_id = $1 AND tags @> $2 ORDER BY {} LIMIT $3 OFFSET $4",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(tags_json)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            (Some(pattern), Some(tag_list)) => {
+                let tags_json = serde_json::to_value(tag_list).expect("Vec<String> to JSON should never fail");
+                sqlx::query_as(&format!(
+                    "SELECT * FROM canvases WHERE org_id = $1 AND name ILIKE $2 AND tags @> $3 ORDER BY {} LIMIT $4 OFFSET $5",
+                    order_by
+                ))
+                .bind(org_id)
+                .bind(pattern)
+                .bind(tags_json)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+        };
+
+        // Get total count with same filter conditions
+        let total: (i64,) = match (search.as_ref(), tags.as_ref()) {
+            (None, None) => {
+                sqlx::query_as("SELECT COUNT(*) FROM canvases WHERE org_id = $1")
+                    .bind(org_id)
+                    .fetch_one(&self.pool)
+                    .await?
+            }
+            (Some(pattern), None) => {
+                sqlx::query_as("SELECT COUNT(*) FROM canvases WHERE org_id = $1 AND name ILIKE $2")
+                    .bind(org_id)
+                    .bind(pattern)
+                    .fetch_one(&self.pool)
+                    .await?
+            }
+            (None, Some(tag_list)) => {
+                let tags_json = serde_json::to_value(tag_list).expect("Vec<String> to JSON should never fail");
+                sqlx::query_as("SELECT COUNT(*) FROM canvases WHERE org_id = $1 AND tags @> $2")
+                    .bind(org_id)
+                    .bind(tags_json)
+                    .fetch_one(&self.pool)
+                    .await?
+            }
+            (Some(pattern), Some(tag_list)) => {
+                let tags_json = serde_json::to_value(tag_list).expect("Vec<String> to JSON should never fail");
+                sqlx::query_as("SELECT COUNT(*) FROM canvases WHERE org_id = $1 AND name ILIKE $2 AND tags @> $3")
+                    .bind(org_id)
+                    .bind(pattern)
+                    .bind(tags_json)
+                    .fetch_one(&self.pool)
+                    .await?
+            }
+        };
 
         Ok((canvases, total.0))
     }

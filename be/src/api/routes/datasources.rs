@@ -3,6 +3,7 @@ use crate::permissions::{get_user_context, require_permission, Permission};
 use actix_web::{HttpRequest, HttpResponse, web};
 use loupe::Error;
 use loupe::connectors::{Connector, PostgresConnector};
+use loupe::filtering::{SearchParams, SortParams, SortableColumns};
 use loupe::models::{
     ConnectionTestResult, CreateDatasourceRequest, DatasourceResponse, DatasourceType,
     UpdateDatasourceRequest,
@@ -25,20 +26,48 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     );
 }
 
+#[derive(serde::Deserialize)]
+pub struct ListDatasourcesQuery {
+    #[serde(flatten)]
+    pub search: SearchParams,
+
+    #[serde(flatten)]
+    pub sort: SortParams,
+
+    #[serde(flatten)]
+    pub pagination: PaginationParams,
+}
+
 async fn list_datasources(
     state: web::Data<Arc<AppState>>,
     req: HttpRequest,
-    params: web::Query<PaginationParams>,
+    query: web::Query<ListDatasourcesQuery>,
 ) -> Result<HttpResponse, Error> {
     let (_, org_id, role) = get_user_context(&state, &req).await?;
     require_permission(role, Permission::Viewer)?;
 
-    let mut pagination = params.into_inner();
+    let mut pagination = query.pagination.clone();
     pagination.validate();
+
+    // Validate and build sort params
+    let (sort_column, sort_direction) = query.sort.validate_and_build(
+        SortableColumns::DATASOURCES,
+        "created_at",
+    );
+
+    // Get search pattern
+    let search = query.search.get_pattern();
 
     let (datasources, total) = state
         .db
-        .list_datasources_paginated(org_id, pagination.limit, pagination.offset)
+        .list_datasources_paginated(
+            org_id,
+            search,
+            &sort_column,
+            &sort_direction,
+            pagination.limit,
+            pagination.offset,
+        )
         .await?;
 
     let items: Vec<DatasourceResponse> = datasources.into_iter().map(Into::into).collect();

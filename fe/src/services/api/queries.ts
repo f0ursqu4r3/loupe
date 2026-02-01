@@ -10,7 +10,8 @@ import type {
   ImportQueriesRequest,
   ImportQueriesResponse,
   PaginatedResponse,
-  PaginationParams,
+  QueryFilterParams,
+  RunFilterParams,
 } from '@/types'
 
 export interface CreateRunRequest {
@@ -21,7 +22,7 @@ export interface CreateRunRequest {
 }
 
 export const queriesApi = {
-  list(params?: PaginationParams): Promise<PaginatedResponse<Query>> {
+  list(params?: QueryFilterParams): Promise<PaginatedResponse<Query>> {
     return api.get<PaginatedResponse<Query>>('/queries', { params })
   },
 
@@ -51,8 +52,7 @@ export const queriesApi = {
 }
 
 export const runsApi = {
-  list(queryId?: UUID, paginationParams?: PaginationParams): Promise<PaginatedResponse<Run>> {
-    const params = { ...paginationParams, query_id: queryId }
+  list(params?: RunFilterParams): Promise<PaginatedResponse<Run>> {
     return api.get<PaginatedResponse<Run>>('/runs', { params })
   },
 

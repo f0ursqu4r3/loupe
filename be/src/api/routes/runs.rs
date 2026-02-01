@@ -2,6 +2,7 @@ use crate::AppState;
 use crate::permissions::{get_user_context, require_permission, Permission};
 use actix_web::{HttpRequest, HttpResponse, web};
 use loupe::{Error, SqlValidator};
+use loupe::filtering::{DateRangeParams, SortParams, SortableColumns};
 use loupe::models::{
     CreateRunRequest, ExecuteAdHocRequest, ParamDef, RunResponse, RunResultResponse,
 };
@@ -25,6 +26,14 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 #[derive(serde::Deserialize)]
 pub struct ListRunsQuery {
     query_id: Option<Uuid>,
+    status: Option<String>,
+
+    #[serde(flatten)]
+    date_range: DateRangeParams,
+
+    #[serde(flatten)]
+    sort: SortParams,
+
     #[serde(flatten)]
     pagination: PaginationParams,
 }
@@ -40,9 +49,36 @@ async fn list_runs(
     let mut pagination = query.pagination.clone();
     pagination.validate();
 
+    // Validate and build sort params
+    let (sort_column, sort_direction) = query.sort.validate_and_build(
+        SortableColumns::RUNS,
+        "created_at",
+    );
+
+    // Validate status enum if provided
+    let valid_statuses = ["queued", "running", "completed", "failed", "cancelled", "timeout"];
+    let status = query.status.as_ref().and_then(|s| {
+        let lower = s.to_lowercase();
+        if valid_statuses.contains(&lower.as_str()) {
+            Some(lower)
+        } else {
+            None
+        }
+    });
+
     let (runs, total) = state
         .db
-        .list_runs_paginated(org_id, query.query_id, pagination.limit, pagination.offset)
+        .list_runs_paginated(
+            org_id,
+            query.query_id,
+            status,
+            query.date_range.start_date,
+            query.date_range.end_date,
+            &sort_column,
+            &sort_direction,
+            pagination.limit,
+            pagination.offset,
+        )
         .await?;
 
     let items: Vec<RunResponse> = runs.into_iter().map(Into::into).collect();

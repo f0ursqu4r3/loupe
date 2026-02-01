@@ -2,6 +2,7 @@ use crate::AppState;
 use crate::permissions::{get_user_context, require_permission, Permission};
 use actix_web::{HttpRequest, HttpResponse, web};
 use loupe::Error;
+use loupe::filtering::{parse_tags, SearchParams, SortParams, SortableColumns};
 use loupe::models::{
     CreateDashboardRequest, CreateTileRequest, DashboardResponse, TileResponse,
     UpdateDashboardRequest, UpdateTileRequest,
@@ -25,20 +26,62 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     );
 }
 
+#[derive(serde::Deserialize)]
+pub struct ListDashboardsQuery {
+    /// Search in name and description
+    #[serde(flatten)]
+    pub search: SearchParams,
+
+    /// Filter by tags (comma-separated: "analytics,prod")
+    pub tags: Option<String>,
+
+    #[serde(flatten)]
+    pub sort: SortParams,
+
+    #[serde(flatten)]
+    pub pagination: PaginationParams,
+}
+
 async fn list_dashboards(
     state: web::Data<Arc<AppState>>,
     req: HttpRequest,
-    params: web::Query<PaginationParams>,
+    query: web::Query<ListDashboardsQuery>,
 ) -> Result<HttpResponse, Error> {
     let (_, org_id, role) = get_user_context(&state, &req).await?;
     require_permission(role, Permission::Viewer)?;
 
-    let mut pagination = params.into_inner();
+    // Validate pagination
+    let mut pagination = query.pagination.clone();
     pagination.validate();
 
+    // Validate and build sort parameters
+    let (sort_column, sort_direction) = query.sort.validate_and_build(
+        SortableColumns::DASHBOARDS,
+        "created_at", // default
+    );
+
+    // Parse tags filter (comma-separated to Vec)
+    let tags = query
+        .tags
+        .as_ref()
+        .map(|t| parse_tags(t))
+        .filter(|v| !v.is_empty());
+
+    // Get search pattern
+    let search = query.search.get_pattern();
+
+    // Call database layer with filters
     let (dashboards, total) = state
         .db
-        .list_dashboards_paginated(org_id, pagination.limit, pagination.offset)
+        .list_dashboards_paginated(
+            org_id,
+            search,
+            tags,
+            &sort_column,
+            &sort_direction,
+            pagination.limit,
+            pagination.offset,
+        )
         .await?;
 
     let mut items = Vec::new();

@@ -336,6 +336,63 @@ export interface UpdateScheduleRequest {
   enabled?: boolean
 }
 
+// ===== Filtering & Sorting Parameters =====
+export interface SortParams {
+  sort_by?: string
+  sort_direction?: 'asc' | 'desc'
+}
+
+export interface SearchParams {
+  search?: string
+}
+
+export interface DateRangeParams {
+  start_date?: string // ISO 8601
+  end_date?: string // ISO 8601
+}
+
+// Import PaginationParams from pagination types
+import type { PaginationParams } from './pagination'
+
+// Endpoint-specific filter parameters
+export interface DashboardFilterParams extends PaginationParams, SortParams, SearchParams {
+  tags?: string // Comma-separated
+  [key: string]: string | number | boolean | undefined
+}
+
+export interface QueryFilterParams extends PaginationParams, SortParams, SearchParams {
+  datasource_id?: UUID
+  tags?: string
+  [key: string]: string | number | boolean | undefined
+}
+
+export interface RunFilterParams extends PaginationParams, SortParams, DateRangeParams {
+  query_id?: UUID
+  status?: RunStatus
+  [key: string]: string | number | boolean | undefined
+}
+
+export interface VisualizationFilterParams extends PaginationParams, SortParams, SearchParams {
+  query_id?: UUID
+  tags?: string
+  [key: string]: string | number | boolean | undefined
+}
+
+export interface ScheduleFilterParams extends PaginationParams, SortParams, SearchParams {
+  enabled?: boolean
+  tags?: string
+  [key: string]: string | number | boolean | undefined
+}
+
+export interface DatasourceFilterParams extends PaginationParams, SortParams, SearchParams {
+  [key: string]: string | number | boolean | undefined
+}
+
+export interface CanvasFilterParams extends PaginationParams, SortParams, SearchParams {
+  tags?: string
+  [key: string]: string | number | boolean | undefined
+}
+
 // ===== API Response Wrappers =====
 export interface ApiError {
   error: string

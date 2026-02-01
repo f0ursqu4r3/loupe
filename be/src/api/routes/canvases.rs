@@ -1,6 +1,7 @@
 use crate::permissions::{get_user_context, require_permission, Permission};
 use crate::AppState;
 use actix_web::{web, HttpRequest, HttpResponse};
+use loupe::filtering::{parse_tags, SearchParams, SortParams, SortableColumns};
 use loupe::models::{
     CanvasEdgeResponse, CanvasNodeResponse, CanvasResponse, CreateCanvasEdgeRequest,
     CreateCanvasNodeRequest, CreateCanvasRequest, UpdateCanvasEdgeRequest, UpdateCanvasNodeRequest,
@@ -33,20 +34,54 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 
 // ==================== Canvas CRUD ====================
 
+#[derive(serde::Deserialize)]
+pub struct ListCanvasesQuery {
+    #[serde(flatten)]
+    pub search: SearchParams,
+
+    pub tags: Option<String>,
+
+    #[serde(flatten)]
+    pub sort: SortParams,
+
+    #[serde(flatten)]
+    pub pagination: PaginationParams,
+}
+
 async fn list_canvases(
     state: web::Data<Arc<AppState>>,
     req: HttpRequest,
-    params: web::Query<PaginationParams>,
+    query: web::Query<ListCanvasesQuery>,
 ) -> Result<HttpResponse, Error> {
     let (_, org_id, role) = get_user_context(&state, &req).await?;
     require_permission(role, Permission::Viewer)?;
 
-    let mut pagination = params.into_inner();
+    let mut pagination = query.pagination.clone();
     pagination.validate();
+
+    // Validate and build sort params
+    let (sort_column, sort_direction) = query.sort.validate_and_build(
+        SortableColumns::CANVASES,
+        "created_at",
+    );
+
+    // Parse tags filter
+    let tags = query.tags.as_ref().map(|t| parse_tags(t)).filter(|v| !v.is_empty());
+
+    // Get search pattern
+    let search = query.search.get_pattern();
 
     let (canvases, total) = state
         .db
-        .list_canvases_paginated(org_id, pagination.limit, pagination.offset)
+        .list_canvases_paginated(
+            org_id,
+            search,
+            tags,
+            &sort_column,
+            &sort_direction,
+            pagination.limit,
+            pagination.offset,
+        )
         .await?;
 
     let mut items = Vec::new();

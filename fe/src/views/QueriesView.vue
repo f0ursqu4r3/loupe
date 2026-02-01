@@ -124,8 +124,8 @@ async function loadQueries() {
 
       // Fetch last run
       try {
-        const runsResponse = await runsApi.list(query.id)
-        lastRuns.value[query.id] = runsResponse.items.length > 0 ? runsResponse.items[0]! : null
+        const runsResponse = await runsApi.list({ query_id: query.id, limit: 1 })
+        lastRuns.value[query.id] = runsResponse.data.length > 0 ? runsResponse.data[0]! : null
       } catch {
         lastRuns.value[query.id] = null
       }

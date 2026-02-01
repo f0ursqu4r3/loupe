@@ -1,8 +1,8 @@
 import { api } from './client'
-import type { Schedule, CreateScheduleRequest, UpdateScheduleRequest, UUID, PaginatedResponse, PaginationParams } from '@/types'
+import type { Schedule, CreateScheduleRequest, UpdateScheduleRequest, UUID, PaginatedResponse, ScheduleFilterParams } from '@/types'
 
 export const schedulesApi = {
-  list(params?: PaginationParams): Promise<PaginatedResponse<Schedule>> {
+  list(params?: ScheduleFilterParams): Promise<PaginatedResponse<Schedule>> {
     return api.get<PaginatedResponse<Schedule>>('/schedules', { params })
   },
 

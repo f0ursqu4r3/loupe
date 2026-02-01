@@ -8,11 +8,11 @@ import type {
   UpdateTileRequest,
   UUID,
   PaginatedResponse,
-  PaginationParams,
+  DashboardFilterParams,
 } from '@/types'
 
 export const dashboardsApi = {
-  list(params?: PaginationParams): Promise<PaginatedResponse<Dashboard>> {
+  list(params?: DashboardFilterParams): Promise<PaginatedResponse<Dashboard>> {
     return api.get<PaginatedResponse<Dashboard>>('/dashboards', { params })
   },
 
