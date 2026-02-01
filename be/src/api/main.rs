@@ -5,7 +5,7 @@ mod routes;
 use actix_cors::Cors;
 use actix_governor::GovernorConfigBuilder;
 use actix_web::{web, App, HttpServer};
-use app_middleware::{CorrelationIdMiddleware, MetricsMiddleware, RequestLogger, SecurityHeaders};
+use app_middleware::{CorrelationIdMiddleware, MetricsMiddleware, RequestLogger, SecurityHeaders, SentryContextMiddleware};
 use argon2::{
     Argon2,
     password_hash::{PasswordHasher, SaltString, rand_core::OsRng},
@@ -23,6 +23,9 @@ pub struct AppState {
 async fn main() -> std::io::Result<()> {
     load_env();
     init_tracing();
+
+    // Initialize Sentry for error tracking
+    let _guard = init_sentry();
 
     let database_url = std::env::var("DATABASE_URL")
         .expect("DATABASE_URL must be set");
@@ -88,8 +91,10 @@ async fn main() -> std::io::Result<()> {
 
         App::new()
             .wrap(cors)
+            .wrap(sentry_actix::Sentry::new())  // Error tracking with Sentry
             .wrap(SecurityHeaders)  // Add security headers
             .wrap(CorrelationIdMiddleware)  // Generate/extract correlation ID
+            .wrap(SentryContextMiddleware)  // Enrich Sentry events with context
             .wrap(RequestLogger)  // Structured request logging with correlation IDs
             .wrap(MetricsMiddleware::new(metrics.clone()))  // Collect Prometheus metrics
             .wrap(actix_governor::Governor::new(&governor_conf))  // Apply rate limiting
@@ -100,6 +105,63 @@ async fn main() -> std::io::Result<()> {
     .bind((host.as_str(), port))?
     .run()
     .await
+}
+
+/// Initialize Sentry for error tracking
+///
+/// Configures Sentry with:
+/// - Environment (dev/staging/prod from APP_ENV)
+/// - Release version (from Cargo.toml)
+/// - Sample rate for errors and traces
+/// - Integration with tracing for breadcrumbs
+///
+/// Requires SENTRY_DSN environment variable to be set.
+/// If not set, Sentry will be disabled (no-op).
+fn init_sentry() -> sentry::ClientInitGuard {
+    let sentry_dsn = std::env::var("SENTRY_DSN").ok();
+
+    if sentry_dsn.is_none() {
+        tracing::info!("Sentry DSN not configured - error tracking disabled");
+        return sentry::init(sentry::ClientOptions::default());
+    }
+
+    let environment = std::env::var("APP_ENV")
+        .unwrap_or_else(|_| "local".to_string());
+
+    let release = format!("loupe@{}", env!("CARGO_PKG_VERSION"));
+
+    // Configure sample rates based on environment
+    let (error_sample_rate, traces_sample_rate) = match environment.as_str() {
+        "production" | "prod" => (1.0, 0.1), // 100% errors, 10% traces
+        "staging" => (1.0, 0.5),              // 100% errors, 50% traces
+        _ => (1.0, 1.0),                      // 100% everything in dev/local
+    };
+
+    let guard = sentry::init((
+        sentry_dsn,
+        sentry::ClientOptions {
+            release: Some(release.into()),
+            environment: Some(environment.clone().into()),
+            sample_rate: error_sample_rate,
+            traces_sample_rate,
+            attach_stacktrace: true,
+            send_default_pii: false, // Don't send PII by default
+            before_send: Some(Arc::new(|event| {
+                // Correlation ID and user context will be added by middleware
+                // We could add additional filtering here if needed
+                Some(event)
+            })),
+            ..Default::default()
+        },
+    ));
+
+    tracing::info!(
+        environment = %environment,
+        release = %format!("loupe@{}", env!("CARGO_PKG_VERSION")),
+        "Sentry error tracking initialized"
+    );
+
+    guard
 }
 
 /// Seeds a default admin user if ADMIN_USERNAME and ADMIN_PASSWORD are set.
