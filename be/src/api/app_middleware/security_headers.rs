@@ -5,7 +5,58 @@ use actix_web::{
 use futures_util::future::LocalBoxFuture;
 use std::future::{Ready, ready};
 
-/// Middleware to add security headers to all responses
+/// Middleware to add comprehensive security headers to all HTTP responses
+///
+/// This middleware implements defense-in-depth security by adding multiple
+/// layers of HTTP security headers to protect against common web vulnerabilities.
+///
+/// # Headers Added
+///
+/// ## Content Security Policy (CSP)
+/// - **Purpose**: Prevents XSS attacks by controlling which resources can be loaded
+/// - **Configuration**: Environment-based via `CSP_MODE` (strict/development)
+/// - **Strict Mode**: No inline scripts/styles, only same-origin resources
+/// - **Dev Mode**: Allows unsafe-inline/eval for development convenience
+///
+/// ## X-Frame-Options
+/// - **Value**: `DENY`
+/// - **Purpose**: Prevents clickjacking by blocking iframe embedding
+///
+/// ## X-Content-Type-Options
+/// - **Value**: `nosniff`
+/// - **Purpose**: Prevents MIME type sniffing attacks
+///
+/// ## X-XSS-Protection
+/// - **Value**: `1; mode=block`
+/// - **Purpose**: Enables browser's built-in XSS filter (legacy, but harmless)
+///
+/// ## Strict-Transport-Security (HSTS)
+/// - **Value**: `max-age=31536000; includeSubDomains; preload`
+/// - **Purpose**: Forces HTTPS connections for 1 year
+/// - **Enabled**: Only when `ENABLE_HSTS=true` (production HTTPS deployments)
+///
+/// ## Referrer-Policy
+/// - **Value**: `strict-origin-when-cross-origin`
+/// - **Purpose**: Controls referrer information sent to other sites
+///
+/// ## Permissions-Policy
+/// - **Value**: Blocks geolocation, microphone, camera
+/// - **Purpose**: Prevents unauthorized access to sensitive browser APIs
+///
+/// ## Cache-Control
+/// - **Health Endpoint**: `public, max-age=60` (cacheable)
+/// - **All Others**: `no-store, no-cache` (sensitive data, no caching)
+///
+/// # Environment Variables
+///
+/// - `CSP_MODE`: "strict" (production) or "development" (default: "strict")
+/// - `ENABLE_HSTS`: "true" to enable HSTS (default: "false", only use with HTTPS)
+///
+/// # Security Considerations
+///
+/// - HSTS should only be enabled when serving over HTTPS
+/// - CSP strict mode may break functionality if frontend uses inline scripts
+/// - Adjust CSP directives based on your frontend requirements
 pub struct SecurityHeaders;
 
 impl<S, B> Transform<S, ServiceRequest> for SecurityHeaders
@@ -44,6 +95,13 @@ where
     fn call(&self, req: ServiceRequest) -> Self::Future {
         let path = req.path().to_string();
         let fut = self.service.call(req);
+
+        // Read environment configuration once
+        let csp_mode = std::env::var("CSP_MODE").unwrap_or_else(|_| "strict".to_string());
+        let enable_hsts = std::env::var("ENABLE_HSTS")
+            .unwrap_or_else(|_| "false".to_string())
+            .parse::<bool>()
+            .unwrap_or(false);
 
         Box::pin(async move {
             let mut res = fut.await?;
@@ -96,19 +154,39 @@ where
                 ),
             );
 
-            // Content Security Policy
-            // Note: Adjust this based on your frontend requirements
+            // Content Security Policy (CSP)
+            // Environment-based CSP for security vs development flexibility
+            let csp_value = if csp_mode == "development" {
+                // Development mode: Allow inline scripts/styles for easier debugging
+                // WARNING: Only use in development, never in production
+                "default-src 'self'; \
+                 script-src 'self' 'unsafe-inline' 'unsafe-eval'; \
+                 style-src 'self' 'unsafe-inline'; \
+                 img-src 'self' data: https:; \
+                 font-src 'self' data:; \
+                 connect-src 'self'; \
+                 frame-ancestors 'none'; \
+                 base-uri 'self'; \
+                 form-action 'self';"
+            } else {
+                // Strict mode (production): Maximum security, no inline scripts/styles
+                // This is the recommended production configuration
+                "default-src 'self'; \
+                 script-src 'self'; \
+                 style-src 'self'; \
+                 img-src 'self' data: https:; \
+                 font-src 'self' data:; \
+                 connect-src 'self'; \
+                 frame-ancestors 'none'; \
+                 base-uri 'self'; \
+                 form-action 'self'; \
+                 upgrade-insecure-requests;"
+            };
+
             headers.insert(
                 actix_web::http::header::HeaderName::from_static("content-security-policy"),
-                actix_web::http::header::HeaderValue::from_static(
-                    "default-src 'self'; \
-                     script-src 'self' 'unsafe-inline' 'unsafe-eval'; \
-                     style-src 'self' 'unsafe-inline'; \
-                     img-src 'self' data: https:; \
-                     font-src 'self' data:; \
-                     connect-src 'self'; \
-                     frame-ancestors 'none';",
-                ),
+                actix_web::http::header::HeaderValue::from_str(csp_value)
+                    .unwrap_or_else(|_| actix_web::http::header::HeaderValue::from_static("default-src 'self'")),
             );
 
             // Permissions Policy (formerly Feature Policy)
@@ -120,14 +198,16 @@ where
             );
 
             // Strict-Transport-Security (HSTS)
-            // Only add if running HTTPS - enabled via compile-time feature flag
-            #[cfg(feature = "hsts")]
-            headers.insert(
-                actix_web::http::header::HeaderName::from_static("strict-transport-security"),
-                actix_web::http::header::HeaderValue::from_static(
-                    "max-age=31536000; includeSubDomains",
-                ),
-            );
+            // Only enable when serving over HTTPS (production deployments)
+            // CRITICAL: Do NOT enable HSTS on HTTP-only servers or localhost
+            if enable_hsts {
+                headers.insert(
+                    actix_web::http::header::HeaderName::from_static("strict-transport-security"),
+                    actix_web::http::header::HeaderValue::from_static(
+                        "max-age=31536000; includeSubDomains; preload",
+                    ),
+                );
+            }
 
             Ok(res)
         })
