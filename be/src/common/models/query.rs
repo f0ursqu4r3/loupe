@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
+use validator::Validate;
 
 /// Parameter type for query parameters
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -45,20 +46,34 @@ pub struct Query {
     pub updated_at: DateTime<Utc>,
 }
 
-// DTOs
-#[derive(Debug, Deserialize)]
+// DTOs with validation
+#[derive(Debug, Deserialize, Validate)]
 pub struct CreateQueryRequest {
     pub datasource_id: Uuid,
+
+    #[validate(length(min = 1, max = 255, message = "Query name must be between 1 and 255 characters"))]
     pub name: String,
+
+    #[validate(length(max = 2000, message = "Description must be less than 2000 characters"))]
     pub description: Option<String>,
+
+    #[validate(length(min = 1, max = 100_000, message = "SQL must be between 1 and 100,000 characters"))]
     pub sql: String,
+
     #[serde(default)]
+    #[validate(length(max = 50, message = "Maximum 50 parameters allowed"))]
     pub parameters: Vec<ParamDef>,
+
     #[serde(default = "default_timeout")]
+    #[validate(range(min = 1, max = 300, message = "Timeout must be between 1 and 300 seconds"))]
     pub timeout_seconds: i32,
+
     #[serde(default = "default_max_rows")]
+    #[validate(range(min = 1, max = 100_000, message = "Max rows must be between 1 and 100,000"))]
     pub max_rows: i32,
+
     #[serde(default)]
+    #[validate(length(max = 50, message = "Maximum 50 tags allowed"))]
     pub tags: Vec<String>,
 }
 
@@ -70,14 +85,27 @@ fn default_max_rows() -> i32 {
     10000
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct UpdateQueryRequest {
+    #[validate(length(min = 1, max = 255, message = "Query name must be between 1 and 255 characters"))]
     pub name: Option<String>,
+
+    #[validate(length(max = 2000, message = "Description must be less than 2000 characters"))]
     pub description: Option<String>,
+
+    #[validate(length(min = 1, max = 100_000, message = "SQL must be between 1 and 100,000 characters"))]
     pub sql: Option<String>,
+
+    #[validate(length(max = 50, message = "Maximum 50 parameters allowed"))]
     pub parameters: Option<Vec<ParamDef>>,
+
+    #[validate(range(min = 1, max = 300, message = "Timeout must be between 1 and 300 seconds"))]
     pub timeout_seconds: Option<i32>,
+
+    #[validate(range(min = 1, max = 100_000, message = "Max rows must be between 1 and 100,000"))]
     pub max_rows: Option<i32>,
+
+    #[validate(length(max = 50, message = "Maximum 50 tags allowed"))]
     pub tags: Option<Vec<String>>,
 }
 

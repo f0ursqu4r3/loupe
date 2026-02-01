@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
+use validator::Validate;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "text", rename_all = "lowercase")]
@@ -39,19 +40,29 @@ pub struct Organization {
     pub updated_at: DateTime<Utc>,
 }
 
-// DTOs
-#[derive(Debug, Deserialize)]
+// DTOs with validation
+#[derive(Debug, Deserialize, Validate)]
 pub struct CreateUserRequest {
+    #[validate(email(message = "Invalid email format"))]
+    #[validate(length(min = 3, max = 255, message = "Email must be between 3 and 255 characters"))]
     pub email: String,
+
+    #[validate(length(min = 8, max = 128, message = "Password must be between 8 and 128 characters"))]
     pub password: String,
+
+    #[validate(length(min = 1, max = 255, message = "Name must be between 1 and 255 characters"))]
     pub name: String,
+
     #[serde(default)]
     pub role: OrgRole,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct LoginRequest {
+    #[validate(email(message = "Invalid email format"))]
     pub email: String,
+
+    #[validate(length(min = 1, max = 128))]
     pub password: String,
 }
 

@@ -8,6 +8,7 @@ use loupe::Error;
 use loupe::models::{CreateUserRequest, LoginRequest, OrgRole, UserResponse};
 use std::sync::Arc;
 use uuid::Uuid;
+use validator::Validate;
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
@@ -50,24 +51,9 @@ async fn register(
     state: web::Data<Arc<AppState>>,
     req: web::Json<CreateUserRequest>,
 ) -> Result<HttpResponse, Error> {
-    // Validate email format (basic check)
-    if !req.email.contains('@') || req.email.len() < 3 {
-        return Err(Error::BadRequest("Invalid email format".to_string()));
-    }
-
-    // Validate password strength (minimum 8 characters)
-    if req.password.len() < 8 {
-        return Err(Error::BadRequest(
-            "Password must be at least 8 characters long".to_string(),
-        ));
-    }
-
-    // Validate name length
-    if req.name.trim().is_empty() || req.name.len() > 255 {
-        return Err(Error::BadRequest(
-            "Name must be between 1 and 255 characters".to_string(),
-        ));
-    }
+    // Validate request using validator crate
+    req.validate()
+        .map_err(|e| Error::BadRequest(format!("Validation failed: {}", e)))?;
 
     // Check if user already exists
     if state.db.get_user_by_email(&req.email).await?.is_some() {
@@ -120,6 +106,10 @@ async fn login(
     state: web::Data<Arc<AppState>>,
     req: web::Json<LoginRequest>,
 ) -> Result<HttpResponse, Error> {
+    // Validate request
+    req.validate()
+        .map_err(|e| Error::BadRequest(format!("Validation failed: {}", e)))?;
+
     // Get user by email
     let user = state
         .db

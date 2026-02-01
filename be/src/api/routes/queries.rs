@@ -7,6 +7,7 @@ use loupe::models::{
     UpdateQueryRequest,
 };
 use std::sync::Arc;
+use validator::Validate;
 use uuid::Uuid;
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
@@ -38,6 +39,10 @@ async fn create_query(
     body: web::Json<CreateQueryRequest>,
 ) -> Result<HttpResponse, Error> {
     let (user_id, org_id) = get_auth_context(&state, &req)?;
+
+    // Validate request input
+    body.validate()
+        .map_err(|e| Error::BadRequest(format!("Validation failed: {}", e)))?;
 
     // Verify datasource exists and belongs to org
     state.db.get_datasource(body.datasource_id, org_id).await?;
@@ -93,6 +98,10 @@ async fn update_query(
 ) -> Result<HttpResponse, Error> {
     let (_, org_id) = get_auth_context(&state, &req)?;
     let id = path.into_inner();
+
+    // Validate request input
+    body.validate()
+        .map_err(|e| Error::BadRequest(format!("Validation failed: {}", e)))?;
 
     // SECURITY: Validate SQL if it's being updated
     if let Some(ref sql) = body.sql {
