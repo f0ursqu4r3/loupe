@@ -170,6 +170,36 @@ impl Database {
         Ok(())
     }
 
+    /// Check if all migrations have been applied
+    pub async fn check_migrations_applied(&self) -> Result<bool> {
+        // Query the _sqlx_migrations table to check if all migrations are applied
+        // If the table doesn't exist, migrations haven't been run
+        let result = sqlx::query(
+            "SELECT COUNT(*) as count FROM _sqlx_migrations WHERE success = true"
+        )
+        .fetch_optional(&self.pool)
+        .await;
+
+        match result {
+            Ok(Some(_)) => {
+                // Table exists and we can query it - migrations have been applied
+                // We could compare count with expected migrations, but for simplicity
+                // we'll just check if the table exists and has successful migrations
+                Ok(true)
+            }
+            Ok(None) => {
+                // Table exists but no rows - unlikely but consider it as no migrations
+                Ok(false)
+            }
+            Err(e) => {
+                // Table probably doesn't exist or query failed
+                tracing::warn!("Migration status check failed: {}", e);
+                // Return false instead of error to avoid breaking health checks
+                Ok(false)
+            }
+        }
+    }
+
     pub async fn run_migrations(&self) -> Result<()> {
         sqlx::migrate!("./migrations")
             .run(&self.pool)

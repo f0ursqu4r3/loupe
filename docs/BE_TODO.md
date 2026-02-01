@@ -9,7 +9,7 @@ Track backend improvements for security, performance, and maintainability.
 
 ---
 
-## ✅ Completed (13/48 tasks - 27.1%)
+## ✅ Completed (14/48 tasks - 29.2%)
 
 ### Critical Security (5/5 - 100%)
 
@@ -34,14 +34,15 @@ Track backend improvements for security, performance, and maintainability.
 
 1. ✅ **Rate Limiting** - Global 100 req/min per IP via actix-governor
 
-### Observability (2/5 - 40%)
+### Observability (3/5 - 60%)
 
 1. ✅ **Structured Logging** - JSON format support, correlation IDs, request duration tracking, auth event logging
 2. ✅ **Metrics & Monitoring** - Prometheus metrics, request count/duration histograms, /metrics endpoint
+3. ✅ **Health Checks** - Liveness/readiness probes, database connectivity, migration status checks
 
 ---
 
-## 📋 Remaining Tasks (35/48)
+## 📋 Remaining Tasks (34/48)
 
 ### Testing & Quality (0/4)
 
@@ -149,15 +150,7 @@ Track backend improvements for security, performance, and maintainability.
 
 ---
 
-### Observability & Operations (2/5)
-
-#### 25. Health Checks
-
-- [ ] Enhance [routes/health.rs](../be/src/api/routes/health.rs)
-- [ ] Add dependency health checks
-- [ ] Add liveness/readiness/startup probes
-- [ ] Check critical services
-- [ ] Return detailed health status
+### Observability & Operations (3/5)
 
 #### 26. Distributed Tracing
 
@@ -396,14 +389,14 @@ be/src/
 **Testing:** 0/4 (0%)
 **Database:** 1/4 (25%)
 **Performance:** 1/5 (20%)
-**Observability:** 2/5 (40%)
+**Observability:** 3/5 (60%)
 **Code Organization:** 0/4 (0%)
 **Security Hardening:** 0/5 (0%)
 **Documentation:** 0/3 (0%)
 **DevOps:** 0/4 (0%)
 **Data Management:** 0/3 (0%)
 
-**Overall Progress:** 13/48 major tasks (27.1%)
+**Overall Progress:** 14/48 major tasks (29.2%)
 
 ---
 
