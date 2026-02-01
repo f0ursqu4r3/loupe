@@ -215,7 +215,7 @@ hover:border-primary-500/50 hover:shadow-lg hover:-translate-y-0.5 transition-al
 - [ ] Test color contrast ratios (WCAG AA/AAA)
 - [ ] Update dark mode colors
 - [ ] Test with charts and visualizations
-- [ ] Document color usage guidelines
+- [x] Document color usage guidelines
 
 **Color ideas:**
 
@@ -317,23 +317,23 @@ hover:border-primary-500/50 hover:shadow-lg hover:-translate-y-0.5 transition-al
 
 ### 20. Loading States & Transitions
 
-- [ ] Create page transition animations
+- [x] Create page transition animations
 - [ ] Add list reordering animations (drag & drop)
 - [ ] Add staggered list reveal animations
 - [ ] Add skeleton screen for initial page load
 - [ ] Add optimistic UI updates
 - [ ] Add progress indicators for multi-step processes
-- [ ] Add shimmer effect for loading content
+- [x] Add shimmer effect for loading content
 
 ### 21. Advanced Animations
 
-- [ ] Add route transition animations
+- [x] Add route transition animations
 - [ ] Add element entrance animations (scroll-triggered)
 - [ ] Add chart data transition animations
 - [ ] Add smooth height transitions
 - [ ] Add page scroll animations
 - [ ] Add parallax effects (subtle)
-- [ ] Create animation utility library
+- [x] Create animation utility library
 - [x] Add reduced-motion support
 
 ### 22. Data Visualization Polish
@@ -367,7 +367,7 @@ hover:border-primary-500/50 hover:shadow-lg hover:-translate-y-0.5 transition-al
 
 - [x] Audit all components for ARIA labels
 - [x] Add `aria-label` to icon-only buttons
-- [ ] Add `aria-describedby` for form errors
+- [x] Add `aria-describedby` for form errors
 - [x] Add `aria-live` for dynamic content
 - [x] Add landmark roles where needed
 - [x] Add `role="status"` for loading states

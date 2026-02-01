@@ -417,6 +417,15 @@ body {
   }
 }
 
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
 /* Animation utilities */
 .animate-fade-in {
   animation: fade-in var(--loupe-transition-base) ease-out;
@@ -444,6 +453,17 @@ body {
 
 .animate-pulse {
   animation: pulse 2s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer 2s ease-in-out infinite;
+  background: linear-gradient(
+    90deg,
+    var(--loupe-surface-sunken) 0%,
+    var(--loupe-surface-raised) 50%,
+    var(--loupe-surface-sunken) 100%
+  );
+  background-size: 200% 100%;
 }
 
 /* Focus styles for keyboard navigation */

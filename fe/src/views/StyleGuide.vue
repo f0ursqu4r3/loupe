@@ -207,6 +207,220 @@ const shadows = [
         </div>
       </section>
 
+      <!-- Color Usage Guidelines -->
+      <section>
+        <h2 class="text-2xl font-semibold text-text mb-6">Color Usage Guidelines</h2>
+        <p class="text-text-muted mb-6">
+          Best practices for using the color system consistently throughout the application.
+        </p>
+
+        <div class="space-y-6">
+          <!-- Primary Colors -->
+          <LCard>
+            <h3 class="text-lg font-medium text-text mb-3">Primary Colors</h3>
+            <p class="text-text-muted text-sm mb-4">
+              Use for primary actions, links, and active states. Creates visual hierarchy and guides user attention.
+            </p>
+            <div class="space-y-2 text-sm">
+              <div class="flex items-start gap-2">
+                <CheckCircle :size="16" class="text-success mt-0.5 shrink-0" />
+                <span class="text-text">Use for primary buttons, selected states, and important links</span>
+              </div>
+              <div class="flex items-start gap-2">
+                <CheckCircle :size="16" class="text-success mt-0.5 shrink-0" />
+                <span class="text-text">Use primary-600 for default, primary-700 for hover, primary-500 for focus rings</span>
+              </div>
+              <div class="flex items-start gap-2">
+                <AlertCircle :size="16" class="text-error mt-0.5 shrink-0" />
+                <span class="text-text">Avoid using for large backgrounds or body text</span>
+              </div>
+            </div>
+          </LCard>
+
+          <!-- Semantic Colors -->
+          <LCard>
+            <h3 class="text-lg font-medium text-text mb-3">Semantic Colors</h3>
+            <p class="text-text-muted text-sm mb-4">
+              Communicate meaning and status through color.
+            </p>
+            <div class="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <div class="flex items-center gap-2 mb-2">
+                  <div class="w-4 h-4 rounded bg-success" />
+                  <span class="font-medium text-text">Success</span>
+                </div>
+                <p class="text-text-muted">Confirmations, completed states</p>
+              </div>
+              <div>
+                <div class="flex items-center gap-2 mb-2">
+                  <div class="w-4 h-4 rounded bg-error" />
+                  <span class="font-medium text-text">Error</span>
+                </div>
+                <p class="text-text-muted">Errors, destructive actions</p>
+              </div>
+              <div>
+                <div class="flex items-center gap-2 mb-2">
+                  <div class="w-4 h-4 rounded bg-warning" />
+                  <span class="font-medium text-text">Warning</span>
+                </div>
+                <p class="text-text-muted">Cautions, non-critical issues</p>
+              </div>
+              <div>
+                <div class="flex items-center gap-2 mb-2">
+                  <div class="w-4 h-4 rounded bg-info" />
+                  <span class="font-medium text-text">Info</span>
+                </div>
+                <p class="text-text-muted">Helpful information, tips</p>
+              </div>
+            </div>
+          </LCard>
+
+          <!-- Surface Colors -->
+          <LCard>
+            <h3 class="text-lg font-medium text-text mb-3">Surface & Text Colors</h3>
+            <p class="text-text-muted text-sm mb-4">
+              Create depth and hierarchy through layered surfaces.
+            </p>
+            <div class="space-y-2 text-sm">
+              <div class="flex items-center gap-3">
+                <div class="w-16 h-8 rounded bg-surface border border-border" />
+                <span class="text-text">surface - Base background</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <div class="w-16 h-8 rounded bg-surface-sunken border border-border" />
+                <span class="text-text">surface-sunken - Recessed areas (input backgrounds)</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <div class="w-16 h-8 rounded bg-surface-raised border border-border" />
+                <span class="text-text">surface-raised - Elevated elements (cards, dropdowns)</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <div class="w-16 h-8 rounded bg-surface-overlay border border-border" />
+                <span class="text-text">surface-overlay - Modals, popovers (highest elevation)</span>
+              </div>
+            </div>
+          </LCard>
+
+          <!-- Contrast Guidelines -->
+          <LCard>
+            <h3 class="text-lg font-medium text-text mb-3">Contrast & Accessibility</h3>
+            <div class="space-y-2 text-sm">
+              <div class="flex items-start gap-2">
+                <CheckCircle :size="16" class="text-success mt-0.5 shrink-0" />
+                <span class="text-text">All text meets WCAG AA contrast requirements (4.5:1 for normal text)</span>
+              </div>
+              <div class="flex items-start gap-2">
+                <CheckCircle :size="16" class="text-success mt-0.5 shrink-0" />
+                <span class="text-text">Use text-text for primary content, text-muted for secondary, text-subtle for tertiary</span>
+              </div>
+              <div class="flex items-start gap-2">
+                <CheckCircle :size="16" class="text-success mt-0.5 shrink-0" />
+                <span class="text-text">OKLCH color space ensures perceptually uniform colors across the spectrum</span>
+              </div>
+            </div>
+          </LCard>
+        </div>
+      </section>
+
+      <!-- Animation Reference -->
+      <section>
+        <h2 class="text-2xl font-semibold text-text mb-6">Animation Reference</h2>
+        <p class="text-text-muted mb-6">
+          All available animations and transitions for consistent motion design.
+        </p>
+
+        <!-- Animation Classes -->
+        <div class="mb-8">
+          <h3 class="text-lg font-medium text-text mb-4">Animation Utilities</h3>
+          <div class="grid grid-cols-2 gap-4">
+            <LCard>
+              <code class="text-sm text-primary-600 font-mono">animate-fade-in</code>
+              <p class="text-text-muted text-sm mt-2">Fade in from transparent to opaque</p>
+              <p class="text-text-subtle text-xs mt-1">Duration: 200ms</p>
+            </LCard>
+            <LCard>
+              <code class="text-sm text-primary-600 font-mono">animate-slide-in-right</code>
+              <p class="text-text-muted text-sm mt-2">Slide in from the right</p>
+              <p class="text-text-subtle text-xs mt-1">Duration: 300ms</p>
+            </LCard>
+            <LCard>
+              <code class="text-sm text-primary-600 font-mono">animate-slide-in-left</code>
+              <p class="text-text-muted text-sm mt-2">Slide in from the left</p>
+              <p class="text-text-subtle text-xs mt-1">Duration: 300ms</p>
+            </LCard>
+            <LCard>
+              <code class="text-sm text-primary-600 font-mono">animate-slide-in-top</code>
+              <p class="text-text-muted text-sm mt-2">Slide in from the top</p>
+              <p class="text-text-subtle text-xs mt-1">Duration: 300ms</p>
+            </LCard>
+            <LCard>
+              <code class="text-sm text-primary-600 font-mono">animate-slide-in-bottom</code>
+              <p class="text-text-muted text-sm mt-2">Slide in from the bottom</p>
+              <p class="text-text-subtle text-xs mt-1">Duration: 300ms</p>
+            </LCard>
+            <LCard>
+              <code class="text-sm text-primary-600 font-mono">animate-spin</code>
+              <p class="text-text-muted text-sm mt-2">Continuous rotation</p>
+              <p class="text-text-subtle text-xs mt-1">Duration: 1s infinite</p>
+            </LCard>
+            <LCard>
+              <code class="text-sm text-primary-600 font-mono">animate-pulse</code>
+              <p class="text-text-muted text-sm mt-2">Pulsing opacity effect</p>
+              <p class="text-text-subtle text-xs mt-1">Duration: 2s infinite</p>
+            </LCard>
+            <LCard>
+              <code class="text-sm text-primary-600 font-mono">animate-shimmer</code>
+              <p class="text-text-muted text-sm mt-2">Shimmer loading effect</p>
+              <p class="text-text-subtle text-xs mt-1">Duration: 2s infinite</p>
+            </LCard>
+          </div>
+        </div>
+
+        <!-- Transition Guidelines -->
+        <div>
+          <h3 class="text-lg font-medium text-text mb-4">Transition Guidelines</h3>
+          <div class="space-y-4">
+            <LCard>
+              <h4 class="font-medium text-text mb-2">Timing</h4>
+              <div class="space-y-2 text-sm text-text-muted">
+                <p><strong>Fast (150ms):</strong> Small UI changes, hover states, focus indicators</p>
+                <p><strong>Base (200ms):</strong> Button clicks, tab switches, most interactions</p>
+                <p><strong>Slow (300ms):</strong> Page transitions, modal animations, large movements</p>
+              </div>
+            </LCard>
+            <LCard>
+              <h4 class="font-medium text-text mb-2">Easing</h4>
+              <div class="space-y-2 text-sm text-text-muted">
+                <p><strong>ease-out:</strong> Entrances, appearing elements (fast start, slow end)</p>
+                <p><strong>ease-in:</strong> Exits, disappearing elements (slow start, fast end)</p>
+                <p><strong>ease-in-out:</strong> Continuous animations, repeated motions</p>
+              </div>
+            </LCard>
+            <LCard>
+              <h4 class="font-medium text-text mb-2">Best Practices</h4>
+              <div class="space-y-1 text-sm">
+                <div class="flex items-start gap-2">
+                  <CheckCircle :size="16" class="text-success mt-0.5 shrink-0" />
+                  <span class="text-text">Keep animations subtle - users shouldn't wait for animations</span>
+                </div>
+                <div class="flex items-start gap-2">
+                  <CheckCircle :size="16" class="text-success mt-0.5 shrink-0" />
+                  <span class="text-text">Respect prefers-reduced-motion for accessibility</span>
+                </div>
+                <div class="flex items-start gap-2">
+                  <CheckCircle :size="16" class="text-success mt-0.5 shrink-0" />
+                  <span class="text-text">Use will-change sparingly for performance optimization</span>
+                </div>
+                <div class="flex items-start gap-2">
+                  <CheckCircle :size="16" class="text-success mt-0.5 shrink-0" />
+                  <span class="text-text">Transform and opacity are the most performant properties to animate</span>
+                </div>
+              </div>
+            </LCard>
+          </div>
+        </div>
+      </section>
+
       <!-- Typography -->
       <section>
         <h2 class="text-2xl font-semibold text-text mb-6">Typography</h2>

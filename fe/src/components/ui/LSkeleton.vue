@@ -28,7 +28,7 @@ const variantClasses: Record<Variant, string> = {
   card: 'rounded-lg',
 }
 
-const animationClass = props.animate ? 'animate-pulse' : ''
+const animationClass = props.animate ? 'animate-shimmer' : ''
 
 const classes = computed(() => [baseClasses, variantClasses[props.variant], animationClass, props.class])
 
@@ -45,15 +45,15 @@ const isCard = computed(() => props.variant === 'card')
   <!-- Card variant with internal structure -->
   <div v-if="isCard" :class="[classes, 'p-4 space-y-3']" :style="style">
     <div class="flex items-center gap-3">
-      <div class="w-12 h-12 rounded-full bg-surface animate-pulse" />
+      <div class="w-12 h-12 rounded-full bg-surface animate-shimmer" />
       <div class="flex-1 space-y-2">
-        <div class="h-4 bg-surface rounded w-3/4 animate-pulse" />
-        <div class="h-3 bg-surface rounded w-1/2 animate-pulse" />
+        <div class="h-4 bg-surface rounded w-3/4 animate-shimmer" />
+        <div class="h-3 bg-surface rounded w-1/2 animate-shimmer" />
       </div>
     </div>
     <div class="space-y-2">
-      <div class="h-3 bg-surface rounded animate-pulse" />
-      <div class="h-3 bg-surface rounded w-5/6 animate-pulse" />
+      <div class="h-3 bg-surface rounded animate-shimmer" />
+      <div class="h-3 bg-surface rounded w-5/6 animate-shimmer" />
     </div>
   </div>
 
