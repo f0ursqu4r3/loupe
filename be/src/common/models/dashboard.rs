@@ -127,7 +127,7 @@ pub struct UpdateTileRequest {
     pub parameter_bindings: Option<serde_json::Value>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TileResponse {
     pub id: Uuid,
     pub dashboard_id: Uuid,
@@ -156,7 +156,7 @@ impl From<Tile> for TileResponse {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct DashboardResponse {
     pub id: Uuid,
     pub org_id: Uuid,

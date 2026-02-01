@@ -26,6 +26,11 @@ async fn get_metrics(
     metrics.job_retry_queue_depth.set(retry_jobs);
     metrics.job_dead_letter_queue_size.set(dead_letter_jobs);
 
+    // Update cache metrics
+    if let Ok(cache_stats) = state.cache.stats().await {
+        metrics.cache_hit_rate.set(cache_stats.hit_rate);
+    }
+
     let output = metrics
         .render()
         .map_err(|e| Error::Internal(format!("Failed to render metrics: {}", e)))?;

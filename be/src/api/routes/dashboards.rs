@@ -2,6 +2,7 @@ use crate::AppState;
 use crate::permissions::{get_user_context, require_permission, Permission};
 use actix_web::{HttpRequest, HttpResponse, web};
 use loupe::Error;
+use loupe::cache;
 use loupe::filtering::{parse_tags, SearchParams, SortParams, SortableColumns};
 use loupe::models::{
     CreateDashboardRequest, CreateTileRequest, DashboardResponse, TileResponse,
@@ -173,11 +174,22 @@ async fn get_dashboard(
     require_permission(role, Permission::Viewer)?;
 
     let id = path.into_inner();
+    let cache_key = cache::keys::dashboard(id);
+
+    // Try cache first
+    if let Ok(Some(cached_response)) = state.cache.get::<DashboardResponse>(&cache_key).await {
+        tracing::debug!("Cache hit for dashboard {}", id);
+        return Ok(HttpResponse::Ok().json(cached_response));
+    }
+
+    tracing::debug!("Cache miss for dashboard {}", id);
+
+    // Cache miss - fetch from database
     let dashboard = state.db.get_dashboard(id, org_id).await?;
     let tiles = state.db.list_tiles(dashboard.id).await?;
     let tags: Vec<String> = serde_json::from_value(dashboard.tags).unwrap_or_default();
 
-    Ok(HttpResponse::Ok().json(DashboardResponse {
+    let response = DashboardResponse {
         id: dashboard.id,
         org_id: dashboard.org_id,
         name: dashboard.name,
@@ -188,7 +200,14 @@ async fn get_dashboard(
         created_by: dashboard.created_by,
         created_at: dashboard.created_at,
         updated_at: dashboard.updated_at,
-    }))
+    };
+
+    // Store in cache (fire and forget - don't fail the request if cache fails)
+    if let Err(e) = state.cache.set(&cache_key, &response).await {
+        tracing::warn!("Failed to cache dashboard {}: {}", id, e);
+    }
+
+    Ok(HttpResponse::Ok().json(response))
 }
 
 async fn update_dashboard(
@@ -221,6 +240,13 @@ async fn update_dashboard(
             tags.as_ref(),
         )
         .await?;
+
+    // Invalidate cache
+    let cache_key = cache::keys::dashboard(id);
+    if let Err(e) = state.cache.delete(&cache_key).await {
+        tracing::warn!("Failed to invalidate cache for dashboard {}: {}", id, e);
+    }
+
     let tiles = state.db.list_tiles(dashboard.id).await?;
     let tags: Vec<String> = serde_json::from_value(dashboard.tags).unwrap_or_default();
 
@@ -248,6 +274,13 @@ async fn delete_dashboard(
 
     let id = path.into_inner();
     state.db.delete_dashboard(id, org_id).await?;
+
+    // Invalidate cache
+    let cache_key = cache::keys::dashboard(id);
+    if let Err(e) = state.cache.delete(&cache_key).await {
+        tracing::warn!("Failed to invalidate cache for dashboard {}: {}", id, e);
+    }
+
     Ok(HttpResponse::NoContent().finish())
 }
 

@@ -34,6 +34,10 @@ pub struct Metrics {
     pub job_queue_depth: IntGauge,
     pub job_retry_queue_depth: IntGauge,
     pub job_dead_letter_queue_size: IntGauge,
+
+    // Cache metrics
+    pub cache_requests_total: IntCounterVec,
+    pub cache_hit_rate: prometheus::Gauge,
 }
 
 impl Metrics {
@@ -183,6 +187,20 @@ impl Metrics {
             "Number of permanently failed jobs in dead letter queue",
         )?;
 
+        // Cache metrics
+        let cache_requests_total = IntCounterVec::new(
+            Opts::new("loupe_cache_requests_total", "Total number of cache requests")
+                .namespace("loupe")
+                .subsystem("cache"),
+            &["result"], // "hit" or "miss"
+        )?;
+
+        let cache_hit_rate = prometheus::Gauge::with_opts(
+            prometheus::Opts::new("loupe_cache_hit_rate", "Cache hit rate percentage (0-100)")
+                .namespace("loupe")
+                .subsystem("cache"),
+        )?;
+
         // Register all metrics
         registry.register(Box::new(http_requests_total.clone()))?;
         registry.register(Box::new(http_request_duration_seconds.clone()))?;
@@ -202,6 +220,8 @@ impl Metrics {
         registry.register(Box::new(job_queue_depth.clone()))?;
         registry.register(Box::new(job_retry_queue_depth.clone()))?;
         registry.register(Box::new(job_dead_letter_queue_size.clone()))?;
+        registry.register(Box::new(cache_requests_total.clone()))?;
+        registry.register(Box::new(cache_hit_rate.clone()))?;
 
         Ok(Self {
             registry: Arc::new(registry),
@@ -223,6 +243,8 @@ impl Metrics {
             job_queue_depth,
             job_retry_queue_depth,
             job_dead_letter_queue_size,
+            cache_requests_total,
+            cache_hit_rate,
         })
     }
 
