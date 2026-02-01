@@ -101,11 +101,54 @@ async fn main() -> std::io::Result<()> {
     tracing::info!("Metrics endpoint: http://{}:{}/metrics", host, port);
 
     let server = HttpServer::new(move || {
-        let cors = Cors::default()
-            .allow_any_origin()
-            .allow_any_method()
-            .allow_any_header()
-            .max_age(3600);
+        // CORS Configuration
+        //
+        // Security: CORS (Cross-Origin Resource Sharing) controls which frontend origins
+        // can access this API from browsers.
+        //
+        // **Production Mode** (CORS_ALLOWED_ORIGINS set):
+        //   - Only allows requests from explicitly whitelisted origins
+        //   - Origins must be comma-separated: "https://app.example.com,https://admin.example.com"
+        //   - Restricts methods to: GET, POST, PUT, DELETE, PATCH, OPTIONS
+        //   - Restricts headers to: Authorization, Accept, Content-Type
+        //   - Prevents unauthorized frontends from accessing the API
+        //
+        // **Development Mode** (CORS_ALLOWED_ORIGINS not set):
+        //   - Allows any origin (for local development convenience)
+        //   - Should NEVER be used in production
+        //   - Logs a warning when this mode is active
+        //
+        // Example production configuration:
+        //   CORS_ALLOWED_ORIGINS="https://loupe.example.com,https://loupe-staging.example.com"
+        let cors = if let Ok(allowed_origins) = std::env::var("CORS_ALLOWED_ORIGINS") {
+            // Production mode: strict origin validation
+            // CORS_ALLOWED_ORIGINS should be comma-separated list: "https://app.example.com,https://admin.example.com"
+            let origins: Vec<&str> = allowed_origins.split(',').map(|s| s.trim()).collect();
+
+            tracing::info!("CORS: Allowing specific origins: {:?}", origins);
+
+            let mut cors = Cors::default();
+            for origin in origins {
+                cors = cors.allowed_origin(origin);
+            }
+
+            cors.allowed_methods(vec!["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+                .allowed_headers(vec![
+                    actix_web::http::header::AUTHORIZATION,
+                    actix_web::http::header::ACCEPT,
+                    actix_web::http::header::CONTENT_TYPE,
+                ])
+                .max_age(3600)
+        } else {
+            // Development mode: permissive for local testing
+            tracing::warn!("CORS: CORS_ALLOWED_ORIGINS not set - allowing all origins (development mode only!)");
+
+            Cors::default()
+                .allow_any_origin()
+                .allow_any_method()
+                .allow_any_header()
+                .max_age(3600)
+        };
 
         // Global API rate limiter: 100 requests per minute per IP
         // This prevents API abuse and brute force attacks
