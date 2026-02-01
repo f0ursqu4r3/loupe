@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import AppSidebar from './AppSidebar.vue'
 import AppHeader from './AppHeader.vue'
+import KeyboardShortcutsModal from '@/components/help/KeyboardShortcutsModal.vue'
+import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 
 interface Props {
   title?: string
@@ -38,6 +40,28 @@ const mainClasses = computed(() => [
   'min-h-screen transition-all duration-300',
   sidebarCollapsed.value ? 'ml-16' : 'ml-64',
 ])
+
+// Keyboard shortcuts
+useKeyboardShortcuts()
+const showKeyboardShortcuts = ref(false)
+
+function handleShowKeyboardShortcuts() {
+  showKeyboardShortcuts.value = true
+}
+
+function handleToggleSidebar() {
+  sidebarCollapsed.value = !sidebarCollapsed.value
+}
+
+onMounted(() => {
+  window.addEventListener('show-keyboard-shortcuts', handleShowKeyboardShortcuts)
+  window.addEventListener('toggle-sidebar', handleToggleSidebar)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('show-keyboard-shortcuts', handleShowKeyboardShortcuts)
+  window.removeEventListener('toggle-sidebar', handleToggleSidebar)
+})
 </script>
 
 <template>
@@ -67,5 +91,8 @@ const mainClasses = computed(() => [
         <slot />
       </main>
     </div>
+
+    <!-- Keyboard shortcuts help modal -->
+    <KeyboardShortcutsModal v-model="showKeyboardShortcuts" />
   </div>
 </template>

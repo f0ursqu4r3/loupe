@@ -73,6 +73,8 @@ function handleAction() {
 
 <template>
   <div
+    role="alert"
+    :aria-live="variant === 'error' ? 'assertive' : 'polite'"
     :class="[
       'relative flex items-start gap-3 p-4 rounded-lg border-l-4 shadow-lg',
       variantClasses[variant],

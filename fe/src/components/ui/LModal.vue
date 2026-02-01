@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { X } from 'lucide-vue-next'
 
 type Variant = 'default' | 'danger' | 'warning' | 'info' | 'success'
@@ -34,12 +34,30 @@ const emit = defineEmits<{
 // Support both modelValue and open props
 const isOpen = ref(props.modelValue ?? props.open ?? false)
 
-// Scroll lock
-watch(isOpen, (open) => {
+// Focus management
+const modalRef = ref<HTMLElement | null>(null)
+let previousActiveElement: HTMLElement | null = null
+
+// Scroll lock and focus management
+watch(isOpen, async (open) => {
   if (open) {
+    // Save the currently focused element
+    previousActiveElement = document.activeElement as HTMLElement
+
+    // Lock scroll
     document.body.style.overflow = 'hidden'
+
+    // Wait for modal to render, then focus first focusable element
+    await nextTick()
+    focusFirstElement()
   } else {
+    // Unlock scroll
     document.body.style.overflow = ''
+
+    // Restore focus to previously focused element
+    if (previousActiveElement && typeof previousActiveElement.focus === 'function') {
+      previousActiveElement.focus()
+    }
   }
 })
 
@@ -76,6 +94,56 @@ function onKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape' && props.closeOnEscape && isOpen.value) {
     close()
   }
+
+  // Focus trap: handle Tab key to keep focus within modal
+  if (event.key === 'Tab' && isOpen.value && modalRef.value) {
+    const focusableElements = getFocusableElements()
+    if (focusableElements.length === 0) return
+
+    const firstElement = focusableElements[0]
+    const lastElement = focusableElements[focusableElements.length - 1]
+
+    if (event.shiftKey) {
+      // Shift+Tab: moving backwards
+      if (document.activeElement === firstElement) {
+        event.preventDefault()
+        lastElement.focus()
+      }
+    } else {
+      // Tab: moving forwards
+      if (document.activeElement === lastElement) {
+        event.preventDefault()
+        firstElement.focus()
+      }
+    }
+  }
+}
+
+function getFocusableElements(): HTMLElement[] {
+  if (!modalRef.value) return []
+
+  const selector = [
+    'button:not([disabled])',
+    'a[href]',
+    'input:not([disabled])',
+    'select:not([disabled])',
+    'textarea:not([disabled])',
+    '[tabindex]:not([tabindex="-1"])',
+  ].join(', ')
+
+  return Array.from(modalRef.value.querySelectorAll(selector))
+}
+
+function focusFirstElement() {
+  if (!modalRef.value) return
+
+  const focusableElements = getFocusableElements()
+  if (focusableElements.length > 0) {
+    focusableElements[0].focus()
+  } else {
+    // If no focusable elements, focus the modal itself
+    modalRef.value.focus()
+  }
 }
 
 onMounted(() => {
@@ -106,12 +174,15 @@ const sizeClasses = {
 
         <!-- Modal -->
         <div
+          ref="modalRef"
           :class="[
             'relative w-full bg-surface-overlay rounded-xl shadow-xl border border-border',
             sizeClasses[size],
           ]"
           role="dialog"
           aria-modal="true"
+          :aria-labelledby="title ? 'modal-title' : undefined"
+          tabindex="-1"
         >
           <!-- Header -->
           <div
@@ -121,7 +192,7 @@ const sizeClasses = {
               headerVariantClasses[variant] || 'border-border',
             ]"
           >
-            <h2 v-if="title" class="text-lg font-semibold text-text">
+            <h2 v-if="title" id="modal-title" class="text-lg font-semibold text-text">
               {{ title }}
             </h2>
             <button

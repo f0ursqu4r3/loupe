@@ -72,7 +72,7 @@ function toggleCollapse() {
     </div>
 
     <!-- Navigation -->
-    <nav class="flex-1 py-4 overflow-y-auto scrollbar-thin">
+    <nav aria-label="Primary navigation" class="flex-1 py-4 overflow-y-auto scrollbar-thin">
       <ul class="space-y-1 px-2">
         <li v-for="item in navItems" :key="item.to">
           <RouterLink
@@ -94,7 +94,7 @@ function toggleCollapse() {
     </nav>
 
     <!-- Bottom navigation -->
-    <div class="py-4 border-t border-border">
+    <nav aria-label="Secondary navigation" class="py-4 border-t border-border">
       <ul class="space-y-1 px-2">
         <li v-for="item in bottomNavItems" :key="item.to">
           <RouterLink
@@ -129,6 +129,6 @@ function toggleCollapse() {
           <span v-if="!collapsed" class="text-sm font-medium">Collapse</span>
         </button>
       </div>
-    </div>
+    </nav>
   </aside>
 </template>

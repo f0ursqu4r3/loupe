@@ -27,5 +27,8 @@ const classes = computed(() => ['animate-spin', sizeClasses[props.size], colorCl
 </script>
 
 <template>
-  <Loader2 :class="classes" />
+  <div role="status" aria-label="Loading">
+    <Loader2 :class="classes" aria-hidden="true" />
+    <span class="sr-only">Loading...</span>
+  </div>
 </template>

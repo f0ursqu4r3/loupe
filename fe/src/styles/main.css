@@ -446,7 +446,8 @@ body {
   animation: pulse 2s ease-in-out infinite;
 }
 
-/* Focus styles */
+/* Focus styles for keyboard navigation */
+/* Hide focus outline on mouse click, show on keyboard navigation */
 .focus-ring {
   outline: none;
 }
@@ -454,6 +455,33 @@ body {
 .focus-ring:focus-visible {
   outline: 2px solid var(--loupe-primary-500);
   outline-offset: 2px;
+}
+
+/* Enhanced global focus-visible for better keyboard navigation visibility */
+:focus-visible {
+  outline: 2px solid var(--loupe-primary-500);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Focus styles for interactive elements */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[role='button']:focus-visible,
+[role='link']:focus-visible,
+[tabindex]:not([tabindex='-1']):focus-visible {
+  outline: 2px solid var(--loupe-primary-500);
+  outline-offset: 2px;
+}
+
+/* Focus within for form fields - show subtle border change */
+input:focus-within,
+textarea:focus-within,
+select:focus-within {
+  border-color: var(--loupe-primary-500);
 }
 
 /* Screen reader only utility */
