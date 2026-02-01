@@ -1,7 +1,9 @@
 use crate::error::{Error, Result};
 use crate::models::*;
 use sqlx::PgPool;
-use sqlx::postgres::PgPoolOptions;
+use sqlx::postgres::{PgConnectOptions, PgPoolOptions, PgSslMode};
+use std::str::FromStr;
+use std::time::Duration;
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -9,15 +11,163 @@ pub struct Database {
     pub pool: PgPool,
 }
 
+/// Database connection configuration
+pub struct DatabaseConfig {
+    /// Minimum number of connections in the pool
+    pub min_connections: u32,
+    /// Maximum number of connections in the pool
+    pub max_connections: u32,
+    /// Connection timeout (time to wait for a connection to be established)
+    pub connect_timeout: Duration,
+    /// Idle timeout (time before closing idle connections)
+    pub idle_timeout: Option<Duration>,
+    /// Max lifetime for a connection
+    pub max_lifetime: Option<Duration>,
+    /// Acquire timeout (time to wait for a connection from the pool)
+    pub acquire_timeout: Duration,
+    /// SSL mode for the connection
+    pub ssl_mode: PgSslMode,
+    /// Test connections before giving them to the application
+    pub test_before_acquire: bool,
+}
+
+impl Default for DatabaseConfig {
+    fn default() -> Self {
+        Self {
+            min_connections: 2,
+            max_connections: 10,
+            connect_timeout: Duration::from_secs(10),
+            idle_timeout: Some(Duration::from_secs(600)), // 10 minutes
+            max_lifetime: Some(Duration::from_secs(1800)), // 30 minutes
+            acquire_timeout: Duration::from_secs(5),
+            ssl_mode: PgSslMode::Prefer, // Prefer SSL, fallback to plain if unavailable
+            test_before_acquire: true,
+        }
+    }
+}
+
+impl DatabaseConfig {
+    /// Create a production-ready configuration with stricter settings
+    pub fn production() -> Self {
+        Self {
+            ssl_mode: PgSslMode::Require, // Require SSL in production
+            ..Default::default()
+        }
+    }
+
+    /// Create configuration from environment variables
+    pub fn from_env() -> Self {
+        let env = std::env::var("APP_ENV").unwrap_or_else(|_| "local".to_string());
+
+        let mut config = if env == "prod" || env == "production" {
+            Self::production()
+        } else {
+            Self::default()
+        };
+
+        // Override from environment variables if present
+        if let Ok(max_str) = std::env::var("DB_MAX_CONNECTIONS") {
+            if let Ok(max) = max_str.parse() {
+                config.max_connections = max;
+            }
+        }
+
+        if let Ok(min_str) = std::env::var("DB_MIN_CONNECTIONS") {
+            if let Ok(min) = min_str.parse() {
+                config.min_connections = min;
+            }
+        }
+
+        if let Ok(ssl_str) = std::env::var("DB_SSL_MODE") {
+            config.ssl_mode = match ssl_str.to_lowercase().as_str() {
+                "disable" => PgSslMode::Disable,
+                "allow" => PgSslMode::Allow,
+                "prefer" => PgSslMode::Prefer,
+                "require" => PgSslMode::Require,
+                "verify-ca" => PgSslMode::VerifyCa,
+                "verify-full" => PgSslMode::VerifyFull,
+                _ => PgSslMode::Prefer,
+            };
+        }
+
+        config
+    }
+}
+
 impl Database {
+    /// Connect to the database with default configuration
     pub async fn connect(database_url: &str) -> Result<Self> {
+        Self::connect_with_config(database_url, DatabaseConfig::from_env()).await
+    }
+
+    /// Connect to the database with custom configuration
+    pub async fn connect_with_config(database_url: &str, config: DatabaseConfig) -> Result<Self> {
+        // Validate DATABASE_URL format
+        Self::validate_database_url(database_url)?;
+
+        // Parse connection options from URL
+        let options = PgConnectOptions::from_str(database_url)
+            .map_err(|e| Error::BadRequest(format!("Invalid DATABASE_URL format: {}", e)))?
+            .ssl_mode(config.ssl_mode);
+
+        // Build pool with configuration
         let pool = PgPoolOptions::new()
-            .max_connections(10)
-            .connect(database_url)
+            .min_connections(config.min_connections)
+            .max_connections(config.max_connections)
+            .acquire_timeout(config.acquire_timeout)
+            .idle_timeout(config.idle_timeout)
+            .max_lifetime(config.max_lifetime)
+            .test_before_acquire(config.test_before_acquire)
+            .connect_with(options)
             .await
-            .map_err(|e| Error::Database(format!("Failed to connect: {}", e)))?;
+            .map_err(|e| {
+                // Don't include the connection string in the error message
+                tracing::error!("Database connection failed: {}", e);
+                Error::Database("Failed to connect to database. Check configuration and network.".to_string())
+            })?;
+
+        tracing::info!(
+            "Database connection pool initialized (min: {}, max: {}, SSL: {:?})",
+            config.min_connections,
+            config.max_connections,
+            config.ssl_mode
+        );
 
         Ok(Self { pool })
+    }
+
+    /// Validate DATABASE_URL format without exposing it in logs
+    fn validate_database_url(url: &str) -> Result<()> {
+        // Basic validation
+        if url.is_empty() {
+            return Err(Error::BadRequest("DATABASE_URL cannot be empty".to_string()));
+        }
+
+        if !url.starts_with("postgres://") && !url.starts_with("postgresql://") {
+            return Err(Error::BadRequest(
+                "DATABASE_URL must start with postgres:// or postgresql://".to_string(),
+            ));
+        }
+
+        // Check minimum length (protocol + host + db name should be at least 20 chars)
+        if url.len() < 20 {
+            return Err(Error::BadRequest("DATABASE_URL is too short".to_string()));
+        }
+
+        Ok(())
+    }
+
+    /// Check if the database connection is healthy
+    pub async fn health_check(&self) -> Result<()> {
+        sqlx::query("SELECT 1")
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|e| {
+                tracing::error!("Database health check failed: {}", e);
+                Error::Database("Database health check failed".to_string())
+            })?;
+
+        Ok(())
     }
 
     pub async fn run_migrations(&self) -> Result<()> {

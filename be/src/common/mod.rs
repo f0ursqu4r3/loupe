@@ -9,7 +9,7 @@ pub mod sql_validator;
 pub mod validation;
 
 pub use config::{init_tracing, load_env};
-pub use db::Database;
+pub use db::{Database, DatabaseConfig};
 pub use error::{Error, Result};
 pub use jwt::{Claims, JwtManager};
 pub use params::{
