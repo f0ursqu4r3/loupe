@@ -1,3 +1,4 @@
+pub mod cache;
 pub mod config;
 pub mod connectors;
 pub mod db;
@@ -13,6 +14,7 @@ pub mod sql_validator;
 pub mod tracing;
 pub mod validation;
 
+pub use cache::{CacheManager, CacheStats};
 pub use config::{init_tracing, load_env};
 pub use db::{Database, DatabaseConfig, PoolStats};
 pub use error::{Error, Result};

@@ -11,12 +11,13 @@ use argon2::{
     password_hash::{PasswordHasher, SaltString, rand_core::OsRng},
 };
 use loupe::models::OrgRole;
-use loupe::{load_env, Database, JwtManager, Metrics};
+use loupe::{load_env, CacheManager, Database, JwtManager, Metrics};
 use std::sync::Arc;
 
 pub struct AppState {
     pub db: Database,
     pub jwt: JwtManager,
+    pub cache: CacheManager,
 }
 
 #[actix_web::main]
@@ -81,8 +82,16 @@ async fn main() -> std::io::Result<()> {
         tracing::warn!("Failed to seed default admin: {}", e);
     }
 
+    // Initialize cache manager
+    // If Redis is unavailable, the application will still work but without caching
+    let cache = CacheManager::new().await
+        .unwrap_or_else(|e| {
+            tracing::error!("Failed to initialize cache manager: {}. Application will continue without caching.", e);
+            panic!("Cache manager initialization failed. Please ensure Redis is running or set CACHE_ENABLED=false in environment.");
+        });
+
     let jwt = JwtManager::new(jwt_secret, jwt_expiration_hours);
-    let state = Arc::new(AppState { db, jwt });
+    let state = Arc::new(AppState { db, jwt, cache });
 
     // Initialize metrics
     let metrics = Arc::new(Metrics::new().expect("Failed to create metrics registry"));
