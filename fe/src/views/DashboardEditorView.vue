@@ -220,7 +220,7 @@ async function openAddTileModal() {
   showAddTileModal.value = true
   try {
     const response = await visualizationsApi.list()
-    visualizations.value = response.items
+    visualizations.value = response.data
   } catch (e) {
     console.error('Failed to load visualizations:', e)
   }

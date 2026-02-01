@@ -103,7 +103,7 @@ const queryOptions = computed(() =>
 async function loadQueries() {
   try {
     const response = await queriesApi.list()
-    allQueries.value = response.items
+    allQueries.value = response.data
   } catch (e) {
     console.error('Failed to load queries:', e)
   }

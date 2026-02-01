@@ -91,7 +91,7 @@ const datasources = ref<Datasource[]>([])
 async function loadDatasources() {
   try {
     const response = await datasourcesApi.list()
-    datasources.value = response.items
+    datasources.value = response.data
   } catch (e) {
     console.error('Failed to load datasources:', e)
   }

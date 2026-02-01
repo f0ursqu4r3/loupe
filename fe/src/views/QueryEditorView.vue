@@ -158,7 +158,7 @@ function resetQueryState() {
 async function loadDatasources() {
   try {
     const response = await datasourcesApi.list()
-    datasources.value = response.items
+    datasources.value = response.data
     // Auto-select first datasource for new queries
     const firstDatasource = datasources.value[0]
     if (isNew.value && firstDatasource && !query.value.datasource_id) {
@@ -196,7 +196,7 @@ async function loadSchedules() {
 
   try {
     const response = await schedulesApi.list()
-    schedules.value = response.items.filter((s) => s.query_id === queryId.value)
+    schedules.value = response.data.filter((s) => s.query_id === queryId.value)
   } catch (e) {
     console.error('Failed to load schedules:', e)
   }

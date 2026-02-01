@@ -105,8 +105,8 @@ async function loadQueries() {
       queriesApi.list(),
       datasourcesApi.list()
     ])
-    queries.value = queriesResponse.items
-    datasources.value = datasourcesResponse.items
+    queries.value = queriesResponse.data
+    datasources.value = datasourcesResponse.data
 
     // Set default datasource for import
     if (datasources.value.length > 0 && !importDatasourceId.value) {

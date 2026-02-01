@@ -208,17 +208,59 @@ These are high-priority security and data integrity improvements.
 - [schedules.rs](../be/src/api/routes/schedules.rs) ✓
 - [visualizations.rs](../be/src/api/routes/visualizations.rs) ✓
 
-### 7. Request/Response Validation
+### 7. Request/Response Validation ✅
 
-- [ ] Add request DTOs for all endpoints
-- [ ] Add response DTOs for all endpoints
-- [ ] Implement serde validation rules
-- [ ] Add custom validators for business logic
-- [ ] Validate date ranges
-- [ ] Validate cron expressions in schedules
-- [ ] Add field-level validation messages
-- [ ] Test validation edge cases
-- [ ] Document validation rules
+- [x] Add request DTOs for all endpoints
+- [x] Add response DTOs for all endpoints
+- [x] Implement serde validation rules
+- [x] Add custom validators for business logic
+- [x] Validate date ranges
+- [x] Validate cron expressions in schedules
+- [x] Add field-level validation messages
+- [x] Test validation edge cases
+- [x] Document validation rules
+
+**Status:** ✅ **COMPLETE** - Comprehensive validation implemented
+
+**Implementation Details:**
+
+- **Custom Validators** ([validation.rs](../be/src/common/validation.rs)):
+  - `validate_connection_string`: Protocol scheme check, SQL injection pattern detection, length limits (10-2048 chars)
+  - `validate_cron_expression`: Validates cron syntax using cron crate
+  - `validate_name`: Alphanumeric + allowed punctuation, 1-255 chars
+  - `validate_description`: Max 2000 chars
+  - `validate_sql_length`: SQL query length validation (1-100,000 chars)
+  - `validate_date_range`: Ensures start < end, prevents ranges > 10 years
+  - `validate_pagination`: Validates limit (1-100) and offset (≥0)
+
+- **Request DTOs with Validation**:
+  - Auth: Email format, password strength (8-128 chars), name length
+  - Datasources: Name validation, connection string validation
+  - Queries: Name, description, SQL length limits, parameter/tag array limits
+  - Dashboards: Name, description, tags, tile positioning and sizing
+  - Visualizations: Name, tags validation
+  - Schedules: Name, cron expression validation, tags
+  - Canvases: Name, time preset, node/edge validation
+  - Runs: Date range validation for filtering
+
+- **Field-Level Validation Messages**:
+  - All validators return custom error messages with context
+  - Error messages formatted as "field: message" for clarity
+  - Examples: "Connection string must include a protocol scheme", "Start date must be before end date"
+
+- **Test Coverage**: 22 unit tests covering:
+  - Valid inputs for all validators
+  - Edge cases (empty strings, boundary values)
+  - Invalid inputs (SQL injection, wrong formats)
+  - Date range validation (invalid order, too large, None values)
+  - Pagination limits and offsets
+  - Cron expression parsing
+
+**Files Modified:**
+
+- [validation.rs](../be/src/common/validation.rs) - Core validation module (187 lines, 22 tests)
+- [runs.rs](../be/src/api/routes/runs.rs) - Added date range validation for run filters
+- All route handlers use `validate_request()` before processing
 
 ### 8. Pagination Implementation ✅
 

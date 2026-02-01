@@ -114,6 +114,48 @@ pub fn validate_sql_length(value: &str) -> Result<(), ValidationError> {
     Ok(())
 }
 
+/// Validates that a date range is valid (start_date < end_date)
+pub fn validate_date_range(
+    start: Option<chrono::DateTime<chrono::Utc>>,
+    end: Option<chrono::DateTime<chrono::Utc>>,
+) -> Result<(), ValidationError> {
+    if let (Some(start), Some(end)) = (start, end) {
+        if start >= end {
+            return Err(ValidationError::new("invalid_date_range")
+                .with_message("Start date must be before end date".into()));
+        }
+
+        // Prevent queries for absurdly large date ranges (more than 10 years)
+        let duration = end - start;
+        if duration.num_days() > 3650 {
+            return Err(ValidationError::new("date_range_too_large")
+                .with_message("Date range cannot exceed 10 years".into()));
+        }
+    }
+
+    Ok(())
+}
+
+/// Validates pagination parameters
+pub fn validate_pagination(limit: i64, offset: i64) -> Result<(), ValidationError> {
+    if limit < 1 {
+        return Err(ValidationError::new("invalid_limit")
+            .with_message("Limit must be at least 1".into()));
+    }
+
+    if limit > 100 {
+        return Err(ValidationError::new("limit_too_large")
+            .with_message("Limit cannot exceed 100".into()));
+    }
+
+    if offset < 0 {
+        return Err(ValidationError::new("invalid_offset")
+            .with_message("Offset cannot be negative".into()));
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -182,5 +224,75 @@ mod tests {
     fn test_validate_sql_length_too_long() {
         let long_sql = "SELECT * FROM users WHERE ".to_string() + &"a".repeat(100_000);
         assert!(validate_sql_length(&long_sql).is_err());
+    }
+
+    #[test]
+    fn test_validate_date_range_valid() {
+        use chrono::Utc;
+        let start = Utc::now();
+        let end = start + chrono::Duration::days(7);
+        assert!(validate_date_range(Some(start), Some(end)).is_ok());
+    }
+
+    #[test]
+    fn test_validate_date_range_invalid_order() {
+        use chrono::Utc;
+        let end = Utc::now();
+        let start = end + chrono::Duration::days(7);
+        assert!(validate_date_range(Some(start), Some(end)).is_err());
+    }
+
+    #[test]
+    fn test_validate_date_range_same_date() {
+        use chrono::Utc;
+        let date = Utc::now();
+        assert!(validate_date_range(Some(date), Some(date)).is_err());
+    }
+
+    #[test]
+    fn test_validate_date_range_too_large() {
+        use chrono::Utc;
+        let start = Utc::now();
+        let end = start + chrono::Duration::days(3651); // More than 10 years
+        assert!(validate_date_range(Some(start), Some(end)).is_err());
+    }
+
+    #[test]
+    fn test_validate_date_range_none() {
+        assert!(validate_date_range(None, None).is_ok());
+        use chrono::Utc;
+        assert!(validate_date_range(Some(Utc::now()), None).is_ok());
+        assert!(validate_date_range(None, Some(Utc::now())).is_ok());
+    }
+
+    #[test]
+    fn test_validate_pagination_valid() {
+        assert!(validate_pagination(20, 0).is_ok());
+        assert!(validate_pagination(1, 100).is_ok());
+        assert!(validate_pagination(100, 0).is_ok());
+    }
+
+    #[test]
+    fn test_validate_pagination_invalid_limit() {
+        assert!(validate_pagination(0, 0).is_err());
+        assert!(validate_pagination(-1, 0).is_err());
+        assert!(validate_pagination(101, 0).is_err());
+    }
+
+    #[test]
+    fn test_validate_pagination_invalid_offset() {
+        assert!(validate_pagination(20, -1).is_err());
+    }
+
+    #[test]
+    fn test_validate_cron_expression_valid() {
+        assert!(validate_cron_expression("0 0 * * * *").is_ok()); // Every hour
+        assert!(validate_cron_expression("0 */15 * * * *").is_ok()); // Every 15 minutes
+    }
+
+    #[test]
+    fn test_validate_cron_expression_invalid() {
+        assert!(validate_cron_expression("invalid").is_err());
+        assert!(validate_cron_expression("* * * *").is_err()); // Wrong number of fields
     }
 }

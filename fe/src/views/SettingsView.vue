@@ -60,7 +60,7 @@ async function loadUsers() {
   try {
     loadingUsers.value = true
     const response = await organizationsApi.listUsers()
-    users.value = response.items
+    users.value = response.data
   } catch (e) {
     handleError(e, 'Failed to load organization users')
   } finally {

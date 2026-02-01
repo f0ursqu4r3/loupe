@@ -60,7 +60,7 @@ async function loadSchedules() {
     loading.value = true
     error.value = null
     const response = await schedulesApi.list()
-    schedules.value = response.items
+    schedules.value = response.data
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load schedules'
   } finally {

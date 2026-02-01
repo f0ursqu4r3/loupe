@@ -84,6 +84,12 @@ async fn list_runs(
         }
     });
 
+    // Validate date range
+    loupe::validation::validate_date_range(query.start_date, query.end_date)
+        .map_err(|e| Error::BadRequest(
+            e.message.map(|m| m.to_string()).unwrap_or_else(|| "Invalid date range".to_string())
+        ))?;
+
     let (runs, total) = state
         .db
         .list_runs_paginated(

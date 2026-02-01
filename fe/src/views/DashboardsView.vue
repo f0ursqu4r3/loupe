@@ -51,7 +51,7 @@ async function loadDashboards() {
     loading.value = true
     error.value = null
     const response = await dashboardsApi.list()
-    dashboards.value = response.items
+    dashboards.value = response.data
   } catch (e) {
     handleError(e, 'Failed to load dashboards')
     error.value = e instanceof Error ? e.message : 'Failed to load dashboards'
