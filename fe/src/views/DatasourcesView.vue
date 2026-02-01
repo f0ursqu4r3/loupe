@@ -44,7 +44,10 @@ async function loadDatasources() {
     error.value = null
     datasources.value = await datasourcesApi.list()
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Failed to load datasources'
+    error.value =
+      e instanceof Error
+        ? e.message
+        : 'Unable to load datasources. Please check your connection and try again.'
   } finally {
     loading.value = false
   }
@@ -58,7 +61,10 @@ async function createDatasource() {
     createForm.value = { name: '', ds_type: 'postgres', connection_string: '' }
     await loadDatasources()
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Failed to create datasource'
+    error.value =
+      e instanceof Error
+        ? e.message
+        : 'Unable to create datasource. Please verify your connection string and try again.'
   } finally {
     creating.value = false
   }
@@ -124,7 +130,10 @@ async function deleteDatasource() {
     deletingDatasource.value = null
     await loadDatasources()
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Failed to delete datasource'
+    error.value =
+      e instanceof Error
+        ? e.message
+        : 'Unable to delete datasource. This datasource may be in use by queries or visualizations.'
   } finally {
     deleting.value = false
   }
