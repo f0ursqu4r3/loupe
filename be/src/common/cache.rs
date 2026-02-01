@@ -15,7 +15,7 @@ use std::time::Duration;
 /// Cache manager with Redis backend
 #[derive(Clone)]
 pub struct CacheManager {
-    client: ConnectionManager,
+    client: Option<ConnectionManager>,
     enabled: bool,
     default_ttl: Duration,
 }
@@ -28,9 +28,6 @@ impl CacheManager {
     /// - `CACHE_ENABLED`: Enable/disable caching (default: "true")
     /// - `CACHE_DEFAULT_TTL`: Default TTL in seconds (default: "300" = 5 minutes)
     pub async fn new() -> Result<Self, RedisError> {
-        let redis_url = std::env::var("REDIS_URL")
-            .unwrap_or_else(|_| "redis://localhost:6379".to_string());
-
         let enabled = std::env::var("CACHE_ENABLED")
             .unwrap_or_else(|_| "true".to_string())
             .parse::<bool>()
@@ -41,17 +38,24 @@ impl CacheManager {
             .parse::<u64>()
             .unwrap_or(300);
 
-        let client = redis::Client::open(redis_url)?;
-        let manager = ConnectionManager::new(client).await?;
-
-        tracing::info!(
-            "Cache manager initialized (enabled: {}, default_ttl: {}s)",
-            enabled,
-            default_ttl_secs
-        );
+        // Only connect to Redis if caching is enabled
+        let client = if enabled {
+            let redis_url = std::env::var("REDIS_URL")
+                .unwrap_or_else(|_| "redis://localhost:6379".to_string());
+            let client = redis::Client::open(redis_url)?;
+            let manager = ConnectionManager::new(client).await?;
+            tracing::info!(
+                "Cache manager initialized (enabled: true, default_ttl: {}s)",
+                default_ttl_secs
+            );
+            Some(manager)
+        } else {
+            tracing::info!("Cache manager initialized (enabled: false)");
+            None
+        };
 
         Ok(Self {
-            client: manager,
+            client,
             enabled,
             default_ttl: Duration::from_secs(default_ttl_secs),
         })
@@ -68,7 +72,7 @@ impl CacheManager {
             return Ok(None);
         }
 
-        let mut conn = self.client.clone();
+        let mut conn = self.client.as_ref().expect("Cache client should be available when enabled").clone();
         let value: Option<String> = conn.get(key).await?;
 
         match value {
@@ -116,7 +120,7 @@ impl CacheManager {
                 e.to_string(),
             )))?;
 
-        let mut conn = self.client.clone();
+        let mut conn = self.client.as_ref().expect("Cache client should be available when enabled").clone();
         let _: () = conn.set_ex(key, json_str, ttl.as_secs()).await?;
 
         Ok(())
@@ -128,7 +132,7 @@ impl CacheManager {
             return Ok(());
         }
 
-        let mut conn = self.client.clone();
+        let mut conn = self.client.as_ref().expect("Cache client should be available when enabled").clone();
         let _: () = conn.del(key).await?;
 
         Ok(())
@@ -145,7 +149,7 @@ impl CacheManager {
             return Ok(0);
         }
 
-        let mut conn = self.client.clone();
+        let mut conn = self.client.as_ref().expect("Cache client should be available when enabled").clone();
 
         // SCAN for keys matching pattern
         let keys: Vec<String> = redis::cmd("KEYS")
@@ -171,7 +175,7 @@ impl CacheManager {
 
     /// Get cache statistics
     pub async fn stats(&self) -> Result<CacheStats, RedisError> {
-        let mut conn = self.client.clone();
+        let mut conn = self.client.as_ref().expect("Cache client should be available when enabled").clone();
 
         // Get Redis INFO stats
         let info: String = redis::cmd("INFO")

@@ -547,7 +547,7 @@ export function usePermissions() {
 }
 ```
 
-### 28. Organization Management UI
+### 28. Organization Management UI ✅
 
 **Backend Context:** New organization management API has been implemented ([organizations.rs](../be/src/api/routes/organizations.rs)) that allows Admins to manage users and roles within their organization.
 
@@ -557,17 +557,19 @@ export function usePermissions() {
 - `PUT /api/v1/organizations/users/:user_id/role` - Update user role (Admin only)
 - `DELETE /api/v1/organizations/users/:user_id` - Remove user from org (Admin only)
 
+**Implementation:** All functionality integrated into [SettingsView.vue](../fe/src/views/SettingsView.vue)
+
 **Tasks:**
 
-- [ ] Create Organization/Team Settings page
-- [ ] Add Users list view showing all organization members
-- [ ] Display user information (name, email, role, joined date)
-- [ ] Add role badge with color coding (Admin: red, Editor: blue, Viewer: gray)
-- [ ] Implement role change dropdown (Admin only)
-- [ ] Add confirmation dialog for role changes
-- [ ] Implement user removal with confirmation (Admin only)
-- [ ] Show current user's own entry (non-editable, can't remove self)
-- [ ] Add "You cannot change your own role" tooltip for current user
+- [x] Create Organization/Team Settings page
+- [x] Add Users list view showing all organization members
+- [x] Display user information (name, email, role, joined date)
+- [x] Add role badge with color coding (Admin: red, Editor: blue, Viewer: gray)
+- [x] Implement role change dropdown (Admin only)
+- [x] Add confirmation dialog for role changes
+- [x] Implement user removal with confirmation (Admin only)
+- [x] Show current user's own entry (non-editable, can't remove self)
+- [x] Add "You cannot change your own role" tooltip for current user
 - [ ] Handle API errors (403 for non-Admins, 400 for self-modification)
 - [ ] Add success/error toast notifications
 - [ ] Show empty state when organization has only one user
@@ -813,21 +815,21 @@ export function usePermissions() {
 
 ## Progress Tracking
 
-**Started:** _______________
-**Last Updated:** _______________
+**Started:** 2026-01-11
+**Last Updated:** 2026-02-01
 
 **Quick Wins Completed:** 5/5 ✓
 **Medium Impact Completed:** 5/5 ✓
 **Branding Completed:** 1/3
 **Components Completed:** 5/5 ✓
 **Advanced Features Completed:** 2/4
-**Authentication & Authorization:** 4/6 (RBAC composable ✓, User profile ✓, Error handling ✓, Conditional UI ✓, Routing pending, Org management UI pending)
+**Authentication & Authorization:** 5/6 (RBAC composable ✓, User profile ✓, Error handling ✓, Conditional UI ✓, Org management UI ✓, Routing pending)
 **Accessibility Completed:** 4/4 ✓
 **Polish Completed:** 1/4
 **Performance Completed:** 1/2
 **Documentation Completed:** 2/2 ✓
 
-**Overall Progress:** 40/42 major tasks (95%)
+**Overall Progress:** 41/42 major tasks (97.6%)
 
 ---
 
