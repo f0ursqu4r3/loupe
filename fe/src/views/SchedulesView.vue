@@ -16,9 +16,13 @@ import { AppLayout } from '@/components/layout'
 import { LButton, LCard, LBadge, LEmptyState, LSpinner, LTagFilter } from '@/components/ui'
 import { schedulesApi } from '@/services/api'
 import { formatDateTimeShort } from '@/utils/dateTime'
+import { usePermissions } from '@/composables/usePermissions'
+import { useApiError } from '@/composables/useApiError'
 import type { Schedule } from '@/types'
 
 const router = useRouter()
+const { canEdit } = usePermissions()
+const { handleError } = useApiError()
 
 const schedules = ref<Schedule[]>([])
 const loading = ref(true)
@@ -158,7 +162,7 @@ function describeCron(expr: string): string {
 <template>
   <AppLayout title="Schedules">
     <template #header-actions>
-      <LButton @click="router.push({ name: 'schedule-new' })">
+      <LButton v-if="canEdit" @click="router.push({ name: 'schedule-new' })">
         <Plus :size="16" />
         New Schedule
       </LButton>
@@ -173,13 +177,13 @@ function describeCron(expr: string): string {
     <LEmptyState
       v-else-if="schedules.length === 0"
       title="No schedules configured"
-      description="Schedule your queries to run automatically at specified intervals."
+      :description="canEdit ? 'Schedule your queries to run automatically at specified intervals.' : 'No schedules have been configured yet. Contact an editor or admin to create schedules.'"
     >
       <template #icon>
         <CalendarIcon :size="48" class="text-text-subtle" />
       </template>
       <template #action>
-        <LButton @click="router.push({ name: 'schedule-new' })">
+        <LButton v-if="canEdit" @click="router.push({ name: 'schedule-new' })">
           <Plus :size="16" />
           Create Schedule
         </LButton>

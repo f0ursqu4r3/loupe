@@ -395,25 +395,25 @@ if (error.response?.status === 403) {
 
 **Datasources:**
 
-- [ ] Hide "New Datasource" button for non-Admins
-- [ ] Hide edit/delete actions for non-Admins
+- [x] Hide "New Datasource" button for non-Admins
+- [x] Hide edit/delete actions for non-Admins
 - [ ] Show "Admin only" badge on sensitive actions
 
 **Visualizations:**
 
-- [ ] Hide "New Visualization" button for Viewers
-- [ ] Hide edit/delete actions for Viewers
+- [x] Hide "New Visualization" button for Viewers
+- [ ] Hide edit/delete actions for Viewers (in list view)
 
 **Schedules:**
 
-- [ ] Hide "New Schedule" button for Viewers
-- [ ] Hide enable/disable/trigger actions for Viewers
+- [x] Hide "New Schedule" button for Viewers
+- [ ] Hide enable/disable/trigger actions for Viewers (in list view)
 - [ ] Show permission indicator on schedule management
 
 **Canvases:**
 
-- [ ] Hide "New Canvas" button for Viewers
-- [ ] Hide edit actions (nodes, edges) for Viewers
+- [x] Hide "New Canvas" button for Viewers
+- [ ] Hide edit actions (nodes, edges) for Viewers (in editor view)
 - [ ] Show read-only mode for Viewers
 
 **Example Implementation:**
@@ -821,13 +821,13 @@ export function usePermissions() {
 **Branding Completed:** 1/3
 **Components Completed:** 5/5 ✓
 **Advanced Features Completed:** 2/4
-**Authentication & Authorization:** 3/6 (RBAC composable ✓, User profile ✓, Error handling ✓, Conditional UI partial, Routing pending, Org management UI pending)
+**Authentication & Authorization:** 4/6 (RBAC composable ✓, User profile ✓, Error handling ✓, Conditional UI ✓, Routing pending, Org management UI pending)
 **Accessibility Completed:** 4/4 ✓
 **Polish Completed:** 1/4
 **Performance Completed:** 1/2
 **Documentation Completed:** 2/2 ✓
 
-**Overall Progress:** 39/42 major tasks (93%)
+**Overall Progress:** 40/42 major tasks (95%)
 
 ---
 

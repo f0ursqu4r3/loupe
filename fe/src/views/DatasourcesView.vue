@@ -6,9 +6,13 @@ import { LButton, LCard, LEmptyState, LSpinner, LModal, LInput, LSelect } from '
 import { datasourcesApi } from '@/services/api'
 import { formatDateShort } from '@/utils/dateTime'
 import { useToast } from '@/composables/useToast'
+import { usePermissions } from '@/composables/usePermissions'
+import { useApiError } from '@/composables/useApiError'
 import type { Datasource, ConnectionTestResult } from '@/types'
 
 const toast = useToast()
+const { canAdmin } = usePermissions()
+const { handleError } = useApiError()
 const datasources = ref<Datasource[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
@@ -46,6 +50,7 @@ async function loadDatasources() {
     error.value = null
     datasources.value = await datasourcesApi.list()
   } catch (e) {
+    handleError(e, 'Failed to load datasources')
     error.value =
       e instanceof Error
         ? e.message
@@ -154,7 +159,7 @@ const dsTypeOptions = [{ value: 'postgres', label: 'PostgreSQL' }]
 <template>
   <AppLayout title="Datasources">
     <template #header-actions>
-      <LButton @click="showCreateModal = true">
+      <LButton v-if="canAdmin" @click="showCreateModal = true">
         <Plus :size="16" />
         New Datasource
       </LButton>
@@ -169,10 +174,10 @@ const dsTypeOptions = [{ value: 'postgres', label: 'PostgreSQL' }]
     <LEmptyState
       v-else-if="datasources.length === 0"
       title="No datasources configured"
-      description="Connect your first database to start running queries."
+      :description="canAdmin ? 'Connect your first database to start running queries.' : 'No datasources have been configured yet. Contact an administrator to add datasources.'"
     >
       <template #action>
-        <LButton @click="showCreateModal = true">
+        <LButton v-if="canAdmin" @click="showCreateModal = true">
           <Plus :size="16" />
           Add Datasource
         </LButton>
@@ -219,12 +224,12 @@ const dsTypeOptions = [{ value: 'postgres', label: 'PostgreSQL' }]
             Test
           </LButton>
 
-          <LButton variant="secondary" size="sm" @click="openEditModal(ds)">
+          <LButton v-if="canAdmin" variant="secondary" size="sm" @click="openEditModal(ds)">
             <Pencil :size="16" />
             Edit
           </LButton>
 
-          <LButton variant="secondary" size="sm" @click="openDeleteModal(ds)">
+          <LButton v-if="canAdmin" variant="secondary" size="sm" @click="openDeleteModal(ds)">
             <Trash2 :size="16" />
             Delete
           </LButton>

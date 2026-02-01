@@ -6,10 +6,12 @@ import { AppLayout } from '@/components/layout'
 import { LButton, LCard, LEmptyState, LInput, LModal } from '@/components/ui'
 import { useCanvasStore } from '@/stores/canvas'
 import { formatDateShort } from '@/utils/dateTime'
+import { usePermissions } from '@/composables/usePermissions'
 import { ref } from 'vue'
 
 const router = useRouter()
 const canvasStore = useCanvasStore()
+const { canEdit } = usePermissions()
 
 const canvases = computed(() => canvasStore.canvases)
 
@@ -79,7 +81,7 @@ function handleKeydown(event: KeyboardEvent) {
 <template>
   <AppLayout title="Canvases">
     <template #header-actions>
-      <LButton @click="createCanvas">
+      <LButton v-if="canEdit" @click="createCanvas">
         <Plus :size="16" />
         New Canvas
       </LButton>
@@ -89,13 +91,13 @@ function handleKeydown(event: KeyboardEvent) {
     <LEmptyState
       v-if="canvases.length === 0"
       title="No canvases yet"
-      description="Create your first canvas to start exploring your data visually."
+      :description="canEdit ? 'Create your first canvas to start exploring your data visually.' : 'No canvases have been created yet. Contact an editor or admin to create canvases.'"
     >
       <template #icon>
         <Layout :size="48" class="text-text-subtle" />
       </template>
       <template #action>
-        <LButton @click="createCanvas">
+        <LButton v-if="canEdit" @click="createCanvas">
           <Plus :size="16" />
           Create Canvas
         </LButton>

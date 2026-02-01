@@ -17,9 +17,13 @@ import { AppLayout } from '@/components/layout'
 import { LButton, LCard, LEmptyState, LSpinner, LModal, LBadge, LTagFilter } from '@/components/ui'
 import { visualizationsApi, queriesApi } from '@/services/api'
 import { formatDateShort } from '@/utils/dateTime'
+import { usePermissions } from '@/composables/usePermissions'
+import { useApiError } from '@/composables/useApiError'
 import type { Visualization, Query, ChartType } from '@/types'
 
 const router = useRouter()
+const { canEdit } = usePermissions()
+const { handleError } = useApiError()
 
 const visualizations = ref<Visualization[]>([])
 const queries = ref<Query[]>([])
@@ -68,6 +72,7 @@ async function loadVisualizations() {
     visualizations.value = vizs
     queries.value = qs
   } catch (e) {
+    handleError(e, 'Failed to load visualizations')
     error.value = e instanceof Error ? e.message : 'Failed to load visualizations'
   } finally {
     loading.value = false
@@ -121,6 +126,7 @@ async function confirmDelete() {
     showDeleteModal.value = false
     visualizationToDelete.value = null
   } catch (e) {
+    handleError(e, 'Failed to delete visualization')
     error.value = e instanceof Error ? e.message : 'Failed to delete visualization'
   } finally {
     deleting.value = null
@@ -160,7 +166,7 @@ async function confirmDelete() {
           <List :size="16" />
         </button>
       </div>
-      <LButton @click="showNewModal = true">
+      <LButton v-if="canEdit" @click="showNewModal = true">
         <Plus :size="16" />
         New Visualization
       </LButton>
@@ -175,13 +181,13 @@ async function confirmDelete() {
     <LEmptyState
       v-else-if="visualizations.length === 0"
       title="No visualizations yet"
-      description="Create a visualization from one of your queries."
+      :description="canEdit ? 'Create a visualization from one of your queries.' : 'No visualizations have been created yet. Contact an editor or admin to create visualizations.'"
     >
       <template #icon>
         <BarChart3 :size="48" class="text-text-subtle" />
       </template>
       <template #action>
-        <LButton @click="showNewModal = true">
+        <LButton v-if="canEdit" @click="showNewModal = true">
           <Plus :size="16" />
           Create Visualization
         </LButton>
