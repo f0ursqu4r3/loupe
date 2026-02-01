@@ -17,7 +17,7 @@ pub mod tracing;
 pub mod validation;
 
 pub use cache::{CacheManager, CacheStats};
-pub use config::{init_tracing, load_env};
+pub use config::{init_tracing, load_env, Config, AdminConfig};
 pub use db::{Database, DatabaseConfig, PoolStats};
 pub use encryption::{mask_sensitive, EncryptionManager};
 pub use error::{Error, Result};

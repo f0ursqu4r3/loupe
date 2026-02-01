@@ -11,7 +11,7 @@ use argon2::{
     password_hash::{PasswordHasher, SaltString, rand_core::OsRng},
 };
 use loupe::models::OrgRole;
-use loupe::{load_env, CacheManager, Database, JwtManager, Metrics};
+use loupe::{load_env, init_tracing, CacheManager, Config, Database, JwtManager, Metrics};
 use std::sync::Arc;
 
 pub struct AppState {
@@ -22,7 +22,18 @@ pub struct AppState {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    // Load environment variables
     load_env();
+
+    // Load and validate configuration
+    let config = Config::from_env();
+    if let Err(e) = config.validate() {
+        eprintln!("Configuration error: {}", e);
+        std::process::exit(1);
+    }
+
+    // Initialize logging
+    init_tracing(&config.observability);
 
     // Initialize OpenTelemetry tracing
     let tracer_provider = loupe::tracing::init_tracer()
@@ -31,44 +42,18 @@ async fn main() -> std::io::Result<()> {
     // Register provider globally (must be done before creating subscriber)
     opentelemetry::global::set_tracer_provider(tracer_provider.clone());
 
-    let subscriber = loupe::tracing::create_tracing_subscriber();
-    tracing::subscriber::set_global_default(subscriber)
-        .expect("Failed to set tracing subscriber");
-
-    let otlp_endpoint = std::env::var("OTEL_EXPORTER_OTLP_ENDPOINT")
-        .unwrap_or_else(|_| "http://localhost:4317".to_string());
-    tracing::info!(
-        endpoint = %otlp_endpoint,
-        "OpenTelemetry distributed tracing initialized"
-    );
-
-    // Initialize Sentry for error tracking
-    let _guard = init_sentry();
-
-    let database_url = std::env::var("DATABASE_URL")
-        .expect("DATABASE_URL must be set");
-    let host = std::env::var("API_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
-    let port = std::env::var("API_PORT")
-        .unwrap_or_else(|_| "8080".to_string())
-        .parse::<u16>()
-        .expect("API_PORT must be a valid number");
-
-    // JWT configuration
-    let jwt_secret = std::env::var("JWT_SECRET")
-        .expect("JWT_SECRET must be set - generate with: openssl rand -base64 32");
-
-    // Validate JWT secret length (minimum 32 characters for security)
-    if jwt_secret.len() < 32 {
-        panic!("JWT_SECRET must be at least 32 characters long for security");
+    if let Some(ref endpoint) = config.observability.otel_endpoint {
+        tracing::info!(
+            endpoint = %endpoint,
+            "OpenTelemetry distributed tracing initialized"
+        );
     }
 
-    let jwt_expiration_hours = std::env::var("JWT_EXPIRATION_HOURS")
-        .unwrap_or_else(|_| "24".to_string())
-        .parse::<i64>()
-        .expect("JWT_EXPIRATION_HOURS must be a valid number");
+    // Initialize Sentry for error tracking
+    let _guard = init_sentry(&config);
 
     tracing::info!("Connecting to database...");
-    let db = Database::connect(&database_url)
+    let db = Database::connect(&config.database.url)
         .await
         .expect("Failed to connect to database");
 
@@ -77,28 +62,35 @@ async fn main() -> std::io::Result<()> {
         .await
         .expect("Failed to run migrations");
 
-    // Seed default admin if env vars are set
-    if let Err(e) = seed_default_admin(&db).await {
-        tracing::warn!("Failed to seed default admin: {}", e);
+    // Seed default admin if configured
+    if let Some(ref admin_config) = config.admin {
+        if let Err(e) = seed_default_admin(&db, admin_config).await {
+            tracing::warn!("Failed to seed default admin: {}", e);
+        }
+    } else {
+        tracing::debug!("Admin user seeding not configured (ADMIN_USERNAME/ADMIN_PASSWORD not set)");
     }
 
     // Initialize cache manager
-    // If Redis is unavailable, the application will still work but without caching
     let cache = CacheManager::new().await
         .unwrap_or_else(|e| {
-            tracing::error!("Failed to initialize cache manager: {}. Application will continue without caching.", e);
-            panic!("Cache manager initialization failed. Please ensure Redis is running or set CACHE_ENABLED=false in environment.");
+            if config.cache.enabled {
+                tracing::error!("Failed to initialize cache manager: {}. Application will continue without caching.", e);
+                panic!("Cache manager initialization failed. Please ensure Redis is running or set CACHE_ENABLED=false in environment.");
+            } else {
+                panic!("Cache initialization failed unexpectedly even though caching is disabled: {}", e);
+            }
         });
 
-    let jwt = JwtManager::new(jwt_secret, jwt_expiration_hours);
+    let jwt = JwtManager::new(config.jwt.secret.clone(), config.jwt.expiration_hours as i64);
     let state = Arc::new(AppState { db, jwt, cache });
 
     // Initialize metrics
     let metrics = Arc::new(Metrics::new().expect("Failed to create metrics registry"));
 
-    tracing::info!("Starting Loupe API server at http://{}:{}", host, port);
+    tracing::info!("Starting Loupe API server at http://{}:{}", config.api.host, config.api.port);
     tracing::info!("Rate limiting: 100 requests/minute per IP globally");
-    tracing::info!("Metrics endpoint: http://{}:{}/metrics", host, port);
+    tracing::info!("Metrics endpoint: http://{}:{}/metrics", config.api.host, config.api.port);
 
     let server = HttpServer::new(move || {
         // CORS Configuration
@@ -120,16 +112,13 @@ async fn main() -> std::io::Result<()> {
         //
         // Example production configuration:
         //   CORS_ALLOWED_ORIGINS="https://loupe.example.com,https://loupe-staging.example.com"
-        let cors = if let Ok(allowed_origins) = std::env::var("CORS_ALLOWED_ORIGINS") {
+        let cors = if let Some(ref allowed_origins) = config.api.cors_allowed_origins {
             // Production mode: strict origin validation
-            // CORS_ALLOWED_ORIGINS should be comma-separated list: "https://app.example.com,https://admin.example.com"
-            let origins: Vec<&str> = allowed_origins.split(',').map(|s| s.trim()).collect();
-
-            tracing::info!("CORS: Allowing specific origins: {:?}", origins);
+            tracing::info!("CORS: Allowing specific origins: {:?}", allowed_origins);
 
             let mut cors = Cors::default();
-            for origin in origins {
-                cors = cors.allowed_origin(origin);
+            for origin in allowed_origins {
+                cors = cors.allowed_origin(origin.as_str());
             }
 
             cors.allowed_methods(vec!["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
@@ -172,7 +161,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(metrics.clone()))  // Make metrics available to routes
             .configure(routes::configure)
     })
-    .bind((host.as_str(), port))?
+    .bind((config.api.host.as_str(), config.api.port))?
     .run();
 
     // Run the server and handle shutdown
@@ -195,16 +184,15 @@ async fn main() -> std::io::Result<()> {
 ///
 /// Requires SENTRY_DSN environment variable to be set.
 /// If not set, Sentry will be disabled (no-op).
-fn init_sentry() -> sentry::ClientInitGuard {
-    let sentry_dsn = std::env::var("SENTRY_DSN").ok();
+fn init_sentry(config: &Config) -> sentry::ClientInitGuard {
+    let sentry_dsn = config.observability.sentry_dsn.as_ref();
 
     if sentry_dsn.is_none() {
         tracing::info!("Sentry DSN not configured - error tracking disabled");
         return sentry::init(sentry::ClientOptions::default());
     }
 
-    let environment = std::env::var("APP_ENV")
-        .unwrap_or_else(|_| "local".to_string());
+    let environment = config.app_env.clone();
 
     let release = format!("loupe@{}", env!("CARGO_PKG_VERSION"));
 
@@ -216,7 +204,7 @@ fn init_sentry() -> sentry::ClientInitGuard {
     };
 
     let guard = sentry::init((
-        sentry_dsn,
+        sentry_dsn.cloned(),
         sentry::ClientOptions {
             release: Some(release.into()),
             environment: Some(environment.clone().into()),
@@ -242,31 +230,21 @@ fn init_sentry() -> sentry::ClientInitGuard {
     guard
 }
 
-/// Seeds a default admin user if ADMIN_USERNAME and ADMIN_PASSWORD are set.
+/// Seeds a default admin user from configuration.
 /// Skips if the user already exists.
-async fn seed_default_admin(db: &Database) -> Result<(), loupe::Error> {
-    let admin_email = match std::env::var("ADMIN_USERNAME") {
-        Ok(email) => email,
-        Err(_) => return Ok(()), // Not configured, skip silently
-    };
-
-    let admin_password = match std::env::var("ADMIN_PASSWORD") {
-        Ok(password) => password,
-        Err(_) => return Ok(()), // Not configured, skip silently
-    };
-
+async fn seed_default_admin(db: &Database, admin_config: &loupe::AdminConfig) -> Result<(), loupe::Error> {
     // Check if user already exists
-    if db.get_user_by_email(&admin_email).await?.is_some() {
+    if db.get_user_by_email(&admin_config.email).await?.is_some() {
         tracing::debug!("Default admin user already exists");
         return Ok(());
     }
 
-    tracing::info!("Creating default admin user: {}", admin_email);
+    tracing::info!("Creating default admin user: {}", admin_config.email);
 
     // Hash password
     let salt = SaltString::generate(&mut OsRng);
     let password_hash = Argon2::default()
-        .hash_password(admin_password.as_bytes(), &salt)
+        .hash_password(admin_config.password.as_bytes(), &salt)
         .map_err(|e| loupe::Error::Internal(format!("Failed to hash password: {}", e)))?
         .to_string();
 
@@ -274,7 +252,7 @@ async fn seed_default_admin(db: &Database) -> Result<(), loupe::Error> {
     let org = db.create_organization("Default Organization").await?;
 
     // Create admin user
-    db.create_user(org.id, &admin_email, &password_hash, "Admin", OrgRole::Admin)
+    db.create_user(org.id, &admin_config.email, &password_hash, "Admin", OrgRole::Admin)
         .await?;
 
     tracing::info!("Default admin user created successfully");
