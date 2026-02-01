@@ -809,6 +809,62 @@ async fn test_organization_isolation() {
 }
 ```
 
+## Load & Performance Testing
+
+### Using k6
+
+Load and performance tests validate system behavior under realistic load.
+
+**Location:** `load-tests/`
+
+**Tests available:**
+- `auth-workflow.js` - Authentication endpoints (50-100 concurrent users)
+- `dashboard-api.js` - Dashboard CRUD with read/write scenarios
+- `query-execution.js` - Query creation and concurrent execution
+- `connection-pool-stress.js` - Database pool behavior under extreme load
+
+**Install k6:**
+```bash
+# macOS
+brew install k6
+
+# Linux (Ubuntu/Debian)
+sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+sudo apt-get update
+sudo apt-get install k6
+```
+
+**Run tests:**
+```bash
+# Start API server first
+cd be && cargo run --release --bin api
+
+# In separate terminal
+cd load-tests
+k6 run auth-workflow.js
+k6 run dashboard-api.js
+k6 run query-execution.js
+k6 run connection-pool-stress.js
+```
+
+**Performance targets:**
+- API p95 latency: < 1.5s
+- API p99 latency: < 3s
+- Error rate: < 1% under normal load
+- Throughput: 400-500 req/s
+- Database pool acquisition: p95 < 100ms
+
+**Key metrics tracked:**
+- HTTP request duration (p50/p95/p99)
+- Request success/failure rates
+- Custom operation durations (registration, login, etc.)
+- Cache hit rates
+- Connection pool statistics
+- Concurrent query limiter behavior
+
+See [PERFORMANCE_BENCHMARKS.md](PERFORMANCE_BENCHMARKS.md) for baseline metrics and [load-tests/README.md](../load-tests/README.md) for detailed usage.
+
 ## Test Maintenance
 
 ### Keeping Tests Fast
@@ -861,8 +917,11 @@ When adding new features:
 
 - **110+ tests** with 97% pass rate
 - **Comprehensive coverage** of critical modules (encryption, auth, validation)
-- **Multiple test types** (unit, integration, E2E)
+- **Multiple test types** (unit, integration, E2E, load/performance)
+- **3,222 lines** of integration test code
+- **4 load test scenarios** with k6
 - **CI/CD integration** ready
+- **Performance benchmarks** documented
 - **Well-documented** testing patterns and practices
 
 Testing is a first-class citizen in Loupe's development process!
