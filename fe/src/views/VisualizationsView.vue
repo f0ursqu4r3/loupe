@@ -12,6 +12,7 @@ import {
   LayoutGrid,
   List,
   Tag,
+  Eye,
 } from 'lucide-vue-next'
 import { AppLayout } from '@/components/layout'
 import { LButton, LCard, LEmptyState, LSpinner, LModal, LBadge, LTagFilter } from '@/components/ui'
@@ -22,8 +23,10 @@ import { useApiError } from '@/composables/useApiError'
 import type { Visualization, Query, ChartType } from '@/types'
 
 const router = useRouter()
-const { canEdit } = usePermissions()
+const { canEdit, role } = usePermissions()
 const { handleError } = useApiError()
+
+const isViewer = computed(() => role.value === 'viewer')
 
 const visualizations = ref<Visualization[]>([])
 const queries = ref<Query[]>([])
@@ -218,13 +221,13 @@ async function confirmDelete() {
         "
       >
         <!-- Grid view card -->
-        <LCard
-          v-if="viewMode === 'grid'"
-          v-for="viz in filteredVisualizations"
-          :key="viz.id"
-          class="group hover:border-primary-500/50 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
-          @click="openVisualization(viz)"
-        >
+        <template v-if="viewMode === 'grid'">
+          <LCard
+            v-for="viz in filteredVisualizations"
+            :key="viz.id"
+            class="group hover:border-primary-500/50 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+            @click="openVisualization(viz)"
+          >
           <div class="flex items-start justify-between mb-3">
             <div class="flex items-center gap-3">
               <div
@@ -233,13 +236,20 @@ async function confirmDelete() {
                 <component :is="chartTypeIcons[viz.chart_type]" :size="20" class="text-primary-600" />
               </div>
               <div>
-                <h3 class="font-medium text-text group-hover:text-primary-600 transition-colors">
-                  {{ viz.name }}
-                </h3>
+                <div class="flex items-center gap-2">
+                  <h3 class="font-medium text-text group-hover:text-primary-600 transition-colors">
+                    {{ viz.name }}
+                  </h3>
+                  <LBadge v-if="isViewer" variant="info" size="sm">
+                    <Eye :size="12" class="mr-1" />
+                    Read-only
+                  </LBadge>
+                </div>
                 <span class="text-xs text-text-muted">{{ chartTypeLabels[viz.chart_type] }}</span>
               </div>
             </div>
             <button
+              v-if="canEdit"
               type="button"
               class="opacity-0 group-hover:opacity-100 p-1.5 rounded hover:bg-error-muted text-text-muted hover:text-error transition-all"
               @click="deleteVisualization(viz.id, $event)"
@@ -264,16 +274,17 @@ async function confirmDelete() {
 
           <div class="text-xs text-text-subtle">Updated {{ formatDateShort(viz.updated_at) }}</div>
         </LCard>
+        </template>
 
         <!-- List view row -->
-        <LCard
-          v-if="viewMode === 'list'"
-          v-for="viz in filteredVisualizations"
-          :key="viz.id"
-          padding="sm"
-          class="group hover:border-primary-500/50 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
-          @click="openVisualization(viz)"
-        >
+        <template v-if="viewMode === 'list'">
+          <LCard
+            v-for="viz in filteredVisualizations"
+            :key="viz.id"
+            padding="sm"
+            class="group hover:border-primary-500/50 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+            @click="openVisualization(viz)"
+          >
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
               <div
@@ -282,9 +293,15 @@ async function confirmDelete() {
                 <component :is="chartTypeIcons[viz.chart_type]" :size="20" class="text-primary-600" />
               </div>
               <div class="min-w-0">
-                <h3 class="font-medium text-text group-hover:text-primary-600 transition-colors">
-                  {{ viz.name }}
-                </h3>
+                <div class="flex items-center gap-2">
+                  <h3 class="font-medium text-text group-hover:text-primary-600 transition-colors">
+                    {{ viz.name }}
+                  </h3>
+                  <LBadge v-if="isViewer" variant="info" size="sm">
+                    <Eye :size="12" class="mr-1" />
+                    Read-only
+                  </LBadge>
+                </div>
                 <div class="flex items-center gap-2">
                   <span class="text-xs text-text-muted">{{ chartTypeLabels[viz.chart_type] }}</span>
                   <!-- Tags in list view -->
@@ -301,6 +318,7 @@ async function confirmDelete() {
                 Updated {{ formatDateShort(viz.updated_at) }}
               </span>
               <button
+                v-if="canEdit"
                 type="button"
                 class="opacity-0 group-hover:opacity-100 p-1.5 rounded hover:bg-error-muted text-text-muted hover:text-error transition-all"
                 @click="deleteVisualization(viz.id, $event)"
@@ -311,6 +329,7 @@ async function confirmDelete() {
             </div>
           </div>
         </LCard>
+        </template>
       </div>
     </div>
 

@@ -30,6 +30,8 @@ const props = defineProps<{
   options: EChartsOption
   height?: string
   loading?: boolean
+  error?: string | null
+  empty?: boolean
 }>()
 
 const { isDark } = useColorMode()
@@ -50,8 +52,18 @@ const lightTheme = {
   tooltip: {
     backgroundColor: 'oklch(0.98 0.005 260)', // surface
     borderColor: 'oklch(0.90 0.01 260)', // border
+    borderWidth: 1,
+    padding: 12,
     textStyle: {
       color: 'oklch(0.35 0.02 260)', // text
+      fontSize: 13,
+    },
+    axisPointer: {
+      type: 'cross',
+      lineStyle: {
+        color: 'oklch(0.90 0.01 260)',
+        type: 'dashed',
+      },
     },
   },
   xAxis: {
@@ -91,8 +103,18 @@ const darkTheme = {
   tooltip: {
     backgroundColor: 'oklch(0.20 0.015 260)', // surface
     borderColor: 'oklch(0.30 0.02 260)', // border
+    borderWidth: 1,
+    padding: 12,
     textStyle: {
       color: 'oklch(0.92 0.01 260)', // text
+      fontSize: 13,
+    },
+    axisPointer: {
+      type: 'cross',
+      lineStyle: {
+        color: 'oklch(0.30 0.02 260)',
+        type: 'dashed',
+      },
     },
   },
   xAxis: {
@@ -221,5 +243,51 @@ defineExpose({
 </script>
 
 <template>
-  <div ref="chartRef" class="w-full" :style="{ height: height || '300px' }" />
+  <div class="relative w-full" :style="{ height: height || '300px' }">
+    <!-- Chart container -->
+    <div ref="chartRef" class="w-full h-full" />
+
+    <!-- Empty state overlay -->
+    <div
+      v-if="empty && !loading && !error"
+      class="absolute inset-0 flex flex-col items-center justify-center bg-surface/80 backdrop-blur-sm"
+    >
+      <svg
+        class="w-16 h-16 text-text-subtle mb-3"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="1.5"
+          d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+        />
+      </svg>
+      <p class="text-sm text-text-muted">No data to display</p>
+    </div>
+
+    <!-- Error state overlay -->
+    <div
+      v-if="error && !loading"
+      class="absolute inset-0 flex flex-col items-center justify-center bg-surface/80 backdrop-blur-sm"
+    >
+      <svg
+        class="w-16 h-16 text-error mb-3"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="1.5"
+          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+        />
+      </svg>
+      <p class="text-sm font-medium text-error mb-1">Failed to load chart</p>
+      <p class="text-xs text-text-muted">{{ error }}</p>
+    </div>
+  </div>
 </template>

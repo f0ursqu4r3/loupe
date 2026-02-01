@@ -338,15 +338,15 @@ hover:border-primary-500/50 hover:shadow-lg hover:-translate-y-0.5 transition-al
 
 ### 22. Data Visualization Polish
 
-- [ ] Review BaseChart configuration
-- [ ] Create custom chart themes
-- [ ] Design better tooltips
+- [x] Review BaseChart configuration
+- [x] Enhanced tooltips with better styling and cross-hair pointers
+- [x] Add empty/error states for charts
+- [ ] Create custom chart themes (basic theme system in place)
 - [ ] Add interactive legends
 - [ ] Add chart animations
 - [ ] Add chart export functionality
 - [ ] Add chart interaction feedback
 - [ ] Test color palette accessibility
-- [ ] Add empty/error states for charts
 
 ---
 
@@ -384,12 +384,13 @@ if (error.response?.status === 403) {
 
 - [x] Hide "New Dashboard" button for Viewers
 - [x] Hide edit/delete actions for Viewers
-- [ ] Show read-only badge for Viewers
+- [x] Show read-only badge for Viewers
 
 **Queries:**
 
 - [x] Hide "New Query" button for Viewers
 - [x] Hide "Import" button for Viewers
+- [x] Show read-only badge for Viewers
 - [ ] Disable "Ad-hoc SQL" tab for Viewers (Editor+ only)
 - [ ] Show permission indicator on query execution
 
@@ -402,13 +403,14 @@ if (error.response?.status === 403) {
 **Visualizations:**
 
 - [x] Hide "New Visualization" button for Viewers
-- [ ] Hide edit/delete actions for Viewers (in list view)
+- [x] Hide edit/delete actions for Viewers (in both grid and list views)
+- [x] Show read-only badge for Viewers
 
 **Schedules:**
 
 - [x] Hide "New Schedule" button for Viewers
-- [ ] Hide enable/disable/trigger actions for Viewers (in list view)
-- [ ] Show permission indicator on schedule management
+- [x] Hide enable/disable/trigger actions for Viewers (all action buttons)
+- [x] Show read-only badge for Viewers
 
 **Canvases:**
 
@@ -468,13 +470,14 @@ const { canEdit, canAdmin, role } = usePermissions()
 </div>
 ```
 
-### 26. Permission-Based Routing
+### 26. Permission-Based Routing ✅
 
-- [ ] Add route guards based on permissions
-- [ ] Redirect non-Admins away from datasource management
-- [ ] Add "Access Denied" page for unauthorized routes
-- [ ] Show appropriate message based on required permission
-- [ ] Provide navigation back to accessible areas
+- [x] Add route guards based on permissions
+- [x] Redirect non-Admins away from datasource management
+- [x] Add "Access Denied" page for unauthorized routes
+- [x] Show appropriate message based on required permission
+- [x] Provide navigation back to accessible areas
+- [x] Add requiresEdit meta flag for editor-only routes (creation routes)
 
 **Example Route Guard:**
 

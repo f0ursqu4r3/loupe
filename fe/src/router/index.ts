@@ -33,7 +33,7 @@ const router = createRouter({
       path: '/dashboards/new',
       name: 'dashboard-new',
       component: () => import('@/views/DashboardEditorView.vue'),
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, requiresEdit: true },
     },
     {
       path: '/dashboards/:id',
@@ -57,7 +57,7 @@ const router = createRouter({
       path: '/queries/new',
       name: 'query-new',
       component: () => import('@/views/QueryEditorView.vue'),
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, requiresEdit: true },
     },
     {
       path: '/queries/:id',
@@ -75,7 +75,7 @@ const router = createRouter({
       path: '/visualizations/new',
       name: 'visualization-new',
       component: () => import('@/views/VisualizationEditorView.vue'),
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, requiresEdit: true },
     },
     {
       path: '/visualizations/:id',
@@ -93,7 +93,7 @@ const router = createRouter({
       path: '/schedules/new',
       name: 'schedule-new',
       component: () => import('@/views/ScheduleEditorView.vue'),
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, requiresEdit: true },
     },
     {
       path: '/schedules/:id',
@@ -123,12 +123,18 @@ const router = createRouter({
       path: '/canvases/new',
       name: 'canvas-new',
       component: () => import('@/views/CanvasEditorView.vue'),
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, requiresEdit: true },
     },
     {
       path: '/canvases/:id',
       name: 'canvas-editor',
       component: () => import('@/views/CanvasEditorView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/access-denied',
+      name: 'access-denied',
+      component: () => import('@/views/AccessDenied.vue'),
       meta: { requiresAuth: true },
     },
     {
@@ -155,9 +161,13 @@ router.beforeEach(async (to, from, next) => {
     // Redirect to home if already authenticated
     next({ name: 'dashboard-entry' })
   } else if (to.meta.requiresAdmin && authStore.user?.role !== 'admin') {
-    // Redirect non-admins away from admin-only routes
+    // Redirect non-admins to access denied page
     console.warn('Access denied: Admin role required for', to.path)
-    next({ name: 'dashboards' })
+    next({ name: 'access-denied', query: { required: 'admin' } })
+  } else if (to.meta.requiresEdit && authStore.user?.role === 'viewer') {
+    // Redirect viewers to access denied page for editor-only routes
+    console.warn('Access denied: Editor or Admin role required for', to.path)
+    next({ name: 'access-denied', query: { required: 'editor' } })
   } else {
     next()
   }

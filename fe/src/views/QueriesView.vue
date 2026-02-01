@@ -13,6 +13,7 @@ import {
   Tag,
   Download,
   Upload,
+  Eye,
 } from 'lucide-vue-next'
 import { format as formatSql } from 'sql-formatter'
 import { AppLayout } from '@/components/layout'
@@ -33,8 +34,11 @@ import { useApiError } from '@/composables/useApiError'
 import type { Query, Run, RunStatus, Datasource, QueryExport } from '@/types'
 
 const router = useRouter()
-const { canEdit } = usePermissions()
+const { canEdit, role } = usePermissions()
 const { handleError } = useApiError()
+
+const isViewer = computed(() => role.value === 'viewer')
+
 const queries = ref<Query[]>([])
 const datasources = ref<Datasource[]>([])
 const loading = ref(true)
@@ -376,8 +380,12 @@ function closeImportModal() {
       >
         <div class="flex items-start justify-between">
           <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2 mb-1">
+            <div class="flex items-center gap-2 mb-1 flex-wrap">
               <h3 class="font-medium text-text truncate">{{ query.name }}</h3>
+              <LBadge v-if="isViewer" variant="info" size="sm">
+                <Eye :size="12" class="mr-1" />
+                Read-only
+              </LBadge>
               <LBadge v-if="query.parameters.length > 0" size="sm">
                 {{ query.parameters.length }} params
               </LBadge>
@@ -399,7 +407,7 @@ function closeImportModal() {
           </div>
 
           <div class="flex items-center gap-2 ml-4" @click.stop>
-            <LButton variant="ghost" size="sm" @click="openEditor(query.id)">
+            <LButton v-if="canEdit" variant="ghost" size="sm" @click="openEditor(query.id)">
               <Edit :size="16" />
             </LButton>
             <LButton

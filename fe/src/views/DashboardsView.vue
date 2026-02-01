@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Plus, Trash2, LayoutDashboard, Tag } from 'lucide-vue-next'
+import { Plus, Trash2, LayoutDashboard, Tag, Eye } from 'lucide-vue-next'
 import { AppLayout } from '@/components/layout'
 import { LButton, LCard, LEmptyState, LSpinner, LBadge, LTagFilter, LModal } from '@/components/ui'
 import { dashboardsApi } from '@/services/api'
@@ -12,8 +12,10 @@ import { useApiError } from '@/composables/useApiError'
 import type { Dashboard } from '@/types'
 
 const router = useRouter()
-const { canEdit } = usePermissions()
+const { canEdit, role } = usePermissions()
 const { handleError } = useApiError()
+
+const isViewer = computed(() => role.value === 'viewer')
 
 const dashboards = ref<Dashboard[]>([])
 const loading = ref(true)
@@ -161,9 +163,15 @@ async function confirmDelete() {
           @click="openDashboard(dashboard)"
         >
           <div class="flex items-start justify-between mb-3">
-            <h3 class="font-semibold text-text group-hover:text-primary-600 transition-colors">
-              {{ dashboard.name }}
-            </h3>
+            <div class="flex items-center gap-2 flex-1 min-w-0">
+              <h3 class="font-semibold text-text group-hover:text-primary-600 transition-colors truncate">
+                {{ dashboard.name }}
+              </h3>
+              <LBadge v-if="isViewer" variant="info" size="sm">
+                <Eye :size="12" class="mr-1" />
+                Read-only
+              </LBadge>
+            </div>
             <button
               v-if="canEdit"
               type="button"

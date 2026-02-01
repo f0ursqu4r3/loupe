@@ -11,6 +11,7 @@ import {
   Pencil,
   Trash2,
   Loader2,
+  Eye,
 } from 'lucide-vue-next'
 import { AppLayout } from '@/components/layout'
 import { LButton, LCard, LBadge, LEmptyState, LSpinner, LTagFilter } from '@/components/ui'
@@ -21,8 +22,10 @@ import { useApiError } from '@/composables/useApiError'
 import type { Schedule } from '@/types'
 
 const router = useRouter()
-const { canEdit } = usePermissions()
+const { canEdit, role } = usePermissions()
 const { handleError } = useApiError()
+
+const isViewer = computed(() => role.value === 'viewer')
 
 const schedules = ref<Schedule[]>([])
 const loading = ref(true)
@@ -221,13 +224,17 @@ function describeCron(expr: string): string {
               <Clock :size="20" :class="[schedule.enabled ? 'text-success' : 'text-text-subtle']" />
             </div>
             <div>
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-2 flex-wrap">
                 <h3
                   class="font-medium text-text cursor-pointer hover:text-primary"
                   @click="router.push({ name: 'schedule-editor', params: { id: schedule.id } })"
                 >
                   {{ schedule.name }}
                 </h3>
+                <LBadge v-if="isViewer" variant="info" size="sm">
+                  <Eye :size="12" class="mr-1" />
+                  Read-only
+                </LBadge>
                 <LBadge :variant="schedule.enabled ? 'success' : 'default'">
                   {{ schedule.enabled ? 'Active' : 'Paused' }}
                 </LBadge>
@@ -261,7 +268,7 @@ function describeCron(expr: string): string {
               <p class="text-sm text-text-muted">{{ formatDate(schedule.next_run_at) }}</p>
             </div>
 
-            <div class="flex items-center gap-2">
+            <div v-if="canEdit" class="flex items-center gap-2">
               <LButton
                 variant="ghost"
                 size="sm"
