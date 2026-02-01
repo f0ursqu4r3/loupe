@@ -4,14 +4,14 @@ import { AppLayout } from '@/components/layout'
 import { LCard, LInput, LButton, LCheckbox, LBadge, LSpinner, LModal, LSelect } from '@/components/ui'
 import { ThemeToggle } from '@/components/layout'
 import { useAuthStore } from '@/stores/auth'
-import { organizationsApi } from '@/services/api'
+import { organizationsApi, datasourcesApi } from '@/services/api'
 import { usePermissions } from '@/composables/usePermissions'
 import { useApiError } from '@/composables/useApiError'
 import { useToast } from '@/composables/useToast'
-import { User, Mail, Building2, Calendar, Shield, Users, Trash2, UserCog, LogOut } from 'lucide-vue-next'
-import { formatDateLong } from '@/utils/dateTime'
+import { User, Mail, Building2, Calendar, Shield, Users, Trash2, UserCog, LogOut, Database, TestTube, CheckCircle, XCircle, Pencil, Plus } from 'lucide-vue-next'
+import { formatDateLong, formatDateShort } from '@/utils/dateTime'
 import { useRouter } from 'vue-router'
-import type { User as UserType, UserRole } from '@/types'
+import type { User as UserType, UserRole, Datasource, ConnectionTestResult } from '@/types'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -36,6 +36,37 @@ const showRemoveModal = ref(false)
 const userToRemove = ref<UserType | null>(null)
 const removing = ref(false)
 
+// Datasources management (Admin only)
+const datasources = ref<Datasource[]>([])
+const loadingDatasources = ref(false)
+
+// Datasource create state
+const showCreateDatasourceModal = ref(false)
+const createDatasourceForm = ref({
+  name: '',
+  ds_type: 'postgres' as const,
+  connection_string: '',
+})
+const creatingDatasource = ref(false)
+
+// Datasource edit state
+const showEditDatasourceModal = ref(false)
+const editingDatasource = ref<Datasource | null>(null)
+const editDatasourceForm = ref({
+  name: '',
+  connection_string: '',
+})
+const updatingDatasource = ref(false)
+
+// Datasource delete state
+const showDeleteDatasourceModal = ref(false)
+const deletingDatasource = ref<Datasource | null>(null)
+const deletingDatasourceInProgress = ref(false)
+
+// Test connection state
+const testingId = ref<string | null>(null)
+const testResults = ref<Record<string, ConnectionTestResult>>({})
+
 const currentUser = computed(() => authStore.user)
 
 const roleOptions = [
@@ -43,6 +74,8 @@ const roleOptions = [
   { value: 'editor', label: 'Editor - Can create and edit resources' },
   { value: 'viewer', label: 'Viewer - Read-only access' },
 ]
+
+const dsTypeOptions = [{ value: 'postgres', label: 'PostgreSQL' }]
 
 watch(
   () => authStore.user?.name,
@@ -136,12 +169,114 @@ function isCurrentUser(user: UserType): boolean {
   return user.id === currentUser.value?.id
 }
 
+// Datasources functions
+async function loadDatasources() {
+  if (!canAdmin.value) return
+  try {
+    loadingDatasources.value = true
+    const response = await datasourcesApi.list()
+    datasources.value = response.data
+  } catch (e) {
+    handleError(e, 'Failed to load datasources')
+  } finally {
+    loadingDatasources.value = false
+  }
+}
+
+async function createDatasource() {
+  try {
+    creatingDatasource.value = true
+    await datasourcesApi.create(createDatasourceForm.value)
+    toast.success(`Datasource "${createDatasourceForm.value.name}" created successfully`)
+    showCreateDatasourceModal.value = false
+    createDatasourceForm.value = { name: '', ds_type: 'postgres', connection_string: '' }
+    await loadDatasources()
+  } catch (e) {
+    handleError(e, 'Failed to create datasource')
+  } finally {
+    creatingDatasource.value = false
+  }
+}
+
+async function testConnection(id: string) {
+  try {
+    testingId.value = id
+    const result = await datasourcesApi.test(id)
+    testResults.value[id] = result
+  } catch (e) {
+    testResults.value[id] = {
+      success: false,
+      message: e instanceof Error ? e.message : 'Connection test failed',
+    }
+  } finally {
+    testingId.value = null
+  }
+}
+
+function openEditDatasourceModal(ds: Datasource) {
+  editingDatasource.value = ds
+  editDatasourceForm.value = {
+    name: ds.name,
+    connection_string: '',
+  }
+  showEditDatasourceModal.value = true
+}
+
+async function updateDatasource() {
+  if (!editingDatasource.value) return
+  const datasourceName = editingDatasource.value.name
+  try {
+    updatingDatasource.value = true
+    const updateData: { name?: string; connection_string?: string } = {}
+    if (editDatasourceForm.value.name !== editingDatasource.value.name) {
+      updateData.name = editDatasourceForm.value.name
+    }
+    if (editDatasourceForm.value.connection_string) {
+      updateData.connection_string = editDatasourceForm.value.connection_string
+    }
+    await datasourcesApi.update(editingDatasource.value.id, updateData)
+    toast.success(`Datasource "${datasourceName}" updated successfully`)
+    showEditDatasourceModal.value = false
+    editingDatasource.value = null
+    await loadDatasources()
+  } catch (e) {
+    handleError(e, 'Failed to update datasource')
+  } finally {
+    updatingDatasource.value = false
+  }
+}
+
+function openDeleteDatasourceModal(ds: Datasource) {
+  deletingDatasource.value = ds
+  showDeleteDatasourceModal.value = true
+}
+
+async function deleteDatasourceConfirmed() {
+  if (!deletingDatasource.value) return
+  const datasourceName = deletingDatasource.value.name
+  try {
+    deletingDatasourceInProgress.value = true
+    await datasourcesApi.delete(deletingDatasource.value.id)
+    toast.success(`Datasource "${datasourceName}" deleted successfully`)
+    showDeleteDatasourceModal.value = false
+    deletingDatasource.value = null
+    await loadDatasources()
+  } catch (e) {
+    handleError(e, 'Failed to delete datasource')
+  } finally {
+    deletingDatasourceInProgress.value = false
+  }
+}
+
 function logout() {
   authStore.logout()
   router.push({ name: 'auth' })
 }
 
-onMounted(loadUsers)
+onMounted(() => {
+  loadUsers()
+  loadDatasources()
+})
 </script>
 
 <template>
@@ -357,6 +492,99 @@ onMounted(loadUsers)
         </div>
       </LCard>
 
+      <!-- Datasources (Admin only) -->
+      <LCard v-if="canAdmin">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 class="text-lg font-semibold text-text flex items-center gap-2">
+              <Database :size="20" />
+              Datasources
+            </h2>
+            <p class="text-sm text-text-muted mt-1">
+              Manage database connections for queries
+            </p>
+          </div>
+          <LButton size="sm" @click="showCreateDatasourceModal = true">
+            <Plus :size="16" />
+            Add Datasource
+          </LButton>
+        </div>
+
+        <!-- Loading state -->
+        <div v-if="loadingDatasources" class="flex items-center justify-center py-8">
+          <LSpinner />
+        </div>
+
+        <!-- Empty state -->
+        <div v-else-if="datasources.length === 0" class="text-center py-8">
+          <Database :size="48" class="mx-auto text-text-muted mb-4" />
+          <p class="text-text-muted mb-2">No datasources configured</p>
+          <p class="text-sm text-text-muted mb-4">
+            Connect your first database to start running queries
+          </p>
+          <LButton size="sm" @click="showCreateDatasourceModal = true">
+            <Plus :size="16" />
+            Add Datasource
+          </LButton>
+        </div>
+
+        <!-- Datasources List -->
+        <div v-else class="space-y-3">
+          <div
+            v-for="ds in datasources"
+            :key="ds.id"
+            class="flex items-center justify-between p-3 bg-surface-alt rounded-lg"
+          >
+            <div class="flex items-center gap-3 flex-1 min-w-0">
+              <!-- Icon -->
+              <div class="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center shrink-0">
+                <span class="text-primary-600 dark:text-primary-400 font-semibold text-sm">PG</span>
+              </div>
+
+              <!-- Datasource Info -->
+              <div class="flex-1 min-w-0">
+                <h3 class="font-medium text-text text-sm truncate">{{ ds.name }}</h3>
+                <p class="text-xs text-text-muted truncate">
+                  {{ ds.ds_type }} · Created {{ formatDateShort(ds.created_at) }}
+                </p>
+              </div>
+
+              <!-- Test result -->
+              <div v-if="testResults[ds.id]" class="flex items-center gap-2 shrink-0">
+                <CheckCircle v-if="testResults[ds.id]?.success" :size="16" class="text-success" />
+                <XCircle v-else :size="16" class="text-error" />
+                <span
+                  class="text-xs"
+                  :class="testResults[ds.id]?.success ? 'text-success' : 'text-error'"
+                >
+                  {{ testResults[ds.id]?.success ? `${testResults[ds.id]?.latency_ms}ms` : 'Failed' }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center gap-2 ml-3">
+              <LButton
+                variant="secondary"
+                size="sm"
+                :loading="testingId === ds.id"
+                @click="testConnection(ds.id)"
+              >
+                <TestTube :size="14" />
+              </LButton>
+
+              <LButton variant="secondary" size="sm" @click="openEditDatasourceModal(ds)">
+                <Pencil :size="14" />
+              </LButton>
+
+              <LButton variant="secondary" size="sm" @click="openDeleteDatasourceModal(ds)">
+                <Trash2 :size="14" />
+              </LButton>
+            </div>
+          </div>
+        </div>
+      </LCard>
+
       <!-- Danger Zone -->
       <LCard class="border-error/50">
         <h2 class="text-lg font-semibold text-error mb-4">Danger Zone</h2>
@@ -425,6 +653,84 @@ onMounted(loadUsers)
         <LButton variant="secondary" @click="showRemoveModal = false">Cancel</LButton>
         <LButton variant="danger" :loading="removing" @click="removeUser">
           Remove User
+        </LButton>
+      </template>
+    </LModal>
+
+    <!-- Create Datasource Modal -->
+    <LModal v-model="showCreateDatasourceModal" title="New Datasource">
+      <form class="space-y-4" @submit.prevent="createDatasource">
+        <div>
+          <label class="block text-sm font-medium text-text mb-1.5">Name</label>
+          <LInput v-model="createDatasourceForm.name" placeholder="Production Database" />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-text mb-1.5">Type</label>
+          <LSelect v-model="createDatasourceForm.ds_type" :options="dsTypeOptions" />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-text mb-1.5">Connection String</label>
+          <LInput
+            v-model="createDatasourceForm.connection_string"
+            type="password"
+            placeholder="postgres://user:pass@host:5432/db"
+          />
+        </div>
+      </form>
+
+      <template #footer>
+        <LButton variant="secondary" @click="showCreateDatasourceModal = false">Cancel</LButton>
+        <LButton :loading="creatingDatasource" @click="createDatasource">Create</LButton>
+      </template>
+    </LModal>
+
+    <!-- Edit Datasource Modal -->
+    <LModal v-model="showEditDatasourceModal" title="Edit Datasource">
+      <form class="space-y-4" @submit.prevent="updateDatasource">
+        <div>
+          <label class="block text-sm font-medium text-text mb-1.5">Name</label>
+          <LInput v-model="editDatasourceForm.name" placeholder="Production Database" />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-text mb-1.5">Connection String</label>
+          <LInput
+            v-model="editDatasourceForm.connection_string"
+            type="password"
+            placeholder="Leave empty to keep current"
+          />
+          <p class="mt-1 text-xs text-text-muted">
+            Only fill this in if you want to change the connection string.
+          </p>
+        </div>
+      </form>
+
+      <template #footer>
+        <LButton variant="secondary" @click="showEditDatasourceModal = false">Cancel</LButton>
+        <LButton :loading="updatingDatasource" @click="updateDatasource">Save Changes</LButton>
+      </template>
+    </LModal>
+
+    <!-- Delete Datasource Modal -->
+    <LModal v-model="showDeleteDatasourceModal" title="Delete Datasource">
+      <div v-if="deletingDatasource" class="space-y-4">
+        <p class="text-text">
+          Are you sure you want to delete <strong>{{ deletingDatasource.name }}</strong>?
+        </p>
+
+        <div class="p-3 bg-error-muted rounded-lg border border-error">
+          <p class="text-sm text-error">
+            <strong>Warning:</strong> This action cannot be undone. Any queries using this datasource will fail.
+          </p>
+        </div>
+      </div>
+
+      <template #footer>
+        <LButton variant="secondary" @click="showDeleteDatasourceModal = false">Cancel</LButton>
+        <LButton variant="danger" :loading="deletingDatasourceInProgress" @click="deleteDatasourceConfirmed">
+          Delete Datasource
         </LButton>
       </template>
     </LModal>

@@ -2,16 +2,12 @@
 import { RouterLink, useRoute } from 'vue-router'
 import {
   LayoutDashboard,
-  Database,
   FileCode,
-  BarChart3,
-  Calendar,
   Settings,
   Search,
   ChevronLeft,
   ChevronRight,
   Network,
-  Palette,
 } from 'lucide-vue-next'
 
 interface Props {
@@ -30,15 +26,8 @@ const route = useRoute()
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboards' },
-  { to: '/datasources', icon: Database, label: 'Datasources' },
   { to: '/queries', icon: FileCode, label: 'Queries' },
-  { to: '/visualizations', icon: BarChart3, label: 'Visualizations' },
-  { to: '/schedules', icon: Calendar, label: 'Schedules' },
   { to: '/canvases', icon: Network, label: 'Canvases' },
-]
-
-const bottomNavItems = [
-  { to: '/style-guide', icon: Palette, label: 'Style Guide' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ]
 
@@ -93,29 +82,9 @@ function toggleCollapse() {
       </ul>
     </nav>
 
-    <!-- Bottom navigation -->
-    <nav aria-label="Secondary navigation" class="py-4 border-t border-border">
-      <ul class="space-y-1 px-2">
-        <li v-for="item in bottomNavItems" :key="item.to">
-          <RouterLink
-            :to="item.to"
-            :class="[
-              'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors',
-              isActive(item.to)
-                ? 'bg-primary-600 text-white'
-                : 'text-text-muted hover:text-text hover:bg-surface-sunken',
-            ]"
-          >
-            <component :is="item.icon" :size="20" class="shrink-0" />
-            <span v-if="!collapsed" class="text-sm font-medium">
-              {{ item.label }}
-            </span>
-          </RouterLink>
-        </li>
-      </ul>
-
-      <!-- Collapse toggle -->
-      <div class="px-2 mt-4">
+    <!-- Collapse toggle -->
+    <div class="py-4 border-t border-border">
+      <div class="px-2">
         <button
           type="button"
           :class="[
@@ -129,6 +98,6 @@ function toggleCollapse() {
           <span v-if="!collapsed" class="text-sm font-medium">Collapse</span>
         </button>
       </div>
-    </nav>
+    </div>
   </aside>
 </template>

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { Splitpanes, Pane } from 'splitpanes'
+import 'splitpanes/dist/splitpanes.css'
 import {
   Play,
   Save,
@@ -17,6 +19,14 @@ import {
   BarChart3,
   GripHorizontal,
   CalendarClock,
+  Plus,
+  Eye,
+  EyeOff,
+  ArrowLeft,
+  Table,
+  LineChart as LineChartIcon,
+  PieChart as PieChartIcon,
+  Hash,
 } from 'lucide-vue-next'
 import { AppLayout } from '@/components/layout'
 import {
@@ -31,9 +41,20 @@ import {
 } from '@/components/ui'
 import { SqlEditor } from '@/components/editor'
 import { QueryParameters, ParameterInputs } from '@/components/query'
-import { queriesApi, runsApi, datasourcesApi, schedulesApi } from '@/services/api'
+import { VisualizationRenderer } from '@/components/charts'
+import { queriesApi, runsApi, datasourcesApi, schedulesApi, visualizationsApi } from '@/services/api'
 import { formatDateLike } from '@/utils/dateTime'
-import type { Query, Datasource, Run, QueryResult, CreateQueryRequest, Schedule } from '@/types'
+import type {
+  Query,
+  Datasource,
+  Run,
+  QueryResult,
+  CreateQueryRequest,
+  Schedule,
+  Visualization,
+  ChartType,
+  VisualizationConfig,
+} from '@/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -76,9 +97,58 @@ const datasourceOptions = computed(() =>
   })),
 )
 
+// Preview panel layout - persisted to localStorage
+const LAYOUT_STORAGE_KEY = 'loupe:query-editor:layout'
+
+function loadLayoutFromStorage() {
+  try {
+    const stored = localStorage.getItem(LAYOUT_STORAGE_KEY)
+    if (stored) return JSON.parse(stored)
+  } catch {
+    // ignore
+  }
+  return null
+}
+
+const storedLayout = loadLayoutFromStorage()
+const previewPanelPct = ref(storedLayout?.previewPanelPct ?? 35)
+// Default to false - user can toggle on when needed
+const showPreviewPanel = ref(false)
+const previewTab = ref<'visualizations' | 'schedules'>('visualizations')
+
+// Persist layout changes
+watch([previewPanelPct, showPreviewPanel], () => {
+  localStorage.setItem(
+    LAYOUT_STORAGE_KEY,
+    JSON.stringify({
+      previewPanelPct: previewPanelPct.value,
+      showPreviewPanel: showPreviewPanel.value,
+    }),
+  )
+})
+
+function onPaneResized(panes: { size: number }[]) {
+  if (panes[1]) {
+    previewPanelPct.value = panes[1].size
+  }
+}
+
+function togglePreviewPanel() {
+  showPreviewPanel.value = !showPreviewPanel.value
+}
+
 // Schedules for this query
 const schedules = ref<Schedule[]>([])
-const showSchedules = ref(false)
+
+// Visualizations for this query
+const visualizations = ref<Visualization[]>([])
+const loadingVisualizations = ref(false)
+
+// Inline visualization editor state
+const editingVisualization = ref<Partial<Visualization> | null>(null)
+const savingVisualization = ref(false)
+const visualizationPreviewRunning = ref(false)
+const visualizationPreviewResult = ref<QueryResult | null>(null)
 
 // Run results
 const currentRun = ref<Run | null>(null)
@@ -137,10 +207,14 @@ const parameterValues = ref<Record<string, unknown>>({})
 // Show parameters section
 const showParameters = ref(false)
 
+// Show query metadata section
+const showMetadata = ref(false)
+
 function resetQueryState() {
   query.value = createEmptyQuery()
   parameterValues.value = {}
   schedules.value = []
+  visualizations.value = []
   currentRun.value = null
   result.value = null
   resultError.value = null
@@ -152,6 +226,7 @@ function resetQueryState() {
   loading.value = false
   saving.value = false
   runPollToken.value += 1
+  // Don't reset preview panel state - let user's preference persist
 }
 
 // Load datasources
@@ -179,8 +254,12 @@ async function loadQuery() {
     const data = await queriesApi.get(activeQueryId!)
     if (activeQueryId !== queryId.value) return
     query.value = data
-    // Load schedules for this query
-    await loadSchedules()
+    // Load schedules and visualizations for this query
+    await Promise.all([loadSchedules(), loadVisualizations()])
+    // Show preview panel when editing existing query (if there are visualizations or schedules)
+    if (!showPreviewPanel.value && storedLayout?.showPreviewPanel !== false) {
+      showPreviewPanel.value = true
+    }
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load query'
   } finally {
@@ -199,6 +278,188 @@ async function loadSchedules() {
     schedules.value = response.data.filter((s) => s.query_id === queryId.value)
   } catch (e) {
     console.error('Failed to load schedules:', e)
+  }
+}
+
+// Load visualizations for this query
+async function loadVisualizations() {
+  if (isNew.value || !queryId.value) return
+
+  try {
+    loadingVisualizations.value = true
+    const response = await visualizationsApi.list()
+    visualizations.value = response.data.filter((v) => v.query_id === queryId.value)
+  } catch (e) {
+    console.error('Failed to load visualizations:', e)
+  } finally {
+    loadingVisualizations.value = false
+  }
+}
+
+// Inline visualization editor
+
+// Chart type options
+const chartTypeOptions = [
+  { value: 'table', label: 'Table', icon: Table },
+  { value: 'line', label: 'Line Chart', icon: LineChartIcon },
+  { value: 'bar', label: 'Bar Chart', icon: BarChart3 },
+  { value: 'pie', label: 'Pie Chart', icon: PieChartIcon },
+  { value: 'single_stat', label: 'Single Stat', icon: Hash },
+]
+
+// Column options from preview result
+const vizColumnOptions = computed(() => {
+  if (!visualizationPreviewResult.value) return []
+  return visualizationPreviewResult.value.columns.map((col) => ({
+    value: col.name,
+    label: `${col.name} (${col.data_type})`,
+  }))
+})
+
+function openVisualizationEditor(viz: Visualization) {
+  editingVisualization.value = { ...viz }
+  previewTab.value = 'visualizations'
+  runVisualizationPreview()
+}
+
+function closeVisualizationEditor() {
+  editingVisualization.value = null
+  visualizationPreviewResult.value = null
+}
+
+function createNewVisualization() {
+  if (!queryId.value) return
+  editingVisualization.value = {
+    query_id: queryId.value,
+    name: `${query.value.name} - Visualization`,
+    chart_type: 'table',
+    config: {},
+    tags: [],
+  }
+  runVisualizationPreview()
+}
+
+async function saveInlineVisualization() {
+  if (!editingVisualization.value?.name?.trim()) {
+    error.value = 'Visualization name is required'
+    return
+  }
+
+  try {
+    savingVisualization.value = true
+    error.value = null
+
+    const isNewViz = !editingVisualization.value.id || editingVisualization.value.id === ''
+
+    if (isNewViz) {
+      const created = await visualizationsApi.create({
+        query_id: editingVisualization.value.query_id!,
+        name: editingVisualization.value.name,
+        chart_type: editingVisualization.value.chart_type!,
+        config: editingVisualization.value.config,
+        tags: editingVisualization.value.tags,
+      })
+      editingVisualization.value = created
+      visualizations.value.push(created)
+    } else {
+      if (!editingVisualization.value.id) {
+        error.value = 'Invalid visualization ID'
+        return
+      }
+      const updated = await visualizationsApi.update(editingVisualization.value.id, {
+        query_id: editingVisualization.value.query_id,
+        name: editingVisualization.value.name,
+        chart_type: editingVisualization.value.chart_type,
+        config: editingVisualization.value.config,
+        tags: editingVisualization.value.tags,
+      })
+      editingVisualization.value = updated
+      const idx = visualizations.value.findIndex((v) => v.id === updated.id)
+      if (idx !== -1) {
+        visualizations.value[idx] = updated
+      }
+    }
+
+    saveSuccess.value = true
+    setTimeout(() => (saveSuccess.value = false), 2000)
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Failed to save visualization'
+  } finally {
+    savingVisualization.value = false
+  }
+}
+
+async function runVisualizationPreview() {
+  if (!query.value?.id) return
+
+  try {
+    visualizationPreviewRunning.value = true
+    visualizationPreviewResult.value = null
+
+    // Reuse the current query result if available
+    if (result.value) {
+      visualizationPreviewResult.value = result.value
+      visualizationPreviewRunning.value = false
+      return
+    }
+
+    // Otherwise run the query
+    const run = await runsApi.create({
+      query_id: query.value.id,
+      parameters: {},
+    })
+
+    // Poll for completion (simplified)
+    const pollToken = ++runPollToken.value
+    await pollVisualizationPreview(run.id, pollToken)
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Failed to run preview'
+  } finally {
+    visualizationPreviewRunning.value = false
+  }
+}
+
+async function pollVisualizationPreview(runId: string, pollToken: number) {
+  const maxAttempts = 60
+  let attempts = 0
+
+  while (attempts < maxAttempts) {
+    if (!isActive.value || pollToken !== runPollToken.value) return
+    try {
+      const run = await runsApi.get(runId)
+      if (!isActive.value || pollToken !== runPollToken.value) return
+
+      if (run.status === 'completed') {
+        const data = await runsApi.getResult(run.id)
+        if (!isActive.value || pollToken !== runPollToken.value) return
+        visualizationPreviewResult.value = data
+        return
+      } else if (
+        run.status === 'failed' ||
+        run.status === 'cancelled' ||
+        run.status === 'timeout'
+      ) {
+        error.value = run.error_message || `Query ${run.status}`
+        return
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      attempts++
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to check query status'
+      return
+    }
+  }
+
+  if (!isActive.value || pollToken !== runPollToken.value) return
+  error.value = 'Query timed out waiting for results'
+}
+
+function updateVisualizationConfig(key: keyof VisualizationConfig, value: unknown) {
+  if (!editingVisualization.value) return
+  editingVisualization.value.config = {
+    ...editingVisualization.value.config,
+    [key]: value,
   }
 }
 
@@ -388,11 +649,12 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
       <LButton
         v-if="!isNew"
         variant="ghost"
-        @click="router.push({ name: 'schedule-new', query: { query_id: query.id || queryId } })"
-        title="Schedule this query"
+        size="sm"
+        @click="togglePreviewPanel"
+        :title="showPreviewPanel ? 'Hide preview panel' : 'Show preview panel'"
       >
-        <CalendarClock :size="16" />
-        Schedule
+        <component :is="showPreviewPanel ? EyeOff : Eye" :size="16" />
+        <span class="ml-1.5">Preview</span>
       </LButton>
       <LButton variant="secondary" :disabled="saving" @click="saveQuery">
         <Loader2 v-if="saving" :size="16" class="animate-spin" />
@@ -433,8 +695,30 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
         <span>Query saved successfully</span>
       </div>
 
+      <!-- Main content with conditional splitpanes layout -->
+      <Splitpanes
+        v-if="!isNew && showPreviewPanel"
+        class="default-theme"
+        @resized="onPaneResized"
+      >
+        <Pane :size="100 - previewPanelPct" :min-size="40">
+          <div class="h-full overflow-y-auto pr-2 space-y-4">
       <!-- Query metadata -->
       <LCard padding="sm">
+        <button
+          type="button"
+          class="flex items-center gap-2 text-sm font-medium text-text hover:text-primary-600 transition-colors mb-3"
+          @click="showMetadata = !showMetadata"
+        >
+          <ChevronDown
+            :size="16"
+            class="transition-transform"
+            :class="{ '-rotate-90': !showMetadata }"
+          />
+          Query Settings
+        </button>
+
+        <div v-if="showMetadata" class="space-y-4">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <label class="block text-sm font-medium text-text mb-1.5">Name</label>
@@ -518,60 +802,6 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
             />
           </div>
         </div>
-
-        <!-- Schedules section -->
-        <div v-if="!isNew" class="mt-4">
-          <button
-            type="button"
-            class="flex items-center gap-2 text-sm font-medium text-text hover:text-primary-600 transition-colors"
-            @click="showSchedules = !showSchedules"
-          >
-            <ChevronDown
-              :size="16" class="transition-transform"
-              :class="{ '-rotate-90': !showSchedules }"
-            />
-            <CalendarClock :size="16" />
-            Schedules
-            <span v-if="schedules.length" class="text-xs text-text-muted">
-              ({{ schedules.length }})
-            </span>
-          </button>
-          <div v-if="showSchedules" class="mt-3 space-y-2">
-            <div
-              v-for="sched in schedules"
-              :key="sched.id"
-              class="flex items-center justify-between p-2 bg-surface-sunken rounded-lg text-sm"
-            >
-              <div class="flex items-center gap-3">
-                <LBadge :variant="sched.enabled ? 'success' : 'default'" size="sm">
-                  {{ sched.enabled ? 'Active' : 'Paused' }}
-                </LBadge>
-                <span class="text-text">{{ sched.name }}</span>
-                <span class="text-text-muted font-mono text-xs">{{ sched.cron_expression }}</span>
-              </div>
-              <LButton
-                variant="ghost"
-                size="sm"
-                @click="router.push({ name: 'schedule-editor', params: { id: sched.id } })"
-              >
-                Edit
-              </LButton>
-            </div>
-            <div v-if="schedules.length === 0" class="text-sm text-text-muted py-2">
-              No schedules configured for this query.
-            </div>
-            <LButton
-              variant="ghost"
-              size="sm"
-              class="mt-2"
-              @click="
-                router.push({ name: 'schedule-new', query: { query_id: query.id || queryId } })
-              "
-            >
-              <CalendarClock :size="16" />
-              Add Schedule
-            </LButton>
-          </div>
         </div>
       </LCard>
 
@@ -716,6 +946,341 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
           </div>
         </div>
       </LCard>
+            </div>
+          </Pane>
+
+          <!-- Preview panel -->
+          <Pane :size="previewPanelPct" :min-size="25" :max-size="60">
+          <div class="h-full overflow-y-auto pl-2 space-y-4">
+            <!-- Tabs for visualizations and schedules -->
+            <div class="flex gap-1 border-b border-border sticky top-0 bg-surface z-10">
+              <button
+                @click="previewTab = 'visualizations'"
+                :class="[
+                  'px-3 py-2 text-sm font-medium transition-colors relative',
+                  previewTab === 'visualizations'
+                    ? 'text-primary-600 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-primary-600'
+                    : 'text-text-muted hover:text-text',
+                ]"
+              >
+                <div class="flex items-center gap-2">
+                  <BarChart3 :size="14" />
+                  Visualizations
+                  <span v-if="visualizations.length" class="text-xs">({{ visualizations.length }})</span>
+                </div>
+              </button>
+              <button
+                @click="previewTab = 'schedules'"
+                :class="[
+                  'px-3 py-2 text-sm font-medium transition-colors relative',
+                  previewTab === 'schedules'
+                    ? 'text-primary-600 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-primary-600'
+                    : 'text-text-muted hover:text-text',
+                ]"
+              >
+                <div class="flex items-center gap-2">
+                  <CalendarClock :size="14" />
+                  Schedules
+                  <span v-if="schedules.length" class="text-xs">({{ schedules.length }})</span>
+                </div>
+              </button>
+            </div>
+
+            <!-- Visualizations tab -->
+            <div v-if="previewTab === 'visualizations'" class="space-y-3">
+              <!-- Inline visualization editor -->
+              <div v-if="editingVisualization" class="space-y-3">
+                <!-- Header with back button -->
+                <div class="flex items-center gap-2 pb-2 border-b border-border">
+                  <LButton variant="ghost" size="sm" @click="closeVisualizationEditor">
+                    <ArrowLeft :size="14" />
+                    Back
+                  </LButton>
+                  <span class="text-sm font-medium text-text">
+                    {{ editingVisualization.id ? 'Edit' : 'New' }} Visualization
+                  </span>
+                  <div class="flex-1"></div>
+                  <LButton size="sm" :loading="savingVisualization" @click="saveInlineVisualization">
+                    <Save :size="14" />
+                    Save
+                  </LButton>
+                </div>
+
+                <!-- Basic settings -->
+                <div class="space-y-3">
+                  <div>
+                    <label class="block text-xs text-text-muted mb-1.5">Name</label>
+                    <LInput v-model="editingVisualization.name" placeholder="My Visualization" />
+                  </div>
+
+                  <div>
+                    <label class="block text-xs text-text-muted mb-1.5">Chart Type</label>
+                    <div class="grid grid-cols-2 gap-2">
+                      <button
+                        v-for="opt in chartTypeOptions"
+                        :key="opt.value"
+                        type="button"
+                        class="flex flex-col items-center gap-1 p-2 rounded-lg border transition-colors text-xs"
+                        :class="
+                          editingVisualization.chart_type === opt.value
+                            ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30'
+                            : 'border-border hover:border-border-hover'
+                        "
+                        @click="editingVisualization.chart_type = opt.value as ChartType"
+                      >
+                        <component
+                          :is="opt.icon"
+                          :size="16"
+                          :class="[
+                            editingVisualization.chart_type === opt.value
+                              ? 'text-primary-600'
+                              : 'text-text-muted'
+                          ]"
+                        />
+                        <span
+                          :class="
+                            editingVisualization.chart_type === opt.value
+                              ? 'text-primary-600 font-medium'
+                              : 'text-text-muted'
+                          "
+                        >
+                          {{ opt.label }}
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Line/Bar chart config -->
+                  <div
+                    v-if="editingVisualization.chart_type === 'line' || editingVisualization.chart_type === 'bar'"
+                    class="space-y-3 pt-2 border-t border-border"
+                  >
+                    <div>
+                      <label class="block text-xs text-text-muted mb-1.5">X-Axis Column</label>
+                      <LSelect
+                        :model-value="editingVisualization.config?.x_axis || ''"
+                        @update:model-value="updateVisualizationConfig('x_axis', $event)"
+                        :options="vizColumnOptions"
+                        placeholder="Select column..."
+                      />
+                    </div>
+                    <div>
+                      <label class="block text-xs text-text-muted mb-1.5">Y-Axis Column</label>
+                      <LSelect
+                        :model-value="editingVisualization.config?.y_axis || ''"
+                        @update:model-value="updateVisualizationConfig('y_axis', $event)"
+                        :options="vizColumnOptions"
+                        placeholder="Select column..."
+                      />
+                    </div>
+                    <div>
+                      <label class="block text-xs text-text-muted mb-1.5">Series Column (optional)</label>
+                      <LSelect
+                        :model-value="editingVisualization.config?.series_column || ''"
+                        @update:model-value="updateVisualizationConfig('series_column', $event || undefined)"
+                        :options="[{ value: '', label: 'None' }, ...vizColumnOptions]"
+                        placeholder="Group by..."
+                      />
+                    </div>
+                  </div>
+
+                  <!-- Single stat config -->
+                  <div
+                    v-if="editingVisualization.chart_type === 'single_stat'"
+                    class="space-y-3 pt-2 border-t border-border"
+                  >
+                    <div>
+                      <label class="block text-xs text-text-muted mb-1.5">Value Column</label>
+                      <LSelect
+                        :model-value="editingVisualization.config?.value_column || ''"
+                        @update:model-value="updateVisualizationConfig('value_column', $event)"
+                        :options="vizColumnOptions"
+                        placeholder="Select column..."
+                      />
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                      <div>
+                        <label class="block text-xs text-text-muted mb-1.5">Prefix</label>
+                        <LInput
+                          :model-value="editingVisualization.config?.prefix || ''"
+                          @update:model-value="updateVisualizationConfig('prefix', $event)"
+                          placeholder="$"
+                        />
+                      </div>
+                      <div>
+                        <label class="block text-xs text-text-muted mb-1.5">Suffix</label>
+                        <LInput
+                          :model-value="editingVisualization.config?.suffix || ''"
+                          @update:model-value="updateVisualizationConfig('suffix', $event)"
+                          placeholder="%"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Pie chart config -->
+                  <div
+                    v-if="editingVisualization.chart_type === 'pie'"
+                    class="space-y-3 pt-2 border-t border-border"
+                  >
+                    <div>
+                      <label class="block text-xs text-text-muted mb-1.5">Label Column</label>
+                      <LSelect
+                        :model-value="editingVisualization.config?.label_column || ''"
+                        @update:model-value="updateVisualizationConfig('label_column', $event)"
+                        :options="vizColumnOptions"
+                        placeholder="Select column..."
+                      />
+                    </div>
+                    <div>
+                      <label class="block text-xs text-text-muted mb-1.5">Value Column</label>
+                      <LSelect
+                        :model-value="editingVisualization.config?.value_column || ''"
+                        @update:model-value="updateVisualizationConfig('value_column', $event)"
+                        :options="vizColumnOptions"
+                        placeholder="Select column..."
+                      />
+                    </div>
+                  </div>
+
+                  <!-- Tags -->
+                  <div class="pt-2 border-t border-border">
+                    <label class="block text-xs text-text-muted mb-1.5">Tags</label>
+                    <LTagsInput
+                      :model-value="editingVisualization.tags || []"
+                      @update:model-value="editingVisualization.tags = $event"
+                      placeholder="Add tags..."
+                    />
+                  </div>
+                </div>
+
+                <!-- Preview -->
+                <div class="pt-2 border-t border-border">
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-medium text-text">Preview</span>
+                    <LButton
+                      variant="ghost"
+                      size="sm"
+                      :disabled="visualizationPreviewRunning"
+                      @click="runVisualizationPreview"
+                    >
+                      <Loader2 v-if="visualizationPreviewRunning" :size="12" class="animate-spin" />
+                      <Play v-else :size="12" />
+                      Refresh
+                    </LButton>
+                  </div>
+                  <div class="border border-border rounded-lg overflow-hidden bg-surface-raised">
+                    <VisualizationRenderer
+                      :chart-type="editingVisualization.chart_type || 'table'"
+                      :data="visualizationPreviewResult"
+                      :config="editingVisualization.config || {}"
+                      :loading="visualizationPreviewRunning"
+                      height="300px"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Visualizations list (when not editing) -->
+              <div v-else>
+                <div class="flex items-center justify-between mb-3">
+                  <LButton size="sm" @click="createNewVisualization">
+                    <Plus :size="14" />
+                    Create Visualization
+                  </LButton>
+                </div>
+
+                <!-- Loading state -->
+                <div v-if="loadingVisualizations" class="flex items-center justify-center py-12">
+                  <LSpinner />
+                </div>
+
+                <!-- Empty state -->
+                <div v-else-if="visualizations.length === 0" class="text-center py-12">
+                  <BarChart3 :size="48" class="mx-auto text-text-muted mb-3" />
+                  <p class="text-sm text-text-muted mb-4">No visualizations yet</p>
+                  <LButton size="sm" @click="createNewVisualization">
+                    <Plus :size="14" />
+                    Create Visualization
+                  </LButton>
+                </div>
+
+                <!-- Visualizations list -->
+                <div v-else class="space-y-2">
+                  <LCard
+                    v-for="viz in visualizations"
+                    :key="viz.id"
+                    padding="sm"
+                    class="cursor-pointer hover:border-primary-500/50 hover:shadow-md transition-all"
+                    @click="openVisualizationEditor(viz)"
+                  >
+                    <div class="flex items-center gap-2 mb-1">
+                      <BarChart3 :size="16" class="text-primary-600" />
+                      <span class="text-sm font-medium text-text truncate">{{ viz.name }}</span>
+                    </div>
+                    <p class="text-xs text-text-muted capitalize">{{ viz.chart_type }} chart</p>
+                  </LCard>
+                </div>
+              </div>
+            </div>
+
+            <!-- Schedules tab -->
+            <div v-if="previewTab === 'schedules'" class="space-y-3">
+              <div class="flex items-center justify-between">
+                <LButton
+                  size="sm"
+                  @click="router.push({ name: 'schedule-new', query: { query_id: query.id || queryId } })"
+                >
+                  <Plus :size="14" />
+                  Create Schedule
+                </LButton>
+              </div>
+
+              <!-- Empty state -->
+              <div v-if="schedules.length === 0" class="text-center py-12">
+                <CalendarClock :size="48" class="mx-auto text-text-muted mb-3" />
+                <p class="text-sm text-text-muted mb-4">No schedules yet</p>
+                <LButton
+                  size="sm"
+                  @click="router.push({ name: 'schedule-new', query: { query_id: query.id || queryId } })"
+                >
+                  <Plus :size="14" />
+                  Create Schedule
+                </LButton>
+              </div>
+
+              <!-- Schedules list -->
+              <div v-else class="space-y-2">
+                <LCard
+                  v-for="sched in schedules"
+                  :key="sched.id"
+                  padding="sm"
+                  class="cursor-pointer hover:border-primary-500/50 hover:shadow-md transition-all"
+                  @click="router.push({ name: 'schedule-editor', params: { id: sched.id } })"
+                >
+                  <div class="flex items-center gap-2 mb-1">
+                    <CalendarClock :size="16" class="text-primary-600" />
+                    <span class="text-sm font-medium text-text truncate">{{ sched.name }}</span>
+                    <LBadge :variant="sched.enabled ? 'success' : 'default'" size="sm">
+                      {{ sched.enabled ? 'Active' : 'Paused' }}
+                    </LBadge>
+                  </div>
+                  <p class="text-xs text-text-muted font-mono">{{ sched.cron_expression }}</p>
+                </LCard>
+              </div>
+            </div>
+          </div>
+          </Pane>
+        </Splitpanes>
+
+      <!-- When preview panel is hidden or creating new query, redirect to enable it -->
+      <div v-else class="text-center py-12">
+        <p class="text-text-muted mb-4">Preview panel is hidden</p>
+        <LButton size="sm" @click="showPreviewPanel = true">
+          <Eye :size="14" />
+          Show Preview Panel
+        </LButton>
+      </div>
     </div>
   </AppLayout>
 </template>

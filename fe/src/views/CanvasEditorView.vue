@@ -304,10 +304,6 @@ function handleAddNote() {
   }
 }
 
-function handleNewCanvas() {
-  selectedId.value = null
-}
-
 // Inspector actions
 function updateNodeTitle(title: string) {
   if (selectedNode.value) {
