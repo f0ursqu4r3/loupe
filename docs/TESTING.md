@@ -896,12 +896,191 @@ fn test_user_creation_success() {
 }
 ```
 
+## Property-Based Testing
+
+Property-based tests use the [proptest](https://github.com/proptest-rs/proptest) framework to automatically generate test cases and verify invariants hold across a wide range of inputs.
+
+### When to Use Property-Based Testing
+
+Property tests are ideal for:
+- **Serialization invariants** - Roundtrip encode/decode should preserve data
+- **Security validation** - Input sanitization, SQL injection prevention
+- **Boundary conditions** - Edge cases with min/max values
+- **Invariant checking** - Properties that must always hold true
+
+### Test Files
+
+- `be/tests/proptest_models.rs` - Model serialization and validation invariants
+- `be/tests/proptest_security.rs` - Security-critical path fuzzing
+
+**Run all property tests:**
+```bash
+cd be
+cargo test --test proptest_models
+cargo test --test proptest_security
+```
+
+### Example: Enum Serialization Invariant
+
+```rust
+use proptest::prelude::*;
+
+fn arb_org_role() -> impl Strategy<Value = OrgRole> {
+    prop_oneof![
+        Just(OrgRole::Admin),
+        Just(OrgRole::Editor),
+        Just(OrgRole::Viewer),
+    ]
+}
+
+proptest! {
+    #[test]
+    fn test_org_role_roundtrip(role in arb_org_role()) {
+        // Property: Any OrgRole value should serialize and deserialize correctly
+        let json = serde_json::to_string(&role).unwrap();
+        let deserialized: OrgRole = serde_json::from_str(&json).unwrap();
+        prop_assert_eq!(role, deserialized);
+    }
+}
+```
+
+### Example: Input Validation Fuzzing
+
+```rust
+proptest! {
+    #[test]
+    fn test_sql_validation_rejects_too_long(
+        prefix in "[A-Z ]{10,100}"
+    ) {
+        // Property: SQL exceeding 100,000 chars should always be rejected
+        let too_long = prefix + &"A".repeat(100_001);
+        assert!(validate_sql_length(&too_long).is_err());
+    }
+
+    #[test]
+    fn test_connection_string_rejects_sql_injection(
+        prefix in "postgresql://[a-z]{3,10}",
+        injection in prop_oneof![
+            Just("';DROP TABLE users--"),
+            Just("/**/;exec('"),
+            Just("xp_cmdshell"),
+        ],
+    ) {
+        // Property: SQL injection patterns should always be rejected
+        let malicious = format!("{}{}", prefix, injection);
+        assert!(validate_connection_string(&malicious).is_err());
+    }
+}
+```
+
+### Example: Security Invariant Testing
+
+```rust
+proptest! {
+    #[test]
+    fn test_user_response_excludes_password(
+        email in arb_email(),
+        name in "[a-zA-Z ]{3,50}",
+        role in arb_org_role(),
+    ) {
+        let user = User {
+            id: Uuid::new_v4(),
+            org_id: Uuid::new_v4(),
+            email,
+            password_hash: "super_secret_hash_12345".to_string(),
+            name,
+            role,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+
+        let response = UserResponse::from(user);
+        let json = serde_json::to_string(&response).unwrap();
+
+        // CRITICAL PROPERTY: password_hash must NEVER appear in response
+        prop_assert!(!json.contains("super_secret_hash"));
+        prop_assert!(!json.contains("password_hash"));
+    }
+}
+```
+
+### Property Test Best Practices
+
+1. **Test Invariants, Not Examples**
+   - ❌ Bad: "User 'alice@example.com' should serialize correctly"
+   - ✅ Good: "Any valid email should serialize/deserialize correctly"
+
+2. **Use Generators Strategically**
+   ```rust
+   // Generate valid emails
+   fn arb_email() -> impl Strategy<Value = String> {
+       "[a-z]{3,10}@[a-z]{3,10}\\.(com|org|net)"
+   }
+
+   // Generate boundary values
+   fn arb_timeout() -> impl Strategy<Value = i32> {
+       1..=300i32  // Valid range for timeout_seconds
+   }
+   ```
+
+3. **Focus on Critical Paths**
+   - Encryption/decryption roundtrips
+   - Authentication token generation/validation
+   - SQL validation and sanitization
+   - Permission checks and authorization
+
+4. **Test Boundary Conditions**
+   ```rust
+   proptest! {
+       #[test]
+       fn test_pagination_boundaries(
+           limit in 1i64..=100i64,
+           offset in 0i64..10000i64,
+       ) {
+           // Property: All values in valid range should be accepted
+           assert!(validate_pagination(limit, offset).is_ok());
+       }
+
+       #[test]
+       fn test_pagination_invalid_limits(
+           limit in prop_oneof![
+               -1000i64..0i64,  // Negative
+               101i64..1000i64,  // Too large
+           ],
+       ) {
+           // Property: All values outside range should be rejected
+           assert!(validate_pagination(limit, 0).is_err());
+       }
+   }
+   ```
+
+5. **Document Properties Clearly**
+   - Every property test should have a comment explaining the invariant being tested
+   - Use descriptive test names that indicate the property
+   - Add context for non-obvious properties
+
+### Coverage
+
+Property tests currently cover:
+- ✅ Enum serialization roundtrips (OrgRole, RunStatus, ChartType, etc.)
+- ✅ Request model validation (timeout, max_rows, field constraints)
+- ✅ Security response filtering (password_hash, connection_string exclusion)
+- ✅ SQL validation (length limits, Unicode handling)
+- ✅ Connection string validation (scheme requirements, injection prevention)
+- ✅ Name validation (character whitelist, length limits)
+- ✅ Pagination validation (limit ranges, offset constraints)
+- ✅ Date range validation (ordering, duration limits)
+- ✅ Data integrity invariants (row_count consistency, tile dimensions)
+
+**Total property tests:** 17 tests across 2 test files
+
 ## Resources
 
 - [Rust Testing Guide](https://doc.rust-lang.org/book/ch11-00-testing.html)
 - [cargo-tarpaulin Documentation](https://github.com/xd009642/tarpaulin)
 - [testcontainers-rs](https://github.com/testcontainers/testcontainers-rs)
 - [wiremock-rs](https://github.com/LukeMathWalker/wiremock-rs)
+- [proptest Documentation](https://github.com/proptest-rs/proptest)
 
 ## Contributing
 
