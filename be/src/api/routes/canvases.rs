@@ -35,7 +35,7 @@ async fn list_canvases(
     state: web::Data<Arc<AppState>>,
     req: HttpRequest,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&req)?;
+    let (_, org_id) = get_auth_context(&state, &req)?;
 
     let canvases = state.db.list_canvases(org_id).await?;
 
@@ -58,7 +58,7 @@ async fn create_canvas(
     req: HttpRequest,
     body: web::Json<CreateCanvasRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (user_id, org_id) = get_auth_context(&req)?;
+    let (user_id, org_id) = get_auth_context(&state, &req)?;
 
     let canvas = state
         .db
@@ -83,7 +83,7 @@ async fn get_canvas(
     req: HttpRequest,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&req)?;
+    let (_, org_id) = get_auth_context(&state, &req)?;
     let id = path.into_inner();
 
     let canvas = state.db.get_canvas(id, org_id).await?;
@@ -104,7 +104,7 @@ async fn update_canvas(
     path: web::Path<Uuid>,
     body: web::Json<UpdateCanvasRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&req)?;
+    let (_, org_id) = get_auth_context(&state, &req)?;
     let id = path.into_inner();
 
     let canvas = state
@@ -137,7 +137,7 @@ async fn delete_canvas(
     req: HttpRequest,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&req)?;
+    let (_, org_id) = get_auth_context(&state, &req)?;
     let id = path.into_inner();
 
     state.db.delete_canvas(id, org_id).await?;
@@ -158,7 +158,7 @@ async fn create_node(
     path: web::Path<Uuid>,
     body: web::Json<CreateCanvasNodeRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&req)?;
+    let (_, org_id) = get_auth_context(&state, &req)?;
     let canvas_id = path.into_inner();
 
     // Verify canvas belongs to this org
@@ -187,7 +187,7 @@ async fn update_node(
     path: web::Path<NodePathParams>,
     body: web::Json<UpdateCanvasNodeRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&req)?;
+    let (_, org_id) = get_auth_context(&state, &req)?;
     let params = path.into_inner();
 
     // Verify canvas belongs to this org
@@ -215,7 +215,7 @@ async fn delete_node(
     req: HttpRequest,
     path: web::Path<NodePathParams>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&req)?;
+    let (_, org_id) = get_auth_context(&state, &req)?;
     let params = path.into_inner();
 
     // Verify canvas belongs to this org
@@ -239,7 +239,7 @@ async fn create_edge(
     path: web::Path<Uuid>,
     body: web::Json<CreateCanvasEdgeRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&req)?;
+    let (_, org_id) = get_auth_context(&state, &req)?;
     let canvas_id = path.into_inner();
 
     // Verify canvas belongs to this org
@@ -263,7 +263,7 @@ async fn update_edge(
     path: web::Path<EdgePathParams>,
     body: web::Json<UpdateCanvasEdgeRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&req)?;
+    let (_, org_id) = get_auth_context(&state, &req)?;
     let params = path.into_inner();
 
     // Verify canvas belongs to this org
@@ -282,7 +282,7 @@ async fn delete_edge(
     req: HttpRequest,
     path: web::Path<EdgePathParams>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&req)?;
+    let (_, org_id) = get_auth_context(&state, &req)?;
     let params = path.into_inner();
 
     // Verify canvas belongs to this org

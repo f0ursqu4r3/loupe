@@ -52,3 +52,9 @@ Cargo.lock
 .env
 .env.local
 .env.*.local
+
+# VSCode settings
+.vscode/
+
+# Claude AI settings
+.claude/

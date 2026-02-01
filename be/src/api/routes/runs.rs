@@ -1,7 +1,7 @@
 use crate::AppState;
 use crate::routes::auth::get_auth_context;
 use actix_web::{HttpRequest, HttpResponse, web};
-use loupe::Error;
+use loupe::{Error, SqlValidator};
 use loupe::models::{
     CreateRunRequest, ExecuteAdHocRequest, ParamDef, RunResponse, RunResultResponse,
 };
@@ -31,7 +31,7 @@ async fn list_runs(
     req: HttpRequest,
     query: web::Query<ListRunsQuery>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&req)?;
+    let (_, org_id) = get_auth_context(&state, &req)?;
     let runs = state.db.list_runs(org_id, query.query_id).await?;
     let response: Vec<RunResponse> = runs.into_iter().map(Into::into).collect();
     Ok(HttpResponse::Ok().json(response))
@@ -42,7 +42,7 @@ async fn create_run(
     req: HttpRequest,
     body: web::Json<CreateRunRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (user_id, org_id) = get_auth_context(&req)?;
+    let (user_id, org_id) = get_auth_context(&state, &req)?;
 
     // Get the query
     let query = state.db.get_query(body.query_id, org_id).await?;
@@ -123,7 +123,12 @@ async fn execute_adhoc(
     req: HttpRequest,
     body: web::Json<ExecuteAdHocRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (user_id, org_id) = get_auth_context(&req)?;
+    let (user_id, org_id) = get_auth_context(&state, &req)?;
+
+    // SECURITY: Validate SQL to prevent injection attacks
+    // This is CRITICAL - validate BEFORE storing or executing
+    let validator = SqlValidator::new();
+    validator.validate(&body.sql)?;
 
     // Verify datasource exists
     let datasource = state.db.get_datasource(body.datasource_id, org_id).await?;
@@ -161,6 +166,12 @@ async fn execute_adhoc(
         )
         .await?;
 
+    tracing::info!(
+        run_id = %run.id,
+        user_id = %user_id,
+        "Ad-hoc query validated and queued for execution"
+    );
+
     Ok(HttpResponse::Created().json(RunResponse::from(run)))
 }
 
@@ -169,7 +180,7 @@ async fn get_run(
     req: HttpRequest,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&req)?;
+    let (_, org_id) = get_auth_context(&state, &req)?;
     let id = path.into_inner();
     let run = state.db.get_run(id, org_id).await?;
     Ok(HttpResponse::Ok().json(RunResponse::from(run)))

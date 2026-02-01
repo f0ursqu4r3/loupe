@@ -4,7 +4,6 @@ use argon2::{
     Argon2,
     password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString, rand_core::OsRng},
 };
-use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use loupe::Error;
 use loupe::models::{CreateUserRequest, LoginRequest, OrgRole, UserResponse};
 use std::sync::Arc;
@@ -15,33 +14,9 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         web::scope("/auth")
             .route("/register", web::post().to(register))
             .route("/login", web::post().to(login))
+            .route("/refresh", web::post().to(refresh_token))
             .route("/me", web::get().to(me)),
     );
-}
-
-/// Simple token format for v1: base64(user_id:org_id)
-/// In production, use JWT with proper signing
-fn create_token(user_id: Uuid, org_id: Uuid) -> String {
-    let payload = format!("{}:{}", user_id, org_id);
-    URL_SAFE_NO_PAD.encode(payload.as_bytes())
-}
-
-/// Extract user_id and org_id from token
-pub fn parse_token(token: &str) -> Result<(Uuid, Uuid), Error> {
-    let decoded = URL_SAFE_NO_PAD
-        .decode(token)
-        .map_err(|_| Error::Unauthorized("Invalid token".to_string()))?;
-    let payload =
-        String::from_utf8(decoded).map_err(|_| Error::Unauthorized("Invalid token".to_string()))?;
-    let parts: Vec<&str> = payload.split(':').collect();
-    if parts.len() != 2 {
-        return Err(Error::Unauthorized("Invalid token".to_string()));
-    }
-    let user_id =
-        Uuid::parse_str(parts[0]).map_err(|_| Error::Unauthorized("Invalid token".to_string()))?;
-    let org_id =
-        Uuid::parse_str(parts[1]).map_err(|_| Error::Unauthorized("Invalid token".to_string()))?;
-    Ok((user_id, org_id))
 }
 
 /// Extract token from Authorization header
@@ -55,29 +30,51 @@ pub fn extract_token(req: &HttpRequest) -> Result<String, Error> {
 
     if !auth_header.starts_with("Bearer ") {
         return Err(Error::Unauthorized(
-            "Invalid authorization format".to_string(),
+            "Invalid authorization format. Use: Bearer <token>".to_string(),
         ));
     }
 
     Ok(auth_header[7..].to_string())
 }
 
-/// Get current user from request
-pub fn get_auth_context(req: &HttpRequest) -> Result<(Uuid, Uuid), Error> {
+/// Get current user and org from request using JWT
+pub fn get_auth_context(state: &AppState, req: &HttpRequest) -> Result<(Uuid, Uuid), Error> {
     let token = extract_token(req)?;
-    parse_token(&token)
+    let claims = state.jwt.validate_token(&token)?;
+    let user_id = claims.user_id()?;
+    let org_id = claims.org_id()?;
+    Ok((user_id, org_id))
 }
 
 async fn register(
     state: web::Data<Arc<AppState>>,
     req: web::Json<CreateUserRequest>,
 ) -> Result<HttpResponse, Error> {
+    // Validate email format (basic check)
+    if !req.email.contains('@') || req.email.len() < 3 {
+        return Err(Error::BadRequest("Invalid email format".to_string()));
+    }
+
+    // Validate password strength (minimum 8 characters)
+    if req.password.len() < 8 {
+        return Err(Error::BadRequest(
+            "Password must be at least 8 characters long".to_string(),
+        ));
+    }
+
+    // Validate name length
+    if req.name.trim().is_empty() || req.name.len() > 255 {
+        return Err(Error::BadRequest(
+            "Name must be between 1 and 255 characters".to_string(),
+        ));
+    }
+
     // Check if user already exists
     if state.db.get_user_by_email(&req.email).await?.is_some() {
         return Err(Error::Conflict("Email already registered".to_string()));
     }
 
-    // Hash password
+    // Hash password using Argon2
     let salt = SaltString::generate(&mut OsRng);
     let argon2 = Argon2::default();
     let password_hash = argon2
@@ -102,37 +99,100 @@ async fn register(
         )
         .await?;
 
-    Ok(HttpResponse::Created().json(UserResponse::from(user)))
+    // Generate JWT token
+    let token = state.jwt.create_token(user.id, user.org_id)?;
+    let refresh_token = state.jwt.create_refresh_token(user.id, user.org_id)?;
+
+    tracing::info!(
+        user_id = %user.id,
+        email = %user.email,
+        "User registered successfully"
+    );
+
+    Ok(HttpResponse::Created().json(serde_json::json!({
+        "user": UserResponse::from(user),
+        "token": token,
+        "refresh_token": refresh_token,
+    })))
 }
 
 async fn login(
     state: web::Data<Arc<AppState>>,
     req: web::Json<LoginRequest>,
 ) -> Result<HttpResponse, Error> {
+    // Get user by email
     let user = state
         .db
         .get_user_by_email(&req.email)
         .await?
-        .ok_or_else(|| Error::Unauthorized("Invalid credentials".to_string()))?;
+        .ok_or_else(|| {
+            // Use constant-time response to prevent timing attacks
+            tracing::warn!(email = %req.email, "Login attempt with non-existent email");
+            Error::Unauthorized("Invalid email or password".to_string())
+        })?;
 
-    // Verify password
-    let parsed_hash = PasswordHash::new(&user.password_hash)
-        .map_err(|_| Error::Internal("Invalid password hash".to_string()))?;
+    // Verify password using Argon2
+    let parsed_hash = PasswordHash::new(&user.password_hash).map_err(|e| {
+        tracing::error!(user_id = %user.id, error = %e, "Invalid password hash in database");
+        Error::Internal("Authentication error".to_string())
+    })?;
 
     Argon2::default()
         .verify_password(req.password.as_bytes(), &parsed_hash)
-        .map_err(|_| Error::Unauthorized("Invalid credentials".to_string()))?;
+        .map_err(|_| {
+            tracing::warn!(
+                user_id = %user.id,
+                email = %user.email,
+                "Failed login attempt - invalid password"
+            );
+            Error::Unauthorized("Invalid email or password".to_string())
+        })?;
 
-    let token = create_token(user.id, user.org_id);
+    // Generate JWT tokens
+    let token = state.jwt.create_token(user.id, user.org_id)?;
+    let refresh_token = state.jwt.create_refresh_token(user.id, user.org_id)?;
+
+    tracing::info!(
+        user_id = %user.id,
+        email = %user.email,
+        "User logged in successfully"
+    );
 
     Ok(HttpResponse::Ok().json(serde_json::json!({
         "user": UserResponse::from(user),
-        "token": token
+        "token": token,
+        "refresh_token": refresh_token,
+    })))
+}
+
+async fn refresh_token(
+    state: web::Data<Arc<AppState>>,
+    req: HttpRequest,
+) -> Result<HttpResponse, Error> {
+    // Extract and validate refresh token
+    let token = extract_token(&req)?;
+    let claims = state.jwt.validate_token(&token)?;
+
+    // Issue new tokens
+    let user_id = claims.user_id()?;
+    let org_id = claims.org_id()?;
+
+    let new_token = state.jwt.create_token(user_id, org_id)?;
+    let new_refresh_token = state.jwt.create_refresh_token(user_id, org_id)?;
+
+    tracing::info!(
+        user_id = %user_id,
+        "Token refreshed successfully"
+    );
+
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "token": new_token,
+        "refresh_token": new_refresh_token,
     })))
 }
 
 async fn me(state: web::Data<Arc<AppState>>, req: HttpRequest) -> Result<HttpResponse, Error> {
-    let (user_id, _org_id) = get_auth_context(&req)?;
+    let (user_id, _org_id) = get_auth_context(&state, &req)?;
 
     let user = state.db.get_user(user_id).await?;
 

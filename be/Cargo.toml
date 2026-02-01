@@ -49,11 +49,17 @@ cron = "0.15"
 # Password hashing
 argon2 = "0.5"
 
+# Authentication
+jsonwebtoken = "9"
+
 # Encoding
 base64 = "0.22"
 
 # Config
 config = "0.15.19"
+
+# SQL parsing and validation
+sqlparser = { version = "0.56", features = ["visitor"] }
 
 [dev-dependencies]
 # Testing

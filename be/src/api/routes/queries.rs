@@ -1,7 +1,7 @@
 use crate::AppState;
 use crate::routes::auth::get_auth_context;
 use actix_web::{HttpRequest, HttpResponse, web};
-use loupe::Error;
+use loupe::{Error, SqlValidator};
 use loupe::models::{
     CreateQueryRequest, ImportQueriesRequest, ImportQueriesResponse, QueryExport, QueryResponse,
     UpdateQueryRequest,
@@ -26,7 +26,7 @@ async fn list_queries(
     state: web::Data<Arc<AppState>>,
     req: HttpRequest,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&req)?;
+    let (_, org_id) = get_auth_context(&state, &req)?;
     let queries = state.db.list_queries(org_id).await?;
     let response: Vec<QueryResponse> = queries.into_iter().map(Into::into).collect();
     Ok(HttpResponse::Ok().json(response))
@@ -37,10 +37,14 @@ async fn create_query(
     req: HttpRequest,
     body: web::Json<CreateQueryRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (user_id, org_id) = get_auth_context(&req)?;
+    let (user_id, org_id) = get_auth_context(&state, &req)?;
 
     // Verify datasource exists and belongs to org
     state.db.get_datasource(body.datasource_id, org_id).await?;
+
+    // SECURITY: Validate SQL to prevent injection attacks
+    let validator = SqlValidator::new();
+    validator.validate(&body.sql)?;
 
     let parameters = serde_json::to_value(&body.parameters).unwrap_or_default();
     let tags = serde_json::to_value(&body.tags).unwrap_or_default();
@@ -61,6 +65,12 @@ async fn create_query(
         )
         .await?;
 
+    tracing::info!(
+        query_id = %query.id,
+        user_id = %user_id,
+        "Query created and validated successfully"
+    );
+
     Ok(HttpResponse::Created().json(QueryResponse::from(query)))
 }
 
@@ -69,7 +79,7 @@ async fn get_query(
     req: HttpRequest,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&req)?;
+    let (_, org_id) = get_auth_context(&state, &req)?;
     let id = path.into_inner();
     let query = state.db.get_query(id, org_id).await?;
     Ok(HttpResponse::Ok().json(QueryResponse::from(query)))
@@ -81,8 +91,14 @@ async fn update_query(
     path: web::Path<Uuid>,
     body: web::Json<UpdateQueryRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&req)?;
+    let (_, org_id) = get_auth_context(&state, &req)?;
     let id = path.into_inner();
+
+    // SECURITY: Validate SQL if it's being updated
+    if let Some(ref sql) = body.sql {
+        let validator = SqlValidator::new();
+        validator.validate(sql)?;
+    }
 
     let parameters = body
         .parameters
@@ -114,7 +130,7 @@ async fn delete_query(
     req: HttpRequest,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&req)?;
+    let (_, org_id) = get_auth_context(&state, &req)?;
     let id = path.into_inner();
     state.db.delete_query(id, org_id).await?;
     Ok(HttpResponse::NoContent().finish())
@@ -124,7 +140,7 @@ async fn export_queries(
     state: web::Data<Arc<AppState>>,
     req: HttpRequest,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&req)?;
+    let (_, org_id) = get_auth_context(&state, &req)?;
 
     let queries = state.db.list_queries(org_id).await?;
     let datasources = state.db.list_datasources(org_id).await?;
@@ -160,7 +176,7 @@ async fn import_queries(
     req: HttpRequest,
     body: web::Json<ImportQueriesRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (user_id, org_id) = get_auth_context(&req)?;
+    let (user_id, org_id) = get_auth_context(&state, &req)?;
 
     // Verify datasource exists and belongs to org
     state.db.get_datasource(body.datasource_id, org_id).await?;
@@ -173,6 +189,7 @@ async fn import_queries(
     let mut imported = 0;
     let mut skipped = 0;
     let mut skipped_names = Vec::new();
+    let validator = SqlValidator::new();
 
     for query in &body.queries {
         // Check for duplicate
@@ -183,6 +200,9 @@ async fn import_queries(
                 continue;
             }
         }
+
+        // SECURITY: Validate SQL for each imported query
+        validator.validate(&query.sql)?;
 
         let parameters = serde_json::to_value(&query.parameters).unwrap_or_default();
         let tags = serde_json::to_value(&query.tags).unwrap_or_default();

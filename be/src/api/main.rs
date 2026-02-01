@@ -7,11 +7,12 @@ use argon2::{
     password_hash::{PasswordHasher, SaltString, rand_core::OsRng},
 };
 use loupe::models::OrgRole;
-use loupe::{init_tracing, load_env, Database};
+use loupe::{init_tracing, load_env, Database, JwtManager};
 use std::sync::Arc;
 
 pub struct AppState {
     pub db: Database,
+    pub jwt: JwtManager,
 }
 
 #[actix_web::main]
@@ -26,6 +27,20 @@ async fn main() -> std::io::Result<()> {
         .unwrap_or_else(|_| "8080".to_string())
         .parse::<u16>()
         .expect("API_PORT must be a valid number");
+
+    // JWT configuration
+    let jwt_secret = std::env::var("JWT_SECRET")
+        .expect("JWT_SECRET must be set - generate with: openssl rand -base64 32");
+
+    // Validate JWT secret length (minimum 32 characters for security)
+    if jwt_secret.len() < 32 {
+        panic!("JWT_SECRET must be at least 32 characters long for security");
+    }
+
+    let jwt_expiration_hours = std::env::var("JWT_EXPIRATION_HOURS")
+        .unwrap_or_else(|_| "24".to_string())
+        .parse::<i64>()
+        .expect("JWT_EXPIRATION_HOURS must be a valid number");
 
     tracing::info!("Connecting to database...");
     let db = Database::connect(&database_url)
@@ -42,7 +57,8 @@ async fn main() -> std::io::Result<()> {
         tracing::warn!("Failed to seed default admin: {}", e);
     }
 
-    let state = Arc::new(AppState { db });
+    let jwt = JwtManager::new(jwt_secret, jwt_expiration_hours);
+    let state = Arc::new(AppState { db, jwt });
 
     tracing::info!("Starting Loupe API server at http://{}:{}", host, port);
 
