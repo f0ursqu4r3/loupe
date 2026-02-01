@@ -7,9 +7,13 @@ import { LButton, LCard, LEmptyState, LSpinner, LBadge, LTagFilter, LModal } fro
 import { dashboardsApi } from '@/services/api'
 import { clearLastDashboardId } from '@/utils/dashboardHistory'
 import { formatDateShort } from '@/utils/dateTime'
+import { usePermissions } from '@/composables/usePermissions'
+import { useApiError } from '@/composables/useApiError'
 import type { Dashboard } from '@/types'
 
 const router = useRouter()
+const { canEdit } = usePermissions()
+const { handleError } = useApiError()
 
 const dashboards = ref<Dashboard[]>([])
 const loading = ref(true)
@@ -48,6 +52,7 @@ async function loadDashboards() {
     error.value = null
     dashboards.value = await dashboardsApi.list()
   } catch (e) {
+    handleError(e, 'Failed to load dashboards')
     error.value = e instanceof Error ? e.message : 'Failed to load dashboards'
   } finally {
     loading.value = false
@@ -86,6 +91,7 @@ async function confirmDelete() {
     showDeleteModal.value = false
     dashboardToDelete.value = null
   } catch (e) {
+    handleError(e, 'Failed to delete dashboard')
     error.value = e instanceof Error ? e.message : 'Failed to delete dashboard'
   } finally {
     deleting.value = null
@@ -96,7 +102,7 @@ async function confirmDelete() {
 <template>
   <AppLayout title="Dashboards">
     <template #header-actions>
-      <LButton @click="createDashboard">
+      <LButton v-if="canEdit" @click="createDashboard">
         <Plus :size="16" />
         New Dashboard
       </LButton>
@@ -111,13 +117,13 @@ async function confirmDelete() {
     <LEmptyState
       v-else-if="dashboards.length === 0"
       title="No dashboards yet"
-      description="Create your first dashboard to start visualizing your data."
+      :description="canEdit ? 'Create your first dashboard to start visualizing your data.' : 'No dashboards have been created yet. Contact an editor or admin to create dashboards.'"
     >
       <template #icon>
         <LayoutGrid :size="48" class="text-text-subtle" />
       </template>
       <template #action>
-        <LButton @click="createDashboard">
+        <LButton v-if="canEdit" @click="createDashboard">
           <Plus :size="16" />
           Create Dashboard
         </LButton>
@@ -154,6 +160,7 @@ async function confirmDelete() {
               {{ dashboard.name }}
             </h3>
             <button
+              v-if="canEdit"
               type="button"
               class="p-1.5 rounded text-text-muted hover:text-error hover:bg-error-muted transition-colors opacity-0 group-hover:opacity-100"
               @click="deleteDashboard(dashboard.id, $event)"

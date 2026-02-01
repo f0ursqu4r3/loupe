@@ -28,9 +28,13 @@ import {
 import { ParameterInputs } from '@/components/query'
 import { queriesApi, runsApi, datasourcesApi } from '@/services/api'
 import { formatDateTimeShort } from '@/utils/dateTime'
+import { usePermissions } from '@/composables/usePermissions'
+import { useApiError } from '@/composables/useApiError'
 import type { Query, Run, RunStatus, Datasource, QueryExport } from '@/types'
 
 const router = useRouter()
+const { canEdit } = usePermissions()
+const { handleError } = useApiError()
 const queries = ref<Query[]>([])
 const datasources = ref<Datasource[]>([])
 const loading = ref(true)
@@ -123,6 +127,7 @@ async function loadQueries() {
       }
     }
   } catch (e) {
+    handleError(e, 'Failed to load queries')
     error.value = e instanceof Error ? e.message : 'Failed to load queries'
   } finally {
     loading.value = false
@@ -300,11 +305,11 @@ function closeImportModal() {
           <Download :size="16" />
           Export
         </LButton>
-        <LButton variant="secondary" @click="showImportModal = true">
+        <LButton v-if="canEdit" variant="secondary" @click="showImportModal = true">
           <Upload :size="16" />
           Import
         </LButton>
-        <LButton @click="openEditor()">
+        <LButton v-if="canEdit" @click="openEditor()">
           <Plus :size="16" />
           New Query
         </LButton>
@@ -323,13 +328,13 @@ function closeImportModal() {
       </div>
       <LEmptyState
         title="No queries yet"
-        description="Write your first SQL query to start exploring your data."
+        :description="canEdit ? 'Write your first SQL query to start exploring your data.' : 'No queries have been created yet. Contact an editor or admin to create queries.'"
       >
         <template #icon>
           <FileCode :size="48" class="text-text-subtle" />
         </template>
         <template #action>
-          <LButton @click="openEditor()">
+          <LButton v-if="canEdit" @click="openEditor()">
             <Plus :size="16" />
             Create Query
           </LButton>
