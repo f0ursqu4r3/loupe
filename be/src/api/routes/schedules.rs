@@ -1,5 +1,5 @@
 use crate::AppState;
-use crate::routes::auth::get_auth_context;
+use crate::permissions::{get_user_context, require_permission, Permission};
 use actix_web::{HttpRequest, HttpResponse, web};
 use loupe::Error;
 use loupe::models::{CreateScheduleRequest, ScheduleResponse, UpdateScheduleRequest};
@@ -24,7 +24,9 @@ async fn list_schedules(
     state: web::Data<Arc<AppState>>,
     req: HttpRequest,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&state, &req)?;
+    let (_, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Viewer)?;
+
     let schedules = state.db.list_schedules(org_id).await?;
     let response: Vec<ScheduleResponse> = schedules.into_iter().map(Into::into).collect();
     Ok(HttpResponse::Ok().json(response))
@@ -35,7 +37,9 @@ async fn get_schedule(
     req: HttpRequest,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&state, &req)?;
+    let (_, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Viewer)?;
+
     let id = path.into_inner();
     let schedule = state.db.get_schedule(id, org_id).await?;
     Ok(HttpResponse::Ok().json(ScheduleResponse::from(schedule)))
@@ -46,7 +50,8 @@ async fn create_schedule(
     req: HttpRequest,
     body: web::Json<CreateScheduleRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (user_id, org_id) = get_auth_context(&state, &req)?;
+    let (user_id, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Editor)?;
 
     // Verify query exists
     state.db.get_query(body.query_id, org_id).await?;
@@ -76,7 +81,9 @@ async fn update_schedule(
     path: web::Path<Uuid>,
     body: web::Json<UpdateScheduleRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&state, &req)?;
+    let (_, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Editor)?;
+
     let id = path.into_inner();
 
     let tags = body
@@ -105,7 +112,9 @@ async fn delete_schedule(
     req: HttpRequest,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&state, &req)?;
+    let (_, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Editor)?;
+
     let id = path.into_inner();
     state.db.delete_schedule(id, org_id).await?;
     Ok(HttpResponse::NoContent().finish())
@@ -116,7 +125,9 @@ async fn enable_schedule(
     req: HttpRequest,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&state, &req)?;
+    let (_, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Editor)?;
+
     let id = path.into_inner();
     let schedule = state.db.enable_schedule(id, org_id).await?;
     Ok(HttpResponse::Ok().json(ScheduleResponse::from(schedule)))
@@ -127,7 +138,9 @@ async fn disable_schedule(
     req: HttpRequest,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&state, &req)?;
+    let (_, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Editor)?;
+
     let id = path.into_inner();
     let schedule = state.db.disable_schedule(id, org_id).await?;
     Ok(HttpResponse::Ok().json(ScheduleResponse::from(schedule)))
@@ -138,7 +151,9 @@ async fn trigger_schedule(
     req: HttpRequest,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, Error> {
-    let (user_id, org_id) = get_auth_context(&state, &req)?;
+    let (user_id, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Editor)?;
+
     let id = path.into_inner();
 
     // Get the schedule to find the associated query

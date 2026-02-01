@@ -395,6 +395,20 @@ if (error.response?.status === 403) {
 - [ ] Hide edit/delete actions for non-Admins
 - [ ] Show "Admin only" badge on sensitive actions
 
+**Visualizations:**
+- [ ] Hide "New Visualization" button for Viewers
+- [ ] Hide edit/delete actions for Viewers
+
+**Schedules:**
+- [ ] Hide "New Schedule" button for Viewers
+- [ ] Hide enable/disable/trigger actions for Viewers
+- [ ] Show permission indicator on schedule management
+
+**Canvases:**
+- [ ] Hide "New Canvas" button for Viewers
+- [ ] Hide edit actions (nodes, edges) for Viewers
+- [ ] Show read-only mode for Viewers
+
 **Example Implementation:**
 ```vue
 <template>

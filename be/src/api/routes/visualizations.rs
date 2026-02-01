@@ -1,5 +1,5 @@
 use crate::AppState;
-use crate::routes::auth::get_auth_context;
+use crate::permissions::{get_user_context, require_permission, Permission};
 use actix_web::{HttpRequest, HttpResponse, web};
 use loupe::Error;
 use loupe::models::{
@@ -29,7 +29,9 @@ async fn list_visualizations(
     req: HttpRequest,
     query: web::Query<ListVisualizationsQuery>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&state, &req)?;
+    let (_, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Viewer)?;
+
     let vizs = state.db.list_visualizations(org_id, query.query_id).await?;
     let response: Vec<VisualizationResponse> = vizs.into_iter().map(Into::into).collect();
     Ok(HttpResponse::Ok().json(response))
@@ -40,7 +42,8 @@ async fn create_visualization(
     req: HttpRequest,
     body: web::Json<CreateVisualizationRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (user_id, org_id) = get_auth_context(&state, &req)?;
+    let (user_id, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Editor)?;
 
     // Verify query exists
     state.db.get_query(body.query_id, org_id).await?;
@@ -68,7 +71,9 @@ async fn get_visualization(
     req: HttpRequest,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&state, &req)?;
+    let (_, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Viewer)?;
+
     let id = path.into_inner();
     let viz = state.db.get_visualization(id, org_id).await?;
     Ok(HttpResponse::Ok().json(VisualizationResponse::from(viz)))
@@ -79,7 +84,9 @@ async fn delete_visualization(
     req: HttpRequest,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&state, &req)?;
+    let (_, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Editor)?;
+
     let id = path.into_inner();
     state.db.delete_visualization(id, org_id).await?;
     Ok(HttpResponse::NoContent().finish())
@@ -91,7 +98,9 @@ async fn update_visualization(
     path: web::Path<Uuid>,
     body: web::Json<UpdateVisualizationRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&state, &req)?;
+    let (_, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Editor)?;
+
     let id = path.into_inner();
 
     // If changing query, verify the new query exists and belongs to org

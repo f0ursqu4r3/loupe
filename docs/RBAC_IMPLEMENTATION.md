@@ -147,9 +147,44 @@ async fn handler(
 
 **Note:** Datasource management requires Admin role due to sensitive connection strings.
 
-### Visualizations, Schedules, Canvases
+### Visualizations (`/api/v1/visualizations`)
 
-**Status:** ⚠️ Pending implementation (see [BE_TODO.md](./BE_TODO.md))
+| Endpoint | Method | Permission | Description               |
+| -------- | ------ | ---------- | ------------------------- |
+| `/`      | GET    | Viewer     | List all visualizations   |
+| `/`      | POST   | Editor     | Create visualization      |
+| `/:id`   | GET    | Viewer     | Get visualization details |
+| `/:id`   | PUT    | Editor     | Update visualization      |
+| `/:id`   | DELETE | Editor     | Delete visualization      |
+
+### Schedules (`/api/v1/schedules`)
+
+| Endpoint       | Method | Permission | Description        |
+| -------------- | ------ | ---------- | ------------------ |
+| `/`            | GET    | Viewer     | List all schedules |
+| `/`            | POST   | Editor     | Create schedule    |
+| `/:id`         | GET    | Viewer     | Get schedule       |
+| `/:id`         | PATCH  | Editor     | Update schedule    |
+| `/:id`         | DELETE | Editor     | Delete schedule    |
+| `/:id/enable`  | POST   | Editor     | Enable schedule    |
+| `/:id/disable` | POST   | Editor     | Disable schedule   |
+| `/:id/trigger` | POST   | Editor     | Trigger schedule   |
+
+### Canvases (`/api/v1/canvases`)
+
+| Endpoint                | Method | Permission | Description      |
+| ----------------------- | ------ | ---------- | ---------------- |
+| `/`                     | GET    | Viewer     | List canvases    |
+| `/`                     | POST   | Editor     | Create canvas    |
+| `/:id`                  | GET    | Viewer     | Get canvas       |
+| `/:id`                  | PUT    | Editor     | Update canvas    |
+| `/:id`                  | DELETE | Editor     | Delete canvas    |
+| `/:id/nodes`            | POST   | Editor     | Add node         |
+| `/:id/nodes/:node_id`   | PUT    | Editor     | Update node      |
+| `/:id/nodes/:node_id`   | DELETE | Editor     | Delete node      |
+| `/:id/edges`            | POST   | Editor     | Add edge         |
+| `/:id/edges/:edge_id`   | PUT    | Editor     | Update edge      |
+| `/:id/edges/:edge_id`   | DELETE | Editor     | Delete edge      |
 
 ---
 
