@@ -1,11 +1,13 @@
 use loupe::connectors::{Connector, PostgresConnector};
 use loupe::models::DatasourceType;
 use loupe::params::TypedValue;
-use loupe::{init_tracing, load_env, Database};
+use loupe::{init_tracing, load_env, Database, Metrics, QueryLimiter, QueryLimits};
+use std::sync::Arc;
 use std::time::Duration;
 
 const POLL_INTERVAL: Duration = Duration::from_secs(1);
 const MAX_CONCURRENT_RUNS: usize = 4;
+const SLOW_QUERY_THRESHOLD_MS: i64 = 1000; // Log queries slower than 1 second
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -22,6 +24,19 @@ async fn main() -> anyhow::Result<()> {
 
     let db = Database::connect(&database_url).await?;
 
+    // Initialize metrics
+    let metrics = Arc::new(Metrics::new().expect("Failed to create metrics registry"));
+    tracing::info!("Metrics initialized");
+
+    // Initialize query limiter
+    let query_limits = QueryLimits::from_env();
+    let query_limiter = Arc::new(QueryLimiter::new(query_limits.clone()));
+    tracing::info!(
+        "Query limiter initialized: max {} per org, {} global",
+        query_limits.max_concurrent_per_org,
+        query_limits.max_concurrent_global
+    );
+
     tracing::info!("Runner ready, polling for jobs...");
 
     // Simple polling loop
@@ -34,13 +49,15 @@ async fn main() -> anyhow::Result<()> {
                 Ok(Some(run)) => {
                     active_tasks += 1;
                     let db_clone = db.clone();
+                    let metrics_clone = metrics.clone();
+                    let limiter_clone = query_limiter.clone();
                     let run_id = run.id;
 
                     tracing::info!("Claimed run {}", run_id);
 
                     // Spawn task to execute the run
                     tokio::spawn(async move {
-                        let result = execute_run(&db_clone, &run).await;
+                        let result = execute_run(&db_clone, &metrics_clone, &limiter_clone, &run).await;
                         if let Err(e) = result {
                             tracing::error!("Run {} failed: {}", run_id, e);
                         }
@@ -66,7 +83,30 @@ async fn main() -> anyhow::Result<()> {
     }
 }
 
-async fn execute_run(db: &Database, run: &loupe::models::Run) -> anyhow::Result<()> {
+async fn execute_run(
+    db: &Database,
+    metrics: &Arc<Metrics>,
+    limiter: &Arc<QueryLimiter>,
+    run: &loupe::models::Run,
+) -> anyhow::Result<()> {
+    // Try to acquire a query execution slot
+    let _guard = match limiter.try_acquire(run.org_id) {
+        Ok(guard) => {
+            tracing::debug!("Acquired query slot for org {}", run.org_id);
+            guard
+        }
+        Err(e) => {
+            // Query limit reached - fail the run
+            let error_msg = format!("Query limit reached: {}", e);
+            db.fail_run(run.id, &error_msg).await?;
+            tracing::warn!("Run {} rejected: {}", run.id, error_msg);
+            metrics.query_executions_total.with_label_values(&["rejected"]).inc();
+            return Ok(());
+        }
+    };
+
+    // Increment in-flight queries
+    metrics.queries_in_flight.inc();
     let start = std::time::Instant::now();
 
     // Get the datasource
@@ -95,9 +135,34 @@ async fn execute_run(db: &Database, run: &loupe::models::Run) -> anyhow::Result<
             .await
     };
 
-    match result {
+    let execution_result = match result {
         Ok(output) => {
             let execution_time_ms = start.elapsed().as_millis() as i64;
+            let execution_time_secs = execution_time_ms as f64 / 1000.0;
+
+            // Record metrics
+            metrics.query_executions_total.with_label_values(&["completed"]).inc();
+            metrics
+                .query_execution_duration_seconds
+                .with_label_values(&[&run.query_id.to_string()])
+                .observe(execution_time_secs);
+            metrics
+                .query_rows_returned
+                .with_label_values(&[&run.query_id.to_string()])
+                .observe(output.row_count as f64);
+            metrics.queries_in_flight.dec();
+
+            // Log slow queries
+            if execution_time_ms > SLOW_QUERY_THRESHOLD_MS {
+                tracing::warn!(
+                    run_id = %run.id,
+                    query_id = %run.query_id,
+                    org_id = %run.org_id,
+                    duration_ms = execution_time_ms,
+                    rows = output.row_count,
+                    "Slow query detected"
+                );
+            }
 
             // Serialize results
             let columns = serde_json::to_value(&output.columns)?;
@@ -125,22 +190,42 @@ async fn execute_run(db: &Database, run: &loupe::models::Run) -> anyhow::Result<
                 output.row_count,
                 execution_time_ms
             );
+
+            Ok(())
         }
         Err(e) => {
             let error_msg = e.to_string();
 
+            // Decrement in-flight counter
+            metrics.queries_in_flight.dec();
+
             // Check if it was a timeout
             if error_msg.contains("timed out") {
+                metrics.query_executions_total.with_label_values(&["timeout"]).inc();
+                metrics.query_timeouts_total.inc();
                 db.timeout_run(run.id).await?;
-                tracing::warn!("Run {} timed out", run.id);
+                tracing::warn!(
+                    run_id = %run.id,
+                    query_id = %run.query_id,
+                    timeout_seconds = run.timeout_seconds,
+                    "Run timed out"
+                );
             } else {
+                metrics.query_executions_total.with_label_values(&["failed"]).inc();
                 db.fail_run(run.id, &error_msg).await?;
-                tracing::error!("Run {} failed: {}", run.id, error_msg);
+                tracing::error!(
+                    run_id = %run.id,
+                    query_id = %run.query_id,
+                    error = %error_msg,
+                    "Run failed"
+                );
             }
-        }
-    }
 
-    Ok(())
+            Ok(())
+        }
+    };
+
+    execution_result
 }
 
 /// Parse bound parameters from JSON array stored in run.parameters

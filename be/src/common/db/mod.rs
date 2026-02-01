@@ -1221,8 +1221,24 @@ impl Database {
     pub async fn timeout_run(&self, id: Uuid) -> Result<Run> {
         let run = sqlx::query_as::<_, Run>(
             r#"
-            UPDATE runs 
+            UPDATE runs
             SET status = 'timeout', completed_at = NOW(), error_message = 'Query execution timed out'
+            WHERE id = $1
+            RETURNING *
+            "#,
+        )
+        .bind(id)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(run)
+    }
+
+    pub async fn cancel_run(&self, id: Uuid) -> Result<Run> {
+        let run = sqlx::query_as::<_, Run>(
+            r#"
+            UPDATE runs
+            SET status = 'cancelled', completed_at = NOW(), error_message = 'Query execution cancelled by user'
             WHERE id = $1
             RETURNING *
             "#,

@@ -4,7 +4,7 @@ use actix_web::{HttpRequest, HttpResponse, web};
 use loupe::{Error, SqlValidator};
 use loupe::filtering::{SortParams, SortableColumns};
 use loupe::models::{
-    CreateRunRequest, ExecuteAdHocRequest, ParamDef, RunResponse, RunResultResponse,
+    CreateRunRequest, ExecuteAdHocRequest, ParamDef, RunResponse, RunResultResponse, RunStatus,
 };
 use loupe::params::{ParamSchema, bind_params};
 use loupe::{PaginatedResponse, PaginationParams};
@@ -19,7 +19,8 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .route("", web::post().to(create_run))
             .route("/execute", web::post().to(execute_adhoc))
             .route("/{id}", web::get().to(get_run))
-            .route("/{id}/result", web::get().to(get_run_result)),
+            .route("/{id}/result", web::get().to(get_run_result))
+            .route("/{id}/cancel", web::post().to(cancel_run)),
     );
 }
 
@@ -276,4 +277,50 @@ async fn get_run_result(
     let run_id = path.into_inner();
     let result = state.db.get_run_result(run_id).await?;
     Ok(HttpResponse::Ok().json(RunResultResponse::from(result)))
+}
+
+/// POST /api/v1/runs/{id}/cancel - Cancel a running query
+///
+/// Cancels a query that is currently queued or running.
+/// Only queries in 'queued' or 'running' status can be cancelled.
+///
+/// Returns 200 if successfully cancelled, 400 if already completed/failed.
+async fn cancel_run(
+    state: web::Data<Arc<AppState>>,
+    req: HttpRequest,
+    path: web::Path<Uuid>,
+) -> Result<HttpResponse, Error> {
+    let (_, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Editor)?;
+
+    let run_id = path.into_inner();
+
+    // Get the run to check its status
+    let run = state.db.get_run(run_id, org_id).await?;
+
+    // Check if run can be cancelled
+    match run.status {
+        RunStatus::Queued | RunStatus::Running => {
+            // Cancel the run
+            state.db.cancel_run(run_id).await?;
+
+            tracing::info!(
+                run_id = %run_id,
+                query_id = %run.query_id,
+                org_id = %org_id,
+                "Run cancelled by user"
+            );
+
+            Ok(HttpResponse::Ok().json(serde_json::json!({
+                "message": "Run cancelled successfully",
+                "run_id": run_id,
+            })))
+        }
+        RunStatus::Completed | RunStatus::Failed | RunStatus::Timeout | RunStatus::Cancelled => {
+            Err(Error::BadRequest(format!(
+                "Cannot cancel run with status '{:?}'",
+                run.status
+            )))
+        }
+    }
 }

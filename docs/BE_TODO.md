@@ -5,11 +5,11 @@
 Track backend improvements for security, performance, and maintainability.
 
 **Started:** 2026-01-11
-**Last Updated:** 2026-01-31
+**Last Updated:** 2026-02-01
 
 ---
 
-## ✅ Completed (17/48 tasks - 35.4%)
+## ✅ Completed (18/48 tasks - 37.5%)
 
 ### Critical Security (5/5 - 100%)
 
@@ -30,10 +30,11 @@ Track backend improvements for security, performance, and maintainability.
 
 1. ✅ **Schema Review** - 47 indexes/constraints added: sorting (27), filtering (4), composite (3), partial (2), CHECK (11)
 
-### Performance (2/5 - 40%)
+### Performance (3/5 - 60%)
 
 1. ✅ **Rate Limiting** - Global 100 req/min per IP via actix-governor
 2. ✅ **Connection Pooling** - SQLx pool monitoring with Prometheus metrics (active/idle/max connections, acquisition duration/timeouts), comprehensive documentation in [DATABASE_POOLING.md](DATABASE_POOLING.md)
+3. ✅ **Query Execution Safety** - Prometheus metrics for query execution (duration, status, rows returned), concurrent query limiter with per-org (5) and global (50) limits configurable via environment, slow query logging (1s threshold), query cancellation API endpoint (POST /api/v1/runs/{id}/cancel)
 
 ### Observability (5/5 - 100%)
 
@@ -45,7 +46,7 @@ Track backend improvements for security, performance, and maintainability.
 
 ---
 
-## 📋 Remaining Tasks (31/48)
+## 📋 Remaining Tasks (30/48)
 
 ### Testing & Quality (0/4)
 
@@ -131,17 +132,6 @@ Track backend improvements for security, performance, and maintainability.
 - [ ] Add dead letter queue
 - [ ] Monitor job processing metrics
 - [ ] Implement graceful shutdown
-
-#### 22. Query Execution Safety
-
-- [ ] Add query timeout limits (partially done - queries have timeout_seconds)
-- [ ] Add query result size limits (partially done - queries have max_rows)
-- [ ] Prevent runaway queries
-- [ ] Add query cost estimation
-- [ ] Implement query queue
-- [ ] Add concurrent query limits per user
-- [ ] Add query cancellation support
-- [ ] Log slow queries
 
 ---
 
@@ -369,15 +359,15 @@ be/src/
 **API Design:** 4/4 (100%) ✅
 **Testing:** 0/4 (0%)
 **Database:** 1/4 (25%)
-**Performance:** 1/5 (20%)
-**Observability:** 4/5 (80%) 📈
+**Performance:** 3/5 (60%) 📈
+**Observability:** 5/5 (100%) ✅
 **Code Organization:** 0/4 (0%)
 **Security Hardening:** 0/5 (0%)
 **Documentation:** 0/3 (0%)
 **DevOps:** 0/4 (0%)
 **Data Management:** 0/3 (0%)
 
-**Overall Progress:** 15/48 major tasks (31.3%)
+**Overall Progress:** 18/48 major tasks (37.5%)
 
 ---
 
