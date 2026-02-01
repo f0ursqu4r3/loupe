@@ -45,7 +45,7 @@ const router = createRouter({
       path: '/datasources',
       name: 'datasources',
       component: () => import('@/views/DatasourcesView.vue'),
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, requiresAdmin: true },
     },
     {
       path: '/queries',
@@ -154,6 +154,10 @@ router.beforeEach(async (to, from, next) => {
   } else if (to.meta.guest && authStore.isAuthenticated) {
     // Redirect to home if already authenticated
     next({ name: 'dashboard-entry' })
+  } else if (to.meta.requiresAdmin && authStore.user?.role !== 'admin') {
+    // Redirect non-admins away from admin-only routes
+    console.warn('Access denied: Admin role required for', to.path)
+    next({ name: 'dashboards' })
   } else {
     next()
   }
