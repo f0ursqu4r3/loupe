@@ -88,3 +88,18 @@ impl From<User> for UserResponse {
         }
     }
 }
+
+/// Response for login and register endpoints
+#[derive(Debug, Serialize)]
+pub struct AuthResponse {
+    pub user: UserResponse,
+    pub token: String,
+    pub refresh_token: String,
+}
+
+/// Response for token refresh endpoint
+#[derive(Debug, Serialize)]
+pub struct RefreshTokenResponse {
+    pub token: String,
+    pub refresh_token: String,
+}

@@ -28,14 +28,22 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 
 #[derive(serde::Deserialize)]
 pub struct ListDatasourcesQuery {
-    #[serde(flatten)]
-    pub search: SearchParams,
+    // Search parameter
+    pub search: Option<String>,
 
-    #[serde(flatten)]
-    pub sort: SortParams,
+    // Sort parameters
+    pub sort_by: Option<String>,
+    pub sort_direction: Option<String>,
 
-    #[serde(flatten)]
-    pub pagination: PaginationParams,
+    // Pagination parameters
+    #[serde(default = "default_limit")]
+    pub limit: i64,
+    #[serde(default)]
+    pub offset: i64,
+}
+
+fn default_limit() -> i64 {
+    20
 }
 
 async fn list_datasources(
@@ -46,17 +54,27 @@ async fn list_datasources(
     let (_, org_id, role) = get_user_context(&state, &req).await?;
     require_permission(role, Permission::Viewer)?;
 
-    let mut pagination = query.pagination.clone();
+    let mut pagination = PaginationParams {
+        limit: query.limit,
+        offset: query.offset,
+    };
     pagination.validate();
 
     // Validate and build sort params
-    let (sort_column, sort_direction) = query.sort.validate_and_build(
+    let sort = SortParams {
+        sort_by: query.sort_by.clone(),
+        sort_direction: query.sort_direction.clone(),
+    };
+    let (sort_column, sort_direction) = sort.validate_and_build(
         SortableColumns::DATASOURCES,
         "created_at",
     );
 
     // Get search pattern
-    let search = query.search.get_pattern();
+    let search_params = SearchParams {
+        search: query.search.clone(),
+    };
+    let search = search_params.get_pattern();
 
     let (datasources, total) = state
         .db

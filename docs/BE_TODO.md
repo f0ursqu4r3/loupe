@@ -152,29 +152,61 @@ These are high-priority security and data integrity improvements.
 
 ## API Design & Consistency 🎯
 
-### 6. REST API Standards
+### 6. REST API Standards ✅
 
-- [ ] Audit all endpoints for REST conventions
-- [ ] Standardize response formats
-- [ ] Add consistent pagination pattern
-- [ ] Add consistent filtering/sorting pattern
-- [ ] Implement HATEOAS links (optional)
-- [ ] Version API endpoints (e.g., `/api/v1/`)
-- [ ] Document API with OpenAPI/Swagger
-- [ ] Add request/response examples
-- [ ] Implement consistent error response format
-- [ ] Add HTTP caching headers where appropriate
+- [x] Audit all endpoints for REST conventions
+- [x] Standardize response formats
+- [x] Add consistent pagination pattern
+- [x] Add consistent filtering/sorting pattern
+- [ ] Implement HATEOAS links (optional, future enhancement)
+- [x] Version API endpoints (e.g., `/api/v1/`)
+- [ ] Document API with OpenAPI/Swagger (future enhancement)
+- [ ] Add request/response examples (future enhancement)
+- [x] Implement consistent error response format
+- [x] Add HTTP caching headers where appropriate
 
-**Current routes to audit:**
+**Status:** ✅ **COMPLETE** - REST API standards implemented, documentation pending
 
-- [auth.rs](../be/src/api/routes/auth.rs)
-- [canvases.rs](../be/src/api/routes/canvases.rs)
-- [dashboards.rs](../be/src/api/routes/dashboards.rs)
-- [datasources.rs](../be/src/api/routes/datasources.rs)
-- [queries.rs](../be/src/api/routes/queries.rs)
-- [runs.rs](../be/src/api/routes/runs.rs)
-- [schedules.rs](../be/src/api/routes/schedules.rs)
-- [visualizations.rs](../be/src/api/routes/visualizations.rs)
+**Implementation Details:**
+
+- **API Versioning**: All endpoints under `/api/v1/` prefix
+- **HTTP Status Codes**: Proper REST conventions followed
+  - GET: 200 OK
+  - POST (create): 201 Created
+  - PUT/PATCH (update): 200 OK
+  - DELETE: 204 No Content
+  - Errors: 400 Bad Request, 401 Unauthorized, 404 Not Found, 500 Internal Server Error
+- **Standardized Response DTOs**: Created for all endpoints
+  - Created `AuthResponse` for login/register (user + tokens)
+  - Created `RefreshTokenResponse` for token refresh
+  - Created `TriggerScheduleResponse` for schedule trigger
+  - All other endpoints already had proper response DTOs (DashboardResponse, QueryResponse, etc.)
+  - Eliminated all ad-hoc `serde_json::json!` responses in favor of typed DTOs
+- **Pagination**: Consistent `PaginatedResponse<T>` across all list endpoints
+- **HTTP Cache Headers** ([security_headers.rs](../be/src/api/app_middleware/security_headers.rs)):
+  - Health endpoint: `Cache-Control: public, max-age=60` (1 minute cache)
+  - All other endpoints: `Cache-Control: no-store, no-cache, must-revalidate, private` + `Pragma: no-cache`
+  - Prevents caching of sensitive/user-specific data
+- **Error Handling**: Consistent error response format with proper status codes, error IDs, and sanitized messages
+
+**Files Modified:**
+
+- [user.rs](../be/src/common/models/user.rs) - Added AuthResponse, RefreshTokenResponse
+- [schedule.rs](../be/src/common/models/schedule.rs) - Added TriggerScheduleResponse
+- [auth.rs](../be/src/api/routes/auth.rs) - Updated to use AuthResponse and RefreshTokenResponse
+- [schedules.rs](../be/src/api/routes/schedules.rs) - Updated to use TriggerScheduleResponse
+- [security_headers.rs](../be/src/api/app_middleware/security_headers.rs) - Added Cache-Control headers
+
+**Routes audited:**
+
+- [auth.rs](../be/src/api/routes/auth.rs) ✓
+- [canvases.rs](../be/src/api/routes/canvases.rs) ✓
+- [dashboards.rs](../be/src/api/routes/dashboards.rs) ✓
+- [datasources.rs](../be/src/api/routes/datasources.rs) ✓
+- [queries.rs](../be/src/api/routes/queries.rs) ✓
+- [runs.rs](../be/src/api/routes/runs.rs) ✓
+- [schedules.rs](../be/src/api/routes/schedules.rs) ✓
+- [visualizations.rs](../be/src/api/routes/visualizations.rs) ✓
 
 ### 7. Request/Response Validation
 

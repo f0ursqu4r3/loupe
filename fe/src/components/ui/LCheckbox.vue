@@ -9,12 +9,14 @@ interface Props {
   disabled?: boolean
   label?: string
   id?: string
+  indeterminate?: boolean
   size?: Size
 }
 
 const props = withDefaults(defineProps<Props>(), {
   disabled: false,
   size: 'md',
+  indeterminate: false,
 })
 
 const emit = defineEmits<{
@@ -54,12 +56,14 @@ function toggle() {
   >
     <div
       role="checkbox"
-      :aria-checked="isChecked"
       :id="id"
+      :aria-checked="isChecked"
+      :aria-disabled="disabled"
+      :indeterminate="indeterminate"
       tabindex="0"
       class="rounded border transition-colors focus-ring flex items-center justify-center shrink-0"
       :class="[
-        sizeClasses[props.size],
+        sizeClasses[size],
         isChecked
           ? 'bg-primary-600 border-primary-600 text-white'
           : 'bg-surface border-border hover:border-border-strong',
@@ -67,8 +71,8 @@ function toggle() {
       @keydown.space.prevent="toggle"
       @keydown.enter.prevent="toggle"
     >
-      <Check v-if="isChecked" :class="iconSizes[props.size]" />
+      <Check v-if="isChecked" :class="iconSizes[size]" />
     </div>
-    <span v-if="props.label" class="select-none text-sm text-text-muted">{{ props.label }}</span>
+    <span v-if="label" class="select-none text-sm text-text-muted">{{ props.label }}</span>
   </div>
 </template>

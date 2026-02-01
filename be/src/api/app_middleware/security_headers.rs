@@ -42,6 +42,7 @@ where
     forward_ready!(service);
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
+        let path = req.path().to_string();
         let fut = self.service.call(req);
 
         Box::pin(async move {
@@ -49,6 +50,25 @@ where
 
             // Add security headers
             let headers = res.headers_mut();
+
+            // Cache-Control headers
+            // Health endpoint can be cached for a short duration
+            if path == "/api/v1/health" {
+                headers.insert(
+                    actix_web::http::header::CACHE_CONTROL,
+                    actix_web::http::header::HeaderValue::from_static("public, max-age=60"),
+                );
+            } else {
+                // All other endpoints: no caching (contains user-specific or sensitive data)
+                headers.insert(
+                    actix_web::http::header::CACHE_CONTROL,
+                    actix_web::http::header::HeaderValue::from_static("no-store, no-cache, must-revalidate, private"),
+                );
+                headers.insert(
+                    actix_web::http::header::PRAGMA,
+                    actix_web::http::header::HeaderValue::from_static("no-cache"),
+                );
+            }
 
             // Prevent clickjacking attacks
             headers.insert(

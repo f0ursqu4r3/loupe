@@ -2,7 +2,7 @@ use crate::AppState;
 use crate::permissions::{get_user_context, require_permission, Permission};
 use actix_web::{HttpRequest, HttpResponse, web};
 use loupe::{Error, SqlValidator};
-use loupe::filtering::{DateRangeParams, SortParams, SortableColumns};
+use loupe::filtering::{SortParams, SortableColumns};
 use loupe::models::{
     CreateRunRequest, ExecuteAdHocRequest, ParamDef, RunResponse, RunResultResponse,
 };

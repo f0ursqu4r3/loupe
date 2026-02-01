@@ -17,17 +17,14 @@ import {
   LPagination,
   LEmptyState,
   LTooltip,
-  LToast,
 } from '@/components/ui'
 import {
   Heart,
   Star,
   AlertCircle,
   CheckCircle,
-  Info,
   Trash2,
   Download,
-  Upload,
   Plus,
   Settings,
   BarChart3,
@@ -144,11 +141,7 @@ const shadows = [
         <div class="mb-8">
           <h3 class="text-lg font-medium text-text mb-4">Primary Palette</h3>
           <div class="grid grid-cols-11 gap-2">
-            <div
-              v-for="color in colors.primary"
-              :key="color.name"
-              class="space-y-2"
-            >
+            <div v-for="color in colors.primary" :key="color.name" class="space-y-2">
               <div
                 class="h-20 rounded-lg border border-border"
                 :style="{ backgroundColor: color.var }"
@@ -162,11 +155,7 @@ const shadows = [
         <div class="mb-8">
           <h3 class="text-lg font-medium text-text mb-4">Surface Colors</h3>
           <div class="grid grid-cols-4 gap-4">
-            <div
-              v-for="color in colors.surface"
-              :key="color.name"
-              class="space-y-2"
-            >
+            <div v-for="color in colors.surface" :key="color.name" class="space-y-2">
               <div
                 class="h-24 rounded-lg border border-border flex items-center justify-center"
                 :style="{ backgroundColor: color.var }"
@@ -220,16 +209,22 @@ const shadows = [
           <LCard>
             <h3 class="text-lg font-medium text-text mb-3">Primary Colors</h3>
             <p class="text-text-muted text-sm mb-4">
-              Use for primary actions, links, and active states. Creates visual hierarchy and guides user attention.
+              Use for primary actions, links, and active states. Creates visual hierarchy and guides
+              user attention.
             </p>
             <div class="space-y-2 text-sm">
               <div class="flex items-start gap-2">
                 <CheckCircle :size="16" class="text-success mt-0.5 shrink-0" />
-                <span class="text-text">Use for primary buttons, selected states, and important links</span>
+                <span class="text-text"
+                  >Use for primary buttons, selected states, and important links</span
+                >
               </div>
               <div class="flex items-start gap-2">
                 <CheckCircle :size="16" class="text-success mt-0.5 shrink-0" />
-                <span class="text-text">Use primary-600 for default, primary-700 for hover, primary-500 for focus rings</span>
+                <span class="text-text"
+                  >Use primary-600 for default, primary-700 for hover, primary-500 for focus
+                  rings</span
+                >
               </div>
               <div class="flex items-start gap-2">
                 <AlertCircle :size="16" class="text-error mt-0.5 shrink-0" />
@@ -297,7 +292,9 @@ const shadows = [
               </div>
               <div class="flex items-center gap-3">
                 <div class="w-16 h-8 rounded bg-surface-overlay border border-border" />
-                <span class="text-text">surface-overlay - Modals, popovers (highest elevation)</span>
+                <span class="text-text"
+                  >surface-overlay - Modals, popovers (highest elevation)</span
+                >
               </div>
             </div>
           </LCard>
@@ -308,15 +305,22 @@ const shadows = [
             <div class="space-y-2 text-sm">
               <div class="flex items-start gap-2">
                 <CheckCircle :size="16" class="text-success mt-0.5 shrink-0" />
-                <span class="text-text">All text meets WCAG AA contrast requirements (4.5:1 for normal text)</span>
+                <span class="text-text"
+                  >All text meets WCAG AA contrast requirements (4.5:1 for normal text)</span
+                >
               </div>
               <div class="flex items-start gap-2">
                 <CheckCircle :size="16" class="text-success mt-0.5 shrink-0" />
-                <span class="text-text">Use text-text for primary content, text-muted for secondary, text-subtle for tertiary</span>
+                <span class="text-text"
+                  >Use text-text for primary content, text-muted for secondary, text-subtle for
+                  tertiary</span
+                >
               </div>
               <div class="flex items-start gap-2">
                 <CheckCircle :size="16" class="text-success mt-0.5 shrink-0" />
-                <span class="text-text">OKLCH color space ensures perceptually uniform colors across the spectrum</span>
+                <span class="text-text"
+                  >OKLCH color space ensures perceptually uniform colors across the spectrum</span
+                >
               </div>
             </div>
           </LCard>
@@ -384,15 +388,21 @@ const shadows = [
             <LCard>
               <h4 class="font-medium text-text mb-2">Timing</h4>
               <div class="space-y-2 text-sm text-text-muted">
-                <p><strong>Fast (150ms):</strong> Small UI changes, hover states, focus indicators</p>
+                <p>
+                  <strong>Fast (150ms):</strong> Small UI changes, hover states, focus indicators
+                </p>
                 <p><strong>Base (200ms):</strong> Button clicks, tab switches, most interactions</p>
-                <p><strong>Slow (300ms):</strong> Page transitions, modal animations, large movements</p>
+                <p>
+                  <strong>Slow (300ms):</strong> Page transitions, modal animations, large movements
+                </p>
               </div>
             </LCard>
             <LCard>
               <h4 class="font-medium text-text mb-2">Easing</h4>
               <div class="space-y-2 text-sm text-text-muted">
-                <p><strong>ease-out:</strong> Entrances, appearing elements (fast start, slow end)</p>
+                <p>
+                  <strong>ease-out:</strong> Entrances, appearing elements (fast start, slow end)
+                </p>
                 <p><strong>ease-in:</strong> Exits, disappearing elements (slow start, fast end)</p>
                 <p><strong>ease-in-out:</strong> Continuous animations, repeated motions</p>
               </div>
@@ -402,7 +412,9 @@ const shadows = [
               <div class="space-y-1 text-sm">
                 <div class="flex items-start gap-2">
                   <CheckCircle :size="16" class="text-success mt-0.5 shrink-0" />
-                  <span class="text-text">Keep animations subtle - users shouldn't wait for animations</span>
+                  <span class="text-text"
+                    >Keep animations subtle - users shouldn't wait for animations</span
+                  >
                 </div>
                 <div class="flex items-start gap-2">
                   <CheckCircle :size="16" class="text-success mt-0.5 shrink-0" />
@@ -410,11 +422,15 @@ const shadows = [
                 </div>
                 <div class="flex items-start gap-2">
                   <CheckCircle :size="16" class="text-success mt-0.5 shrink-0" />
-                  <span class="text-text">Use will-change sparingly for performance optimization</span>
+                  <span class="text-text"
+                    >Use will-change sparingly for performance optimization</span
+                  >
                 </div>
                 <div class="flex items-start gap-2">
                   <CheckCircle :size="16" class="text-success mt-0.5 shrink-0" />
-                  <span class="text-text">Transform and opacity are the most performant properties to animate</span>
+                  <span class="text-text"
+                    >Transform and opacity are the most performant properties to animate</span
+                  >
                 </div>
               </div>
             </LCard>
@@ -446,11 +462,7 @@ const shadows = [
       <section>
         <h2 class="text-2xl font-semibold text-text mb-6">Shadows</h2>
         <div class="grid grid-cols-4 gap-6">
-          <div
-            v-for="shadow in shadows"
-            :key="shadow.name"
-            class="text-center"
-          >
+          <div v-for="shadow in shadows" :key="shadow.name" class="text-center">
             <div
               class="h-24 rounded-lg bg-surface-raised mb-3"
               :style="{ boxShadow: shadow.value }"
@@ -561,7 +573,7 @@ const shadows = [
           <!-- Textarea -->
           <div class="md:col-span-2">
             <label class="block text-sm font-medium text-text mb-2">Textarea</label>
-            <LTextarea v-model="textareaValue" placeholder="Enter description..." rows="4" />
+            <LTextarea v-model="textareaValue" placeholder="Enter description..." :rows="4" />
           </div>
 
           <!-- Select -->
@@ -733,9 +745,7 @@ const shadows = [
         <!-- Selectable Table -->
         <div class="mb-8">
           <h3 class="text-lg font-medium text-text mb-4">Selectable Table</h3>
-          <p class="text-text-muted text-sm mb-4">
-            Selected rows: {{ selectedRows.length }}
-          </p>
+          <p class="text-text-muted text-sm mb-4">Selected rows: {{ selectedRows.length }}</p>
           <LTable
             :headers="tableHeaders"
             :rows="tableRows"
@@ -770,7 +780,12 @@ const shadows = [
         <div class="mb-8">
           <h3 class="text-lg font-medium text-text mb-4">Without Page Size Selector</h3>
           <LCard>
-            <LPagination :current-page="1" :total-pages="5" :total-items="48" :show-page-size="false" />
+            <LPagination
+              :current-page="1"
+              :total-pages="5"
+              :total-items="48"
+              :show-page-size="false"
+            />
           </LCard>
         </div>
 
@@ -819,7 +834,7 @@ const shadows = [
           <h3 class="text-lg font-medium text-text mb-4">Skeletons</h3>
           <div class="space-y-4 max-w-2xl">
             <LSkeleton variant="text" />
-            <LSkeleton variant="text" lines="3" />
+            <LSkeleton variant="text" :lines="3" />
             <LSkeleton variant="rectangle" class="h-40" />
             <div class="flex items-center gap-4">
               <LSkeleton variant="circle" class="w-12 h-12" />
@@ -894,7 +909,20 @@ const shadows = [
           Loupe uses a consistent spacing scale based on a 4px/8px grid system.
         </p>
         <div class="space-y-3">
-          <div v-for="(size, name) in { 1: '4px', 2: '8px', 3: '12px', 4: '16px', 6: '24px', 8: '32px', 12: '48px', 16: '64px' }" :key="name" class="flex items-center gap-4">
+          <div
+            v-for="(size, name) in {
+              1: '4px',
+              2: '8px',
+              3: '12px',
+              4: '16px',
+              6: '24px',
+              8: '32px',
+              12: '48px',
+              16: '64px',
+            }"
+            :key="name"
+            class="flex items-center gap-4"
+          >
             <div class="w-16 text-sm text-text-muted">{{ name }} ({{ size }})</div>
             <div class="h-8 bg-primary-500 rounded" :style="{ width: size }" />
           </div>
@@ -998,7 +1026,9 @@ const shadows = [
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <LCard>
               <div class="flex items-center gap-3 mb-3">
-                <div class="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
+                <div
+                  class="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center"
+                >
                   <BarChart3 :size="20" class="text-primary-600" />
                 </div>
                 <h3 class="font-semibold text-text">Card Title</h3>
@@ -1007,7 +1037,9 @@ const shadows = [
             </LCard>
             <LCard>
               <div class="flex items-center gap-3 mb-3">
-                <div class="w-10 h-10 rounded-lg bg-success-100 dark:bg-success-900 flex items-center justify-center">
+                <div
+                  class="w-10 h-10 rounded-lg bg-success-100 dark:bg-success-900 flex items-center justify-center"
+                >
                   <CheckCircle :size="20" class="text-success" />
                 </div>
                 <h3 class="font-semibold text-text">Card Title</h3>
@@ -1016,7 +1048,9 @@ const shadows = [
             </LCard>
             <LCard>
               <div class="flex items-center gap-3 mb-3">
-                <div class="w-10 h-10 rounded-lg bg-warning-100 dark:bg-warning-900 flex items-center justify-center">
+                <div
+                  class="w-10 h-10 rounded-lg bg-warning-100 dark:bg-warning-900 flex items-center justify-center"
+                >
                   <AlertCircle :size="20" class="text-warning" />
                 </div>
                 <h3 class="font-semibold text-text">Card Title</h3>

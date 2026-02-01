@@ -108,3 +108,10 @@ impl From<Schedule> for ScheduleResponse {
         }
     }
 }
+
+/// Response for schedule trigger endpoint
+#[derive(Debug, Serialize)]
+pub struct TriggerScheduleResponse {
+    pub run_id: Uuid,
+    pub message: String,
+}

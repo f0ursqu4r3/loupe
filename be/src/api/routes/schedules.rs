@@ -3,7 +3,7 @@ use crate::permissions::{get_user_context, require_permission, Permission};
 use actix_web::{HttpRequest, HttpResponse, web};
 use loupe::Error;
 use loupe::filtering::{parse_tags, SearchParams, SortParams, SortableColumns};
-use loupe::models::{CreateScheduleRequest, ScheduleResponse, UpdateScheduleRequest};
+use loupe::models::{CreateScheduleRequest, ScheduleResponse, TriggerScheduleResponse, UpdateScheduleRequest};
 use loupe::validation::validate_request;
 use loupe::{PaginatedResponse, PaginationParams};
 use std::sync::Arc;
@@ -25,17 +25,26 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 
 #[derive(serde::Deserialize)]
 pub struct ListSchedulesQuery {
-    #[serde(flatten)]
-    pub search: SearchParams,
+    // Search parameter
+    pub search: Option<String>,
 
+    // Filter parameters
     pub tags: Option<String>,
     pub enabled: Option<bool>,
 
-    #[serde(flatten)]
-    pub sort: SortParams,
+    // Sort parameters
+    pub sort_by: Option<String>,
+    pub sort_direction: Option<String>,
 
-    #[serde(flatten)]
-    pub pagination: PaginationParams,
+    // Pagination parameters
+    #[serde(default = "default_limit")]
+    pub limit: i64,
+    #[serde(default)]
+    pub offset: i64,
+}
+
+fn default_limit() -> i64 {
+    20
 }
 
 async fn list_schedules(
@@ -46,11 +55,18 @@ async fn list_schedules(
     let (_, org_id, role) = get_user_context(&state, &req).await?;
     require_permission(role, Permission::Viewer)?;
 
-    let mut pagination = query.pagination.clone();
+    let mut pagination = PaginationParams {
+        limit: query.limit,
+        offset: query.offset,
+    };
     pagination.validate();
 
     // Validate and build sort params
-    let (sort_column, sort_direction) = query.sort.validate_and_build(
+    let sort = SortParams {
+        sort_by: query.sort_by.clone(),
+        sort_direction: query.sort_direction.clone(),
+    };
+    let (sort_column, sort_direction) = sort.validate_and_build(
         SortableColumns::SCHEDULES,
         "created_at",
     );
@@ -59,7 +75,10 @@ async fn list_schedules(
     let tags = query.tags.as_ref().map(|t| parse_tags(t)).filter(|v| !v.is_empty());
 
     // Get search pattern
-    let search = query.search.get_pattern();
+    let search_params = SearchParams {
+        search: query.search.clone(),
+    };
+    let search = search_params.get_pattern();
 
     let (schedules, total) = state
         .db
@@ -241,8 +260,8 @@ async fn trigger_schedule(
         .update_schedule_last_run(id, &schedule.cron_expression, schedule.enabled)
         .await?;
 
-    Ok(HttpResponse::Ok().json(serde_json::json!({
-        "run_id": run.id,
-        "message": "Schedule triggered successfully"
-    })))
+    Ok(HttpResponse::Ok().json(TriggerScheduleResponse {
+        run_id: run.id,
+        message: "Schedule triggered successfully".to_string(),
+    }))
 }

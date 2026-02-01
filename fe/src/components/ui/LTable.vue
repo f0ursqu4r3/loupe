@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted, watch, type HTMLAttributes } from 'vue'
 import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-vue-next'
+import LCheckbox from './LCheckbox.vue'
 
 type SortDirection = 'asc' | 'desc' | null
 
@@ -151,7 +152,10 @@ const visibleRange = computed(() => {
   const containerHeight =
     typeof props.maxHeight === 'number' ? props.maxHeight : parseInt(props.maxHeight) || 400
 
-  const start = Math.max(0, Math.floor(scrollTop.value / effectiveRowHeight.value) - props.bufferRows)
+  const start = Math.max(
+    0,
+    Math.floor(scrollTop.value / effectiveRowHeight.value) - props.bufferRows,
+  )
   const visibleCount = Math.ceil(containerHeight / effectiveRowHeight.value)
   const end = Math.min(props.rows.length, start + visibleCount + props.bufferRows * 2)
 
@@ -219,13 +223,12 @@ onUnmounted(() => {
           <tr>
             <!-- Selection checkbox column -->
             <th v-if="selectable" :class="[cellPadding, 'w-12']">
-              <input
-                type="checkbox"
-                :checked="allSelected"
+              <LCheckbox
+                :size="compact ? 'xs' : 'sm'"
+                :model-value="allSelected"
                 :indeterminate="someSelected"
-                class="rounded border-border text-primary-600 focus:ring-primary-500"
                 aria-label="Select all rows"
-                @change="toggleAllRows"
+                @update:model-value="toggleAllRows"
               />
             </th>
             <!-- Regular header columns -->
@@ -261,17 +264,18 @@ onUnmounted(() => {
             :class="[
               striped && rowIndex % 2 === 1 && 'bg-surface-sunken/50',
               hoverable && 'hover:bg-surface-sunken/70 transition-colors',
-              selectable && localSelectedRows.has(rowIndex) && 'bg-primary-50 dark:bg-primary-900/20',
+              selectable &&
+                localSelectedRows.has(rowIndex) &&
+                'bg-primary-50 dark:bg-primary-900/20',
             ]"
           >
             <!-- Selection checkbox -->
             <td v-if="selectable" :class="[cellPadding, 'w-12']">
-              <input
-                type="checkbox"
-                :checked="localSelectedRows.has(rowIndex)"
-                class="rounded border-border text-primary-600 focus:ring-primary-500"
+              <LCheckbox
+                :size="compact ? 'xs' : 'sm'"
+                :model-value="localSelectedRows.has(rowIndex)"
                 :aria-label="`Select row ${rowIndex + 1}`"
-                @change="toggleRow(rowIndex)"
+                @update:model-value="toggleRow(rowIndex)"
               />
             </td>
             <!-- Regular cells -->
@@ -306,13 +310,12 @@ onUnmounted(() => {
             <tr>
               <!-- Selection checkbox column -->
               <th v-if="selectable" :class="[cellPadding, 'w-12']">
-                <input
-                  type="checkbox"
-                  :checked="allSelected"
+                <LCheckbox
+                  :size="compact ? 'xs' : 'sm'"
+                  :model-value="allSelected"
                   :indeterminate="someSelected"
-                  class="rounded border-border text-primary-600 focus:ring-primary-500"
                   aria-label="Select all rows"
-                  @change="toggleAllRows"
+                  @update:model-value="toggleAllRows"
                 />
               </th>
               <!-- Regular header columns -->
@@ -345,11 +348,7 @@ onUnmounted(() => {
       </div>
 
       <!-- Scrollable body -->
-      <div
-        ref="scrollContainer"
-        class="overflow-auto"
-        :style="{ maxHeight: maxHeightStyle }"
-      >
+      <div ref="scrollContainer" class="overflow-auto" :style="{ maxHeight: maxHeightStyle }">
         <!-- Spacer to maintain scroll height -->
         <div :style="{ height: `${totalHeight}px`, position: 'relative' }">
           <!-- Visible rows container -->
@@ -370,18 +369,19 @@ onUnmounted(() => {
                 :class="[
                   striped && rowIndex % 2 === 1 && 'bg-surface-sunken/50',
                   hoverable && 'hover:bg-surface-sunken/70 transition-colors',
-                  selectable && localSelectedRows.has(rowIndex) && 'bg-primary-50 dark:bg-primary-900/20',
+                  selectable &&
+                    localSelectedRows.has(rowIndex) &&
+                    'bg-primary-50 dark:bg-primary-900/20',
                 ]"
                 :style="{ height: `${effectiveRowHeight}px` }"
               >
                 <!-- Selection checkbox -->
                 <td v-if="selectable" :class="[cellPadding, 'w-12']">
-                  <input
-                    type="checkbox"
-                    :checked="localSelectedRows.has(rowIndex)"
-                    class="rounded border-border text-primary-600 focus:ring-primary-500"
+                  <LCheckbox
+                    :size="compact ? 'xs' : 'sm'"
+                    :model-value="localSelectedRows.has(rowIndex)"
                     :aria-label="`Select row ${rowIndex + 1}`"
-                    @change="toggleRow(rowIndex)"
+                    @update:model-value="toggleRow(rowIndex)"
                   />
                 </td>
                 <!-- Regular cells -->

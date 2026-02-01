@@ -5,7 +5,7 @@ use argon2::{
     password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString, rand_core::OsRng},
 };
 use loupe::Error;
-use loupe::models::{CreateUserRequest, LoginRequest, OrgRole, UserResponse};
+use loupe::models::{AuthResponse, CreateUserRequest, LoginRequest, OrgRole, RefreshTokenResponse, UserResponse};
 use std::sync::Arc;
 use uuid::Uuid;
 use validator::Validate;
@@ -95,11 +95,11 @@ async fn register(
         "User registered successfully"
     );
 
-    Ok(HttpResponse::Created().json(serde_json::json!({
-        "user": UserResponse::from(user),
-        "token": token,
-        "refresh_token": refresh_token,
-    })))
+    Ok(HttpResponse::Created().json(AuthResponse {
+        user: UserResponse::from(user),
+        token,
+        refresh_token,
+    }))
 }
 
 async fn login(
@@ -148,11 +148,11 @@ async fn login(
         "User logged in successfully"
     );
 
-    Ok(HttpResponse::Ok().json(serde_json::json!({
-        "user": UserResponse::from(user),
-        "token": token,
-        "refresh_token": refresh_token,
-    })))
+    Ok(HttpResponse::Ok().json(AuthResponse {
+        user: UserResponse::from(user),
+        token,
+        refresh_token,
+    }))
 }
 
 async fn refresh_token(
@@ -175,10 +175,10 @@ async fn refresh_token(
         "Token refreshed successfully"
     );
 
-    Ok(HttpResponse::Ok().json(serde_json::json!({
-        "token": new_token,
-        "refresh_token": new_refresh_token,
-    })))
+    Ok(HttpResponse::Ok().json(RefreshTokenResponse {
+        token: new_token,
+        refresh_token: new_refresh_token,
+    }))
 }
 
 async fn me(state: web::Data<Arc<AppState>>, req: HttpRequest) -> Result<HttpResponse, Error> {
