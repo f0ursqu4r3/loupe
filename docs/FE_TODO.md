@@ -570,10 +570,10 @@ export function usePermissions() {
 - [x] Implement user removal with confirmation (Admin only)
 - [x] Show current user's own entry (non-editable, can't remove self)
 - [x] Add "You cannot change your own role" tooltip for current user
-- [ ] Handle API errors (403 for non-Admins, 400 for self-modification)
-- [ ] Add success/error toast notifications
-- [ ] Show empty state when organization has only one user
-- [ ] Add loading states for user list and actions
+- [x] Handle API errors (403 for non-Admins, 400 for self-modification)
+- [x] Add success/error toast notifications
+- [x] Show empty state when organization has only one user
+- [x] Add loading states for user list and actions
 - [ ] Consider adding search/filter for large organizations
 - [ ] Add "Invite User" functionality (future enhancement)
 

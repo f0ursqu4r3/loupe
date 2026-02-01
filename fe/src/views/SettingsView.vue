@@ -91,7 +91,12 @@ async function updateUserRole() {
     showRoleModal.value = false
     userToUpdate.value = null
   } catch (e) {
-    handleError(e, 'Failed to update user role')
+    // Provide specific context for common errors
+    if (e instanceof Error && e.message.includes('own role')) {
+      handleError(e, 'You cannot change your own role')
+    } else {
+      handleError(e, 'Failed to update user role')
+    }
   } finally {
     updating.value = null
   }
@@ -116,7 +121,12 @@ async function removeUser() {
     showRemoveModal.value = false
     userToRemove.value = null
   } catch (e) {
-    handleError(e, 'Failed to remove user')
+    // Provide specific context for common errors
+    if (e instanceof Error && e.message.includes('yourself')) {
+      handleError(e, 'You cannot remove yourself from the organization')
+    } else {
+      handleError(e, 'Failed to remove user from organization')
+    }
   } finally {
     removing.value = false
   }
@@ -275,6 +285,15 @@ onMounted(loadUsers)
         <!-- Loading state -->
         <div v-if="loadingUsers" class="flex items-center justify-center py-8">
           <LSpinner />
+        </div>
+
+        <!-- Empty state for single user -->
+        <div v-else-if="users.length === 1 && !loadingUsers" class="text-center py-8">
+          <Users :size="48" class="mx-auto text-text-muted mb-4" />
+          <p class="text-text-muted mb-2">You're the only member of this organization</p>
+          <p class="text-sm text-text-muted">
+            {{ canAdmin ? 'Invite team members to collaborate on dashboards and queries.' : 'Contact your administrator to invite new members.' }}
+          </p>
         </div>
 
         <!-- Users List -->
