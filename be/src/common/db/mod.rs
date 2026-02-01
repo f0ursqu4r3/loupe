@@ -120,7 +120,11 @@ impl Database {
 
         // Parse connection options from URL
         let options = PgConnectOptions::from_str(database_url)
-            .map_err(|e| Error::BadRequest(format!("Invalid DATABASE_URL format: {}", e)))?
+            .map_err(|e| {
+                // Don't expose the connection string in error messages
+                tracing::error!("Invalid DATABASE_URL format: {}", e);
+                Error::BadRequest("Invalid DATABASE_URL format. Check the connection string syntax.".to_string())
+            })?
             .ssl_mode(config.ssl_mode);
 
         // Build pool with configuration

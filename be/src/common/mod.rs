@@ -10,6 +10,7 @@ pub mod models;
 pub mod pagination;
 pub mod params;
 pub mod query_limiter;
+pub mod secrets;
 pub mod sql_validator;
 pub mod tracing;
 pub mod validation;
@@ -28,6 +29,7 @@ pub use params::{
     BoundParams, ParamSchema, TypedValue, bind_params, extract_params, substitute_params,
 };
 pub use query_limiter::{LimitError, QueryGuard, QueryLimiter, QueryLimits};
+pub use secrets::{redact_secret, SecretSource, SecretsManager};
 pub use sql_validator::SqlValidator;
 pub use validation::{
     validate_connection_string, validate_cron_expression, validate_description, validate_name,
