@@ -7,6 +7,7 @@ use loupe::models::{
     ConnectionTestResult, CreateDatasourceRequest, DatasourceResponse, DatasourceType,
     UpdateDatasourceRequest,
 };
+use loupe::validation::validate_request;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -44,6 +45,9 @@ async fn create_datasource(
     // SECURITY: Only admins can create datasources (contains sensitive connection strings)
     require_permission(role, Permission::Admin)?;
 
+    // Validate request
+    validate_request(&*body)?;
+
     // In production, encrypt the connection string
     let encrypted = &body.connection_string; // TODO: actual encryption
 
@@ -76,6 +80,9 @@ async fn update_datasource(
 ) -> Result<HttpResponse, Error> {
     let (_, org_id, role) = get_user_context(&state, &req).await?;
     require_permission(role, Permission::Admin)?;
+
+    // Validate request
+    validate_request(&*body)?;
 
     let id = path.into_inner();
 

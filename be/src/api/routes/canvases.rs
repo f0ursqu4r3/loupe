@@ -6,6 +6,7 @@ use loupe::models::{
     CreateCanvasNodeRequest, CreateCanvasRequest, UpdateCanvasEdgeRequest, UpdateCanvasNodeRequest,
     UpdateCanvasRequest,
 };
+use loupe::validation::validate_request;
 use loupe::Error;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -62,6 +63,9 @@ async fn create_canvas(
     let (user_id, org_id, role) = get_user_context(&state, &req).await?;
     require_permission(role, Permission::Editor)?;
 
+    // Validate request
+    validate_request(&*body)?;
+
     let canvas = state
         .db
         .create_canvas(
@@ -109,6 +113,10 @@ async fn update_canvas(
 ) -> Result<HttpResponse, Error> {
     let (_, org_id, role) = get_user_context(&state, &req).await?;
     require_permission(role, Permission::Viewer)?;
+
+    // Validate request
+    validate_request(&*body)?;
+
     let id = path.into_inner();
 
     let canvas = state
@@ -165,6 +173,10 @@ async fn create_node(
 ) -> Result<HttpResponse, Error> {
     let (_, org_id, role) = get_user_context(&state, &req).await?;
     require_permission(role, Permission::Viewer)?;
+
+    // Validate request
+    validate_request(&*body)?;
+
     let canvas_id = path.into_inner();
 
     // Verify canvas belongs to this org
@@ -195,6 +207,10 @@ async fn update_node(
 ) -> Result<HttpResponse, Error> {
     let (_, org_id, role) = get_user_context(&state, &req).await?;
     require_permission(role, Permission::Viewer)?;
+
+    // Validate request
+    validate_request(&*body)?;
+
     let params = path.into_inner();
 
     // Verify canvas belongs to this org
@@ -249,6 +265,10 @@ async fn create_edge(
 ) -> Result<HttpResponse, Error> {
     let (_, org_id, role) = get_user_context(&state, &req).await?;
     require_permission(role, Permission::Viewer)?;
+
+    // Validate request
+    validate_request(&*body)?;
+
     let canvas_id = path.into_inner();
 
     // Verify canvas belongs to this org
@@ -274,6 +294,10 @@ async fn update_edge(
 ) -> Result<HttpResponse, Error> {
     let (_, org_id, role) = get_user_context(&state, &req).await?;
     require_permission(role, Permission::Viewer)?;
+
+    // Validate request
+    validate_request(&*body)?;
+
     let params = path.into_inner();
 
     // Verify canvas belongs to this org

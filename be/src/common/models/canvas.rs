@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
+use validator::Validate;
 
 // ===== Canvas =====
 
@@ -21,15 +22,21 @@ pub struct Canvas {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct CreateCanvasRequest {
+    #[validate(length(min = 1, max = 255, message = "Name must be between 1 and 255 characters"))]
+    #[validate(custom(function = "crate::validation::validate_name", message = "Name contains invalid characters"))]
     pub name: String,
+
     #[serde(default = "default_time_preset")]
+    #[validate(length(max = 50, message = "Time preset must be less than 50 characters"))]
     pub time_preset: String,
+
     #[serde(default)]
     pub time_offset: i64,
     pub time_custom_start: Option<DateTime<Utc>>,
     pub time_custom_end: Option<DateTime<Utc>>,
+
     #[serde(default)]
     pub live: bool,
 }
@@ -38,10 +45,15 @@ fn default_time_preset() -> String {
     "7d".to_string()
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct UpdateCanvasRequest {
+    #[validate(length(min = 1, max = 255, message = "Name must be between 1 and 255 characters"))]
+    #[validate(custom(function = "crate::validation::validate_name", message = "Name contains invalid characters"))]
     pub name: Option<String>,
+
+    #[validate(length(max = 50, message = "Time preset must be less than 50 characters"))]
     pub time_preset: Option<String>,
+
     pub time_offset: Option<i64>,
     pub time_custom_start: Option<DateTime<Utc>>,
     pub time_custom_end: Option<DateTime<Utc>>,
@@ -103,18 +115,30 @@ pub struct CanvasNode {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct CreateCanvasNodeRequest {
+    #[validate(length(min = 1, max = 50, message = "Node type must be between 1 and 50 characters"))]
     pub node_type: String,
+
+    #[validate(length(min = 1, max = 255, message = "Title must be between 1 and 255 characters"))]
     pub title: String,
+
     #[serde(default)]
+    #[validate(range(min = -10000.0, max = 10000.0, message = "Position must be between -10000 and 10000"))]
     pub pos_x: f64,
+
     #[serde(default)]
+    #[validate(range(min = -10000.0, max = 10000.0, message = "Position must be between -10000 and 10000"))]
     pub pos_y: f64,
+
     #[serde(default = "default_width")]
+    #[validate(range(min = 50.0, max = 2000.0, message = "Width must be between 50 and 2000"))]
     pub width: f64,
+
     #[serde(default = "default_height")]
+    #[validate(range(min = 50.0, max = 2000.0, message = "Height must be between 50 and 2000"))]
     pub height: f64,
+
     #[serde(default)]
     pub meta: serde_json::Value,
 }
@@ -127,13 +151,23 @@ fn default_height() -> f64 {
     160.0
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct UpdateCanvasNodeRequest {
+    #[validate(length(min = 1, max = 255, message = "Title must be between 1 and 255 characters"))]
     pub title: Option<String>,
+
+    #[validate(range(min = -10000.0, max = 10000.0, message = "Position must be between -10000 and 10000"))]
     pub pos_x: Option<f64>,
+
+    #[validate(range(min = -10000.0, max = 10000.0, message = "Position must be between -10000 and 10000"))]
     pub pos_y: Option<f64>,
+
+    #[validate(range(min = 50.0, max = 2000.0, message = "Width must be between 50 and 2000"))]
     pub width: Option<f64>,
+
+    #[validate(range(min = 50.0, max = 2000.0, message = "Height must be between 50 and 2000"))]
     pub height: Option<f64>,
+
     pub meta: Option<serde_json::Value>,
 }
 
@@ -184,11 +218,13 @@ pub struct CanvasEdge {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct CreateCanvasEdgeRequest {
     pub from_node_id: Uuid,
     pub to_node_id: Uuid,
+
     #[serde(default = "default_label")]
+    #[validate(length(min = 1, max = 100, message = "Label must be between 1 and 100 characters"))]
     pub label: String,
 }
 
@@ -196,8 +232,9 @@ fn default_label() -> String {
     "motivates".to_string()
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct UpdateCanvasEdgeRequest {
+    #[validate(length(min = 1, max = 100, message = "Label must be between 1 and 100 characters"))]
     pub label: Option<String>,
 }
 

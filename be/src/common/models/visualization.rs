@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
+use validator::Validate;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "text", rename_all = "snake_case")]
@@ -32,23 +33,36 @@ pub struct Visualization {
 }
 
 // DTOs
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct CreateVisualizationRequest {
     pub query_id: Uuid,
+
+    #[validate(length(min = 1, max = 255, message = "Name must be between 1 and 255 characters"))]
+    #[validate(custom(function = "crate::validation::validate_name", message = "Name contains invalid characters"))]
     pub name: String,
+
     pub chart_type: ChartType,
+
     #[serde(default)]
     pub config: serde_json::Value,
+
     #[serde(default)]
+    #[validate(length(max = 50, message = "Maximum 50 tags allowed"))]
     pub tags: Vec<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct UpdateVisualizationRequest {
     pub query_id: Option<Uuid>,
+
+    #[validate(length(min = 1, max = 255, message = "Name must be between 1 and 255 characters"))]
+    #[validate(custom(function = "crate::validation::validate_name", message = "Name contains invalid characters"))]
     pub name: Option<String>,
+
     pub chart_type: Option<ChartType>,
     pub config: Option<serde_json::Value>,
+
+    #[validate(length(max = 50, message = "Maximum 50 tags allowed"))]
     pub tags: Option<Vec<String>>,
 }
 

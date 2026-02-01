@@ -5,6 +5,7 @@ use loupe::Error;
 use loupe::models::{
     CreateVisualizationRequest, UpdateVisualizationRequest, VisualizationResponse,
 };
+use loupe::validation::validate_request;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -44,6 +45,9 @@ async fn create_visualization(
 ) -> Result<HttpResponse, Error> {
     let (user_id, org_id, role) = get_user_context(&state, &req).await?;
     require_permission(role, Permission::Editor)?;
+
+    // Validate request
+    validate_request(&*body)?;
 
     // Verify query exists
     state.db.get_query(body.query_id, org_id).await?;
@@ -100,6 +104,9 @@ async fn update_visualization(
 ) -> Result<HttpResponse, Error> {
     let (_, org_id, role) = get_user_context(&state, &req).await?;
     require_permission(role, Permission::Editor)?;
+
+    // Validate request
+    validate_request(&*body)?;
 
     let id = path.into_inner();
 

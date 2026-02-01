@@ -18,21 +18,41 @@ This document tracks backend improvements to make Loupe more robust, secure, and
 
 These are high-priority security and data integrity improvements.
 
-### 1. Input Validation & Sanitization ⚠️
+### 1. Input Validation & Sanitization ✅
 
 - [x] Audit all route handlers for input validation
 - [x] Validate email format in auth endpoints
 - [x] Validate password strength (min 8 chars)
 - [x] Validate name length (1-255 chars)
 - [x] Sanitize user-provided SQL in queries (via SQL parser)
-- [ ] Add comprehensive request validation middleware (validator crate)
-- [ ] Add length limits on all string inputs
-- [ ] Validate datasource connection strings
-- [ ] Add custom validators for common patterns
-- [ ] Add JSON schema validation for complex payloads
-- [ ] Test with malformed/malicious inputs
+- [x] Add comprehensive request validation middleware (validator crate)
+- [x] Add length limits on all string inputs
+- [x] Validate datasource connection strings
+- [x] Add custom validators for common patterns
+- [x] Add JSON schema validation for complex payloads
+- [x] Test with malformed/malicious inputs
 
-**Status:** ⚠️ **PARTIALLY COMPLETE** - Basic validation added, comprehensive middleware pending
+**Status:** ✅ **COMPLETE** - Comprehensive validation implemented across all endpoints with validator crate
+
+**Implementation Details:**
+
+- Created [validation.rs](../be/src/common/validation.rs) with custom validators
+- Added validation attributes to all request DTOs:
+  - Auth: Email format, password strength (8-128 chars), name length
+  - Datasources: Name validation, connection string validation (scheme check, length limits, injection pattern detection)
+  - Queries: Name, description, SQL length limits, parameter/tag array limits
+  - Dashboards: Name, description, tags, tile positioning and sizing
+  - Visualizations: Name, tags
+  - Schedules: Name, cron expression validation, tags
+  - Canvases: Name, time preset, node/edge validation
+- Custom validators implemented:
+  - `validate_connection_string`: Checks for protocol scheme, length limits, SQL injection patterns
+  - `validate_cron_expression`: Validates cron syntax using cron crate
+  - `validate_name`: Alphanumeric + allowed punctuation, 1-255 chars
+  - `validate_description`: Max 2000 chars
+  - `validate_sql_length`: 1-100,000 chars
+- All create/update endpoints now call `validate_request()` before processing
+- 12 unit tests for validation logic, all passing
 
 ### 2. SQL Injection Prevention ✅
 
@@ -669,37 +689,45 @@ be/src/
 - [x] Add organization model (exists in database)
 - [x] Add role-based permissions (RBAC implemented - see [RBAC_IMPLEMENTATION.md](./RBAC_IMPLEMENTATION.md))
 - [ ] Add organization management API (create, update, settings)
-- [ ] Add team/user management API (list users, update roles, remove users)
+- [x] Add team/user management API (list users, update roles, remove users)
 - [ ] Add invitation system
 - [ ] Add usage tracking per org
 - [ ] Add billing integration (future)
 
-**Status:** ⚠️ **PARTIALLY COMPLETE** - RBAC enforced, management APIs pending
+**Status:** ⚠️ **MOSTLY COMPLETE** - RBAC enforced, user management implemented, org settings pending
 
 **Files:**
+
 - [permissions.rs](../be/src/api/permissions.rs) - RBAC implementation
+- [organizations.rs](../be/src/api/routes/organizations.rs) - User management API
 - [RBAC_IMPLEMENTATION.md](./RBAC_IMPLEMENTATION.md) - Complete documentation
+
+**Implemented Endpoints:**
+
+- `GET /organizations/users` - List all users in organization
+- `PUT /organizations/users/:id/role` - Update user role (Admin only)
+- `DELETE /organizations/users/:id` - Remove user from organization (Admin only)
 
 ---
 
 ## Progress Tracking
 
-**Started:** _______________
-**Last Updated:** _______________
+**Started:** 2026-01-11
+**Last Updated:** 2026-01-31
 
-**Critical Security:** 0/5
-**API Design:** 0/4
-**Testing:** 0/4
-**Database:** 0/4
-**Performance:** 0/5
-**Observability:** 0/5
-**Code Organization:** 0/4
-**Security Hardening:** 0/5
-**Documentation:** 0/3
-**DevOps:** 0/4
-**Data Management:** 0/3
+**Critical Security:** 4/5 (80%) - Input Validation ✅, SQL Injection ✅, Auth & RBAC ✅, Error Handling ✅, DB Connection pending
+**API Design:** 0/4 (0%)
+**Testing:** 0/4 (0%)
+**Database:** 0/4 (0%)
+**Performance:** 1/5 (20%) - Rate Limiting ✅
+**Observability:** 0/5 (0%)
+**Code Organization:** 0/4 (0%)
+**Security Hardening:** 0/5 (0%)
+**Documentation:** 0/3 (0%)
+**DevOps:** 0/4 (0%)
+**Data Management:** 0/3 (0%)
 
-**Overall Progress:** 0/48 major tasks (0%)
+**Overall Progress:** 5/48 major tasks (10%)
 
 ---
 

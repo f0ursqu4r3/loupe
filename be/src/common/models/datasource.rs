@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
+use validator::Validate;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "text", rename_all = "lowercase")]
@@ -26,11 +27,16 @@ pub struct Datasource {
 }
 
 // DTOs
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct CreateDatasourceRequest {
+    #[validate(length(min = 1, max = 255, message = "Name must be between 1 and 255 characters"))]
+    #[validate(custom(function = "crate::validation::validate_name", message = "Name contains invalid characters"))]
     pub name: String,
+
     #[serde(default = "default_ds_type")]
     pub ds_type: DatasourceType,
+
+    #[validate(custom(function = "crate::validation::validate_connection_string", message = "Invalid connection string"))]
     pub connection_string: String,
 }
 
@@ -38,9 +44,13 @@ fn default_ds_type() -> DatasourceType {
     DatasourceType::Postgres
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct UpdateDatasourceRequest {
+    #[validate(length(min = 1, max = 255, message = "Name must be between 1 and 255 characters"))]
+    #[validate(custom(function = "crate::validation::validate_name", message = "Name contains invalid characters"))]
     pub name: Option<String>,
+
+    #[validate(custom(function = "crate::validation::validate_connection_string", message = "Invalid connection string"))]
     pub connection_string: Option<String>,
 }
 

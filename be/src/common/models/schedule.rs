@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
+use validator::Validate;
 
 /// A schedule for periodic query refresh
 #[derive(Debug, Clone, Serialize, FromRow)]
@@ -25,15 +26,25 @@ pub struct Schedule {
 }
 
 // DTOs
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct CreateScheduleRequest {
     pub query_id: Uuid,
+
+    #[validate(length(min = 1, max = 255, message = "Name must be between 1 and 255 characters"))]
+    #[validate(custom(function = "crate::validation::validate_name", message = "Name contains invalid characters"))]
     pub name: String,
+
+    #[validate(length(min = 1, max = 100, message = "Cron expression must be between 1 and 100 characters"))]
+    #[validate(custom(function = "crate::validation::validate_cron_expression", message = "Invalid cron expression"))]
     pub cron_expression: String,
+
     #[serde(default)]
     pub parameters: serde_json::Value,
+
     #[serde(default)]
+    #[validate(length(max = 50, message = "Maximum 50 tags allowed"))]
     pub tags: Vec<String>,
+
     #[serde(default = "default_enabled")]
     pub enabled: bool,
 }
@@ -42,12 +53,21 @@ fn default_enabled() -> bool {
     true
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct UpdateScheduleRequest {
+    #[validate(length(min = 1, max = 255, message = "Name must be between 1 and 255 characters"))]
+    #[validate(custom(function = "crate::validation::validate_name", message = "Name contains invalid characters"))]
     pub name: Option<String>,
+
+    #[validate(length(min = 1, max = 100, message = "Cron expression must be between 1 and 100 characters"))]
+    #[validate(custom(function = "crate::validation::validate_cron_expression", message = "Invalid cron expression"))]
     pub cron_expression: Option<String>,
+
     pub parameters: Option<serde_json::Value>,
+
+    #[validate(length(max = 50, message = "Maximum 50 tags allowed"))]
     pub tags: Option<Vec<String>>,
+
     pub enabled: Option<bool>,
 }
 

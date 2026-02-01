@@ -6,6 +6,7 @@ use loupe::models::{
     CreateDashboardRequest, CreateTileRequest, DashboardResponse, TileResponse,
     UpdateDashboardRequest, UpdateTileRequest,
 };
+use loupe::validation::validate_request;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -60,6 +61,9 @@ async fn create_dashboard(
 ) -> Result<HttpResponse, Error> {
     let (user_id, org_id, role) = get_user_context(&state, &req).await?;
     require_permission(role, Permission::Editor)?;
+
+    // Validate request
+    validate_request(&*body)?;
 
     let tags_json = serde_json::to_value(&body.tags).unwrap_or_default();
 
@@ -127,6 +131,9 @@ async fn update_dashboard(
     let (_, org_id, role) = get_user_context(&state, &req).await?;
     require_permission(role, Permission::Editor)?;
 
+    // Validate request
+    validate_request(&*body)?;
+
     let id = path.into_inner();
 
     let tags = body
@@ -183,6 +190,9 @@ async fn create_tile(
 ) -> Result<HttpResponse, Error> {
     let (_, org_id, role) = get_user_context(&state, &req).await?;
     require_permission(role, Permission::Editor)?;
+
+    // Validate request
+    validate_request(&*body)?;
 
     let dashboard_id = path.into_inner();
 
@@ -243,6 +253,9 @@ async fn update_tile(
 ) -> Result<HttpResponse, Error> {
     let (_, org_id, role) = get_user_context(&state, &req).await?;
     require_permission(role, Permission::Editor)?;
+
+    // Validate request
+    validate_request(&*body)?;
 
     let params = path.into_inner();
 

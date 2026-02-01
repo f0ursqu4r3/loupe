@@ -3,6 +3,7 @@ use crate::permissions::{get_user_context, require_permission, Permission};
 use actix_web::{HttpRequest, HttpResponse, web};
 use loupe::Error;
 use loupe::models::{CreateScheduleRequest, ScheduleResponse, UpdateScheduleRequest};
+use loupe::validation::validate_request;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -53,6 +54,9 @@ async fn create_schedule(
     let (user_id, org_id, role) = get_user_context(&state, &req).await?;
     require_permission(role, Permission::Editor)?;
 
+    // Validate request
+    validate_request(&*body)?;
+
     // Verify query exists
     state.db.get_query(body.query_id, org_id).await?;
 
@@ -83,6 +87,9 @@ async fn update_schedule(
 ) -> Result<HttpResponse, Error> {
     let (_, org_id, role) = get_user_context(&state, &req).await?;
     require_permission(role, Permission::Editor)?;
+
+    // Validate request
+    validate_request(&*body)?;
 
     let id = path.into_inner();
 
