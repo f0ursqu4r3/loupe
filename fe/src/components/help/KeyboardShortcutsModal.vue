@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { LModal } from '@/components/ui'
+import { LButton, LModal } from '@/components/ui'
 import { Command, Option } from 'lucide-vue-next'
 
 interface Props {
@@ -52,8 +52,7 @@ const shortcuts = [
 ]
 
 // Detect platform for modifier key display
-const isMac =
-  typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/.test(navigator.userAgent)
+const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/.test(navigator.userAgent)
 const modifierKey = isMac ? '⌘' : 'Ctrl'
 </script>
 
@@ -98,7 +97,8 @@ const modifierKey = isMac ? '⌘' : 'Ctrl'
           <div class="text-sm text-text">
             <p class="font-medium mb-1">Tip</p>
             <p class="text-text-muted">
-              Press <kbd class="px-1.5 py-0.5 text-xs bg-surface border border-border rounded">?</kbd>
+              Press
+              <kbd class="px-1.5 py-0.5 text-xs bg-surface border border-border rounded">?</kbd>
               at any time to view this keyboard shortcuts reference.
             </p>
           </div>

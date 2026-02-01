@@ -13,7 +13,7 @@ export interface ToastAPI {
 export const ToastSymbol: InjectionKey<Ref<ToastAPI | null>> = Symbol('toast')
 
 export function useToast(): ToastAPI {
-  const toastAPI = inject(ToastSymbol)
+  const toastAPI = inject(ToastSymbol, null)
 
   if (!toastAPI?.value) {
     // Fallback to console if toast system not initialized
