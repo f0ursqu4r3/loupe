@@ -5,8 +5,10 @@ import { AppLayout } from '@/components/layout'
 import { LButton, LCard, LEmptyState, LSpinner, LModal, LInput, LSelect } from '@/components/ui'
 import { datasourcesApi } from '@/services/api'
 import { formatDateShort } from '@/utils/dateTime'
+import { useToast } from '@/composables/useToast'
 import type { Datasource, ConnectionTestResult } from '@/types'
 
+const toast = useToast()
 const datasources = ref<Datasource[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
@@ -56,8 +58,9 @@ async function loadDatasources() {
 async function createDatasource() {
   try {
     creating.value = true
-    await datasourcesApi.create(createForm.value)
+    const datasource = await datasourcesApi.create(createForm.value)
     showCreateModal.value = false
+    toast.success(`Datasource "${createForm.value.name}" created successfully`)
     createForm.value = { name: '', ds_type: 'postgres', connection_string: '' }
     await loadDatasources()
   } catch (e) {
@@ -96,6 +99,7 @@ function openEditModal(ds: Datasource) {
 
 async function updateDatasource() {
   if (!editingDatasource.value) return
+  const datasourceName = editingDatasource.value.name
   try {
     updating.value = true
     const updateData: { name?: string; connection_string?: string } = {}
@@ -106,6 +110,7 @@ async function updateDatasource() {
       updateData.connection_string = editForm.value.connection_string
     }
     await datasourcesApi.update(editingDatasource.value.id, updateData)
+    toast.success(`Datasource "${datasourceName}" updated successfully`)
     showEditModal.value = false
     editingDatasource.value = null
     await loadDatasources()
@@ -123,9 +128,11 @@ function openDeleteModal(ds: Datasource) {
 
 async function deleteDatasource() {
   if (!deletingDatasource.value) return
+  const datasourceName = deletingDatasource.value.name
   try {
     deleting.value = true
     await datasourcesApi.delete(deletingDatasource.value.id)
+    toast.success(`Datasource "${datasourceName}" deleted successfully`)
     showDeleteModal.value = false
     deletingDatasource.value = null
     await loadDatasources()

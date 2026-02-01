@@ -14,6 +14,7 @@ import {
   LSkeleton,
   LAlert,
   LTable,
+  LPagination,
   LEmptyState,
   LTooltip,
   LToast,
@@ -750,6 +751,43 @@ const shadows = [
         <div>
           <h3 class="text-lg font-medium text-text mb-4">Compact Table</h3>
           <LTable :headers="tableHeaders" :rows="tableRows" compact striped hoverable />
+        </div>
+      </section>
+
+      <!-- Pagination -->
+      <section>
+        <h2 class="text-2xl font-semibold text-text mb-6">Pagination</h2>
+
+        <!-- Basic Pagination -->
+        <div class="mb-8">
+          <h3 class="text-lg font-medium text-text mb-4">Basic Pagination</h3>
+          <LCard>
+            <LPagination :current-page="3" :total-pages="10" :total-items="247" />
+          </LCard>
+        </div>
+
+        <!-- Without Page Size -->
+        <div class="mb-8">
+          <h3 class="text-lg font-medium text-text mb-4">Without Page Size Selector</h3>
+          <LCard>
+            <LPagination :current-page="1" :total-pages="5" :total-items="48" :show-page-size="false" />
+          </LCard>
+        </div>
+
+        <!-- Many Pages -->
+        <div class="mb-8">
+          <h3 class="text-lg font-medium text-text mb-4">Many Pages</h3>
+          <LCard>
+            <LPagination :current-page="47" :total-pages="100" :total-items="1000" />
+          </LCard>
+        </div>
+
+        <!-- Disabled State -->
+        <div>
+          <h3 class="text-lg font-medium text-text mb-4">Disabled</h3>
+          <LCard>
+            <LPagination :current-page="3" :total-pages="10" :total-items="247" disabled />
+          </LCard>
         </div>
       </section>
 
