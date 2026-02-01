@@ -9,7 +9,7 @@ Track backend improvements for security, performance, and maintainability.
 
 ---
 
-## ✅ Completed (15/48 tasks - 31.3%)
+## ✅ Completed (16/48 tasks - 33.3%)
 
 ### Critical Security (5/5 - 100%)
 
@@ -34,16 +34,17 @@ Track backend improvements for security, performance, and maintainability.
 
 1. ✅ **Rate Limiting** - Global 100 req/min per IP via actix-governor
 
-### Observability (4/5 - 80%)
+### Observability (5/5 - 100%)
 
 1. ✅ **Structured Logging** - JSON format support, correlation IDs, request duration tracking, auth event logging
 2. ✅ **Metrics & Monitoring** - Prometheus metrics, request count/duration histograms, /metrics endpoint
 3. ✅ **Health Checks** - Liveness/readiness probes, database connectivity, migration status checks
 4. ✅ **Error Tracking** - Sentry integration, automatic error capture, correlation IDs, environment tagging
+5. ✅ **Distributed Tracing** - OpenTelemetry/OTLP integration, HTTP request tracing, database query spans, Jaeger/Zipkin compatible
 
 ---
 
-## 📋 Remaining Tasks (33/48)
+## 📋 Remaining Tasks (32/48)
 
 ### Testing & Quality (0/4)
 
@@ -151,15 +152,9 @@ Track backend improvements for security, performance, and maintainability.
 
 ---
 
-### Observability & Operations (4/5)
+### Observability & Operations (5/5 - 100%)
 
-#### 26. Distributed Tracing
-
-- [ ] Add OpenTelemetry support
-- [ ] Trace requests across services
-- [ ] Trace database queries
-- [ ] Integrate with Jaeger/Zipkin
-- [ ] Document tracing setup
+All tasks in this category are now complete!
 
 ---
 
@@ -198,7 +193,7 @@ be/src/
 - [ ] Review [common/config.rs](../be/src/common/config.rs)
 - [ ] Use typed configuration with validation on startup
 - [ ] Support multiple environments
-- [ ] Add config file support (TOML/YAML)
+- [ ] Add config file support (YAML)
 - [ ] Document all config options
 - [ ] Support config hot-reload (where safe)
 

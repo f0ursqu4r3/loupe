@@ -1,3 +1,5 @@
+pub mod span_helpers;
+
 use crate::error::{Error, Result};
 use crate::models::*;
 use sqlx::PgPool;

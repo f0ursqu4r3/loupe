@@ -9,6 +9,7 @@ pub mod models;
 pub mod pagination;
 pub mod params;
 pub mod sql_validator;
+pub mod tracing;
 pub mod validation;
 
 pub use config::{init_tracing, load_env};

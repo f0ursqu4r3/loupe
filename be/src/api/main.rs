@@ -5,13 +5,13 @@ mod routes;
 use actix_cors::Cors;
 use actix_governor::GovernorConfigBuilder;
 use actix_web::{web, App, HttpServer};
-use app_middleware::{CorrelationIdMiddleware, MetricsMiddleware, RequestLogger, SecurityHeaders, SentryContextMiddleware};
+use app_middleware::{CorrelationIdMiddleware, MetricsMiddleware, RequestLogger, SecurityHeaders, SentryContextMiddleware, TracingMiddleware};
 use argon2::{
     Argon2,
     password_hash::{PasswordHasher, SaltString, rand_core::OsRng},
 };
 use loupe::models::OrgRole;
-use loupe::{init_tracing, load_env, Database, JwtManager, Metrics};
+use loupe::{load_env, Database, JwtManager, Metrics};
 use std::sync::Arc;
 
 pub struct AppState {
@@ -22,7 +22,24 @@ pub struct AppState {
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     load_env();
-    init_tracing();
+
+    // Initialize OpenTelemetry tracing
+    let tracer_provider = loupe::tracing::init_tracer()
+        .expect("Failed to initialize OpenTelemetry");
+
+    // Register provider globally (must be done before creating subscriber)
+    opentelemetry::global::set_tracer_provider(tracer_provider.clone());
+
+    let subscriber = loupe::tracing::create_tracing_subscriber();
+    tracing::subscriber::set_global_default(subscriber)
+        .expect("Failed to set tracing subscriber");
+
+    let otlp_endpoint = std::env::var("OTEL_EXPORTER_OTLP_ENDPOINT")
+        .unwrap_or_else(|_| "http://localhost:4317".to_string());
+    tracing::info!(
+        endpoint = %otlp_endpoint,
+        "OpenTelemetry distributed tracing initialized"
+    );
 
     // Initialize Sentry for error tracking
     let _guard = init_sentry();
@@ -74,7 +91,7 @@ async fn main() -> std::io::Result<()> {
     tracing::info!("Rate limiting: 100 requests/minute per IP globally");
     tracing::info!("Metrics endpoint: http://{}:{}/metrics", host, port);
 
-    HttpServer::new(move || {
+    let server = HttpServer::new(move || {
         let cors = Cors::default()
             .allow_any_origin()
             .allow_any_method()
@@ -94,6 +111,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(sentry_actix::Sentry::new())  // Error tracking with Sentry
             .wrap(SecurityHeaders)  // Add security headers
             .wrap(CorrelationIdMiddleware)  // Generate/extract correlation ID
+            .wrap(TracingMiddleware)  // OpenTelemetry distributed tracing
             .wrap(SentryContextMiddleware)  // Enrich Sentry events with context
             .wrap(RequestLogger)  // Structured request logging with correlation IDs
             .wrap(MetricsMiddleware::new(metrics.clone()))  // Collect Prometheus metrics
@@ -103,8 +121,16 @@ async fn main() -> std::io::Result<()> {
             .configure(routes::configure)
     })
     .bind((host.as_str(), port))?
-    .run()
-    .await
+    .run();
+
+    // Run the server and handle shutdown
+    let result = server.await;
+
+    // Gracefully shutdown OpenTelemetry tracer provider
+    tracing::info!("Shutting down OpenTelemetry tracer provider");
+    loupe::tracing::shutdown_tracer_provider(tracer_provider);
+
+    result
 }
 
 /// Initialize Sentry for error tracking

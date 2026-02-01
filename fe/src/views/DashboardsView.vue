@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Plus, Trash2, LayoutGrid, Tag } from 'lucide-vue-next'
+import { Plus, Trash2, LayoutDashboard, Tag } from 'lucide-vue-next'
 import { AppLayout } from '@/components/layout'
 import { LButton, LCard, LEmptyState, LSpinner, LBadge, LTagFilter, LModal } from '@/components/ui'
 import { dashboardsApi } from '@/services/api'
@@ -118,10 +118,14 @@ async function confirmDelete() {
     <LEmptyState
       v-else-if="dashboards.length === 0"
       title="No dashboards yet"
-      :description="canEdit ? 'Create your first dashboard to start visualizing your data.' : 'No dashboards have been created yet. Contact an editor or admin to create dashboards.'"
+      :description="
+        canEdit
+          ? 'Create your first dashboard to start visualizing your data.'
+          : 'No dashboards have been created yet. Contact an editor or admin to create dashboards.'
+      "
     >
       <template #icon>
-        <LayoutGrid :size="48" class="text-text-subtle" />
+        <LayoutDashboard :size="48" class="text-text-subtle" />
       </template>
       <template #action>
         <LButton v-if="canEdit" @click="createDashboard">

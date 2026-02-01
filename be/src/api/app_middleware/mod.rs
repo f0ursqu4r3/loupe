@@ -3,9 +3,11 @@ pub mod metrics_middleware;
 pub mod request_logger;
 pub mod security_headers;
 pub mod sentry_context;
+pub mod tracing_middleware;
 
 pub use correlation_id::{CorrelationId, CorrelationIdMiddleware};
 pub use metrics_middleware::MetricsMiddleware;
 pub use request_logger::RequestLogger;
 pub use security_headers::SecurityHeaders;
 pub use sentry_context::SentryContextMiddleware;
+pub use tracing_middleware::TracingMiddleware;
