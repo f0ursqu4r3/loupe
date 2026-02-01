@@ -65,8 +65,8 @@ impl Default for PaginationParams {
 /// Paginated response wrapper
 #[derive(Debug, Serialize)]
 pub struct PaginatedResponse<T> {
-    /// The items for the current page
-    pub items: Vec<T>,
+    /// The data items for the current page
+    pub data: Vec<T>,
 
     /// Total number of items across all pages
     pub total: i64,
@@ -89,7 +89,7 @@ pub struct PaginatedResponse<T> {
 
 impl<T> PaginatedResponse<T> {
     /// Create a new paginated response
-    pub fn new(items: Vec<T>, total: i64, params: &PaginationParams) -> Self {
+    pub fn new(data: Vec<T>, total: i64, params: &PaginationParams) -> Self {
         let total_pages = if params.limit > 0 {
             (total + params.limit - 1) / params.limit // Ceiling division
         } else {
@@ -101,7 +101,7 @@ impl<T> PaginatedResponse<T> {
         let has_prev = page > 1;
 
         Self {
-            items,
+            data,
             total,
             page,
             per_page: params.limit,
