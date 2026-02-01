@@ -288,14 +288,14 @@ hover:border-primary-500/50 hover:shadow-lg hover:-translate-y-0.5 transition-al
 
 ### 18. Table Enhancements
 
-- [ ] Review LTable component
-- [ ] Add sortable column headers
+- [x] Review LTable component
+- [x] Add sortable column headers
 - [ ] Add filterable columns
 - [ ] Add column resize support
-- [ ] Add row selection (checkbox)
+- [x] Add row selection (checkbox)
 - [ ] Add row actions menu
 - [ ] Add sticky column support
-- [ ] Improve loading skeleton for tables
+- [x] Improve loading skeleton for tables
 - [ ] Add export functionality UI
 - [ ] Add pagination component
 
@@ -529,14 +529,14 @@ hover:border-primary-500/50 hover:shadow-lg hover:-translate-y-0.5 transition-al
 **Quick Wins Completed:** 5/5 ✓
 **Medium Impact Completed:** 5/5 ✓
 **Branding Completed:** 1/3
-**Components Completed:** 4/5
+**Components Completed:** 5/5 ✓
 **Advanced Features Completed:** 1/4
 **Accessibility Completed:** 2/4
 **Polish Completed:** 1/4
 **Performance Completed:** 1/2
 **Documentation Completed:** 1/2
 
-**Overall Progress:** 30/36 major tasks (83%)
+**Overall Progress:** 31/36 major tasks (86%)
 
 ---
 

@@ -13,6 +13,7 @@ import {
   LSpinner,
   LSkeleton,
   LAlert,
+  LTable,
   LEmptyState,
   LTooltip,
   LToast,
@@ -34,6 +35,24 @@ const inputValue = ref('')
 const textareaValue = ref('')
 const selectValue = ref('option1')
 const checkboxValue = ref(false)
+
+// Table demo data
+const tableHeaders = ['Name', 'Role', 'Status', 'Email']
+const tableRows = [
+  ['Alice Johnson', 'Developer', 'Active', 'alice@example.com'],
+  ['Bob Smith', 'Designer', 'Active', 'bob@example.com'],
+  ['Carol White', 'Manager', 'Away', 'carol@example.com'],
+  ['David Brown', 'Developer', 'Active', 'david@example.com'],
+  ['Eve Davis', 'Designer', 'Inactive', 'eve@example.com'],
+]
+const selectedRows = ref<number[]>([])
+const sortBy = ref<number | undefined>(undefined)
+const sortDirection = ref<'asc' | 'desc' | null>(null)
+
+function handleSort(column: number, direction: 'asc' | 'desc' | null) {
+  sortBy.value = direction === null ? undefined : column
+  sortDirection.value = direction
+}
 
 const selectOptions = [
   { value: 'option1', label: 'Option 1' },
@@ -465,6 +484,56 @@ const shadows = [
           <LAlert variant="error" title="Error">
             An error occurred while processing your request.
           </LAlert>
+        </div>
+      </section>
+
+      <!-- Tables -->
+      <section>
+        <h2 class="text-2xl font-semibold text-text mb-6">Tables</h2>
+
+        <!-- Basic Table -->
+        <div class="mb-8">
+          <h3 class="text-lg font-medium text-text mb-4">Basic Table</h3>
+          <LTable :headers="tableHeaders" :rows="tableRows" striped hoverable />
+        </div>
+
+        <!-- Sortable Table -->
+        <div class="mb-8">
+          <h3 class="text-lg font-medium text-text mb-4">Sortable Table</h3>
+          <p class="text-text-muted text-sm mb-4">Click column headers to sort</p>
+          <LTable
+            :headers="tableHeaders"
+            :rows="tableRows"
+            sortable
+            :sort-by="sortBy"
+            :sort-direction="sortDirection"
+            striped
+            hoverable
+            @sort="handleSort"
+          />
+        </div>
+
+        <!-- Selectable Table -->
+        <div class="mb-8">
+          <h3 class="text-lg font-medium text-text mb-4">Selectable Table</h3>
+          <p class="text-text-muted text-sm mb-4">
+            Selected rows: {{ selectedRows.length }}
+          </p>
+          <LTable
+            :headers="tableHeaders"
+            :rows="tableRows"
+            selectable
+            :selected-rows="selectedRows"
+            striped
+            hoverable
+            @update:selected-rows="selectedRows = $event"
+          />
+        </div>
+
+        <!-- Compact Table -->
+        <div>
+          <h3 class="text-lg font-medium text-text mb-4">Compact Table</h3>
+          <LTable :headers="tableHeaders" :rows="tableRows" compact striped hoverable />
         </div>
       </section>
 

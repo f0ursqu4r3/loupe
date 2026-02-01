@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted, watch, type HTMLAttributes } from 'vue'
+import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-vue-next'
+
+type SortDirection = 'asc' | 'desc' | null
 
 interface Props {
   headers: string[]
@@ -13,6 +16,13 @@ interface Props {
   rowHeight?: number
   maxHeight?: number | string
   bufferRows?: number
+  // Sorting props
+  sortable?: boolean
+  sortBy?: number
+  sortDirection?: SortDirection
+  // Selection props
+  selectable?: boolean
+  selectedRows?: number[]
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -23,7 +33,95 @@ const props = withDefaults(defineProps<Props>(), {
   rowHeight: 40,
   maxHeight: 400,
   bufferRows: 5,
+  sortable: false,
+  sortBy: undefined,
+  sortDirection: null,
+  selectable: false,
+  selectedRows: () => [],
 })
+
+const emit = defineEmits<{
+  sort: [column: number, direction: SortDirection]
+  'update:selectedRows': [rows: number[]]
+}>()
+
+// Local sort state
+const localSortBy = ref<number | undefined>(props.sortBy)
+const localSortDirection = ref<SortDirection>(props.sortDirection)
+
+// Watch for external sort changes
+watch(
+  () => [props.sortBy, props.sortDirection],
+  ([newSortBy, newDirection]) => {
+    localSortBy.value = newSortBy as number | undefined
+    localSortDirection.value = newDirection as SortDirection
+  },
+)
+
+// Handle column header click for sorting
+function handleSort(columnIndex: number) {
+  if (!props.sortable) return
+
+  let newDirection: SortDirection
+  if (localSortBy.value === columnIndex) {
+    // Cycle through: null -> asc -> desc -> null
+    if (localSortDirection.value === null) newDirection = 'asc'
+    else if (localSortDirection.value === 'asc') newDirection = 'desc'
+    else newDirection = null
+  } else {
+    newDirection = 'asc'
+  }
+
+  localSortBy.value = newDirection === null ? undefined : columnIndex
+  localSortDirection.value = newDirection
+  emit('sort', columnIndex, newDirection)
+}
+
+// Get sort icon for column
+function getSortIcon(columnIndex: number) {
+  if (localSortBy.value !== columnIndex) return ChevronsUpDown
+  return localSortDirection.value === 'asc' ? ChevronUp : ChevronDown
+}
+
+// Selection state
+const localSelectedRows = ref<Set<number>>(new Set(props.selectedRows))
+
+watch(
+  () => props.selectedRows,
+  (newSelected) => {
+    localSelectedRows.value = new Set(newSelected)
+  },
+)
+
+// Check if all visible rows are selected
+const allSelected = computed(() => {
+  if (props.rows.length === 0) return false
+  return props.rows.every((_, index) => localSelectedRows.value.has(index))
+})
+
+const someSelected = computed(() => {
+  return localSelectedRows.value.size > 0 && !allSelected.value
+})
+
+// Toggle all rows selection
+function toggleAllRows() {
+  if (allSelected.value) {
+    localSelectedRows.value.clear()
+  } else {
+    props.rows.forEach((_, index) => localSelectedRows.value.add(index))
+  }
+  emit('update:selectedRows', Array.from(localSelectedRows.value))
+}
+
+// Toggle single row selection
+function toggleRow(rowIndex: number) {
+  if (localSelectedRows.value.has(rowIndex)) {
+    localSelectedRows.value.delete(rowIndex)
+  } else {
+    localSelectedRows.value.add(rowIndex)
+  }
+  emit('update:selectedRows', Array.from(localSelectedRows.value))
+}
 
 const tableClasses = computed(() => ['w-full text-left', props.class])
 const cellPadding = computed(() => (props.compact ? 'px-3 py-2' : 'px-4 py-3'))
@@ -119,12 +217,40 @@ onUnmounted(() => {
       <table :class="tableClasses">
         <thead class="bg-surface-sunken border-b border-border">
           <tr>
+            <!-- Selection checkbox column -->
+            <th v-if="selectable" :class="[cellPadding, 'w-12']">
+              <input
+                type="checkbox"
+                :checked="allSelected"
+                :indeterminate="someSelected"
+                class="rounded border-border text-primary-600 focus:ring-primary-500"
+                aria-label="Select all rows"
+                @change="toggleAllRows"
+              />
+            </th>
+            <!-- Regular header columns -->
             <th
               v-for="(header, index) in headers"
               :key="index"
-              :class="[cellPadding, 'text-sm font-medium text-text-muted whitespace-nowrap']"
+              :class="[
+                cellPadding,
+                'text-sm font-medium text-text-muted whitespace-nowrap',
+                sortable && 'cursor-pointer select-none hover:text-text transition-colors',
+              ]"
+              @click="handleSort(index)"
             >
-              {{ header }}
+              <div class="flex items-center gap-2">
+                <span>{{ header }}</span>
+                <component
+                  v-if="sortable"
+                  :is="getSortIcon(index)"
+                  :size="16"
+                  :class="[
+                    'shrink-0',
+                    localSortBy === index ? 'text-primary-600' : 'text-text-subtle',
+                  ]"
+                />
+              </div>
             </th>
           </tr>
         </thead>
@@ -135,8 +261,20 @@ onUnmounted(() => {
             :class="[
               striped && rowIndex % 2 === 1 && 'bg-surface-sunken/50',
               hoverable && 'hover:bg-surface-sunken/70 transition-colors',
+              selectable && localSelectedRows.has(rowIndex) && 'bg-primary-50 dark:bg-primary-900/20',
             ]"
           >
+            <!-- Selection checkbox -->
+            <td v-if="selectable" :class="[cellPadding, 'w-12']">
+              <input
+                type="checkbox"
+                :checked="localSelectedRows.has(rowIndex)"
+                class="rounded border-border text-primary-600 focus:ring-primary-500"
+                :aria-label="`Select row ${rowIndex + 1}`"
+                @change="toggleRow(rowIndex)"
+              />
+            </td>
+            <!-- Regular cells -->
             <td
               v-for="(cell, cellIndex) in row"
               :key="cellIndex"
@@ -149,7 +287,7 @@ onUnmounted(() => {
           </tr>
           <tr v-if="rows.length === 0">
             <td
-              :colspan="headers.length"
+              :colspan="headers.length + (selectable ? 1 : 0)"
               :class="[cellPadding, 'text-sm text-text-muted text-center']"
             >
               <slot name="empty">No data available</slot>
@@ -166,12 +304,40 @@ onUnmounted(() => {
         <table :class="tableClasses">
           <thead>
             <tr>
+              <!-- Selection checkbox column -->
+              <th v-if="selectable" :class="[cellPadding, 'w-12']">
+                <input
+                  type="checkbox"
+                  :checked="allSelected"
+                  :indeterminate="someSelected"
+                  class="rounded border-border text-primary-600 focus:ring-primary-500"
+                  aria-label="Select all rows"
+                  @change="toggleAllRows"
+                />
+              </th>
+              <!-- Regular header columns -->
               <th
                 v-for="(header, index) in headers"
                 :key="index"
-                :class="[cellPadding, 'text-sm font-medium text-text-muted whitespace-nowrap']"
+                :class="[
+                  cellPadding,
+                  'text-sm font-medium text-text-muted whitespace-nowrap',
+                  sortable && 'cursor-pointer select-none hover:text-text transition-colors',
+                ]"
+                @click="handleSort(index)"
               >
-                {{ header }}
+                <div class="flex items-center gap-2">
+                  <span>{{ header }}</span>
+                  <component
+                    v-if="sortable"
+                    :is="getSortIcon(index)"
+                    :size="16"
+                    :class="[
+                      'shrink-0',
+                      localSortBy === index ? 'text-primary-600' : 'text-text-subtle',
+                    ]"
+                  />
+                </div>
               </th>
             </tr>
           </thead>
@@ -204,9 +370,21 @@ onUnmounted(() => {
                 :class="[
                   striped && rowIndex % 2 === 1 && 'bg-surface-sunken/50',
                   hoverable && 'hover:bg-surface-sunken/70 transition-colors',
+                  selectable && localSelectedRows.has(rowIndex) && 'bg-primary-50 dark:bg-primary-900/20',
                 ]"
                 :style="{ height: `${effectiveRowHeight}px` }"
               >
+                <!-- Selection checkbox -->
+                <td v-if="selectable" :class="[cellPadding, 'w-12']">
+                  <input
+                    type="checkbox"
+                    :checked="localSelectedRows.has(rowIndex)"
+                    class="rounded border-border text-primary-600 focus:ring-primary-500"
+                    :aria-label="`Select row ${rowIndex + 1}`"
+                    @change="toggleRow(rowIndex)"
+                  />
+                </td>
+                <!-- Regular cells -->
                 <td
                   v-for="(cell, cellIndex) in row"
                   :key="cellIndex"
@@ -219,7 +397,7 @@ onUnmounted(() => {
               </tr>
               <tr v-if="rows.length === 0">
                 <td
-                  :colspan="headers.length"
+                  :colspan="headers.length + (selectable ? 1 : 0)"
                   :class="[cellPadding, 'text-sm text-text-muted text-center']"
                 >
                   <slot name="empty">No data available</slot>
