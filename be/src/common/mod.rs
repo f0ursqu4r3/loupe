@@ -8,6 +8,7 @@ pub mod metrics;
 pub mod models;
 pub mod pagination;
 pub mod params;
+pub mod query_limiter;
 pub mod sql_validator;
 pub mod tracing;
 pub mod validation;
@@ -24,6 +25,7 @@ pub use pagination::{PaginatedResponse, PaginationParams, DEFAULT_PAGE_SIZE, MAX
 pub use params::{
     BoundParams, ParamSchema, TypedValue, bind_params, extract_params, substitute_params,
 };
+pub use query_limiter::{LimitError, QueryGuard, QueryLimiter, QueryLimits};
 pub use sql_validator::SqlValidator;
 pub use validation::{
     validate_connection_string, validate_cron_expression, validate_description, validate_name,

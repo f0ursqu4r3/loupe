@@ -20,6 +20,13 @@ pub struct Metrics {
     pub db_pool_connections_max: IntGauge,
     pub db_pool_acquire_duration_seconds: HistogramVec,
     pub db_pool_acquire_timeout_total: IntCounter,
+
+    // Query execution metrics
+    pub query_executions_total: IntCounterVec,
+    pub query_execution_duration_seconds: HistogramVec,
+    pub query_rows_returned: HistogramVec,
+    pub query_timeouts_total: IntCounter,
+    pub queries_in_flight: IntGauge,
 }
 
 impl Metrics {
@@ -92,6 +99,48 @@ impl Metrics {
             "Total number of database connection acquisition timeouts",
         )?;
 
+        // Query execution metrics
+        let query_executions_total = IntCounterVec::new(
+            Opts::new("loupe_query_executions_total", "Total number of query executions")
+                .namespace("loupe")
+                .subsystem("runner"),
+            &["status"], // completed, failed, timeout, cancelled
+        )?;
+
+        let query_execution_duration_seconds = HistogramVec::new(
+            HistogramOpts::new(
+                "loupe_query_execution_duration_seconds",
+                "Query execution duration in seconds",
+            )
+            .namespace("loupe")
+            .subsystem("runner")
+            // Buckets: 100ms, 500ms, 1s, 2s, 5s, 10s, 30s, 60s, 120s, 300s
+            .buckets(vec![0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0]),
+            &["query_id"],
+        )?;
+
+        let query_rows_returned = HistogramVec::new(
+            HistogramOpts::new(
+                "loupe_query_rows_returned",
+                "Number of rows returned by queries",
+            )
+            .namespace("loupe")
+            .subsystem("runner")
+            // Buckets: 10, 100, 1K, 10K, 100K
+            .buckets(vec![10.0, 100.0, 1000.0, 10000.0, 100000.0]),
+            &["query_id"],
+        )?;
+
+        let query_timeouts_total = IntCounter::new(
+            "loupe_query_timeouts_total",
+            "Total number of query timeouts",
+        )?;
+
+        let queries_in_flight = IntGauge::new(
+            "loupe_queries_in_flight",
+            "Number of queries currently executing",
+        )?;
+
         // Register all metrics
         registry.register(Box::new(http_requests_total.clone()))?;
         registry.register(Box::new(http_request_duration_seconds.clone()))?;
@@ -101,6 +150,11 @@ impl Metrics {
         registry.register(Box::new(db_pool_connections_max.clone()))?;
         registry.register(Box::new(db_pool_acquire_duration_seconds.clone()))?;
         registry.register(Box::new(db_pool_acquire_timeout_total.clone()))?;
+        registry.register(Box::new(query_executions_total.clone()))?;
+        registry.register(Box::new(query_execution_duration_seconds.clone()))?;
+        registry.register(Box::new(query_rows_returned.clone()))?;
+        registry.register(Box::new(query_timeouts_total.clone()))?;
+        registry.register(Box::new(queries_in_flight.clone()))?;
 
         Ok(Self {
             registry: Arc::new(registry),
@@ -112,6 +166,11 @@ impl Metrics {
             db_pool_connections_max,
             db_pool_acquire_duration_seconds,
             db_pool_acquire_timeout_total,
+            query_executions_total,
+            query_execution_duration_seconds,
+            query_rows_returned,
+            query_timeouts_total,
+            queries_in_flight,
         })
     }
 

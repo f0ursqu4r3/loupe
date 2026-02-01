@@ -38,8 +38,8 @@ export const useCanvasStore = defineStore('canvas', () => {
   const activeCanvasId = ref<string | null>(null)
 
   // Getters
-  const activeCanvas = computed(() =>
-    canvases.value.find((c) => c.id === activeCanvasId.value) ?? null
+  const activeCanvas = computed(
+    () => canvases.value.find((c) => c.id === activeCanvasId.value) ?? null,
   )
 
   const nodes = computed(() => activeCanvas.value?.nodes ?? [])
@@ -71,20 +71,10 @@ export const useCanvasStore = defineStore('canvas', () => {
           activeCanvasId.value = canvases.value[0]?.id ?? null
         }
       }
-
-      // Create default canvas if none exist
-      if (canvases.value.length === 0) {
-        const defaultCanvas = createEmptyCanvas('My First Canvas')
-        canvases.value.push(defaultCanvas)
-        activeCanvasId.value = defaultCanvas.id
-        save()
-      }
     } catch (e) {
       console.error('Failed to load canvas state:', e)
-      // Reset to default state
-      const defaultCanvas = createEmptyCanvas('My First Canvas')
-      canvases.value = [defaultCanvas]
-      activeCanvasId.value = defaultCanvas.id
+      canvases.value = []
+      activeCanvasId.value = null
       save()
     }
   }
@@ -173,7 +163,7 @@ export const useCanvasStore = defineStore('canvas', () => {
   function addNode(
     type: CanvasNodeType,
     position: { x: number; y: number },
-    datasource?: Datasource
+    datasource?: Datasource,
   ): CanvasNode | null {
     if (!activeCanvas.value) return null
 
@@ -219,7 +209,7 @@ export const useCanvasStore = defineStore('canvas', () => {
 
       // Remove connected edges
       activeCanvas.value.edges = activeCanvas.value.edges.filter(
-        (e) => e.from !== id && e.to !== id
+        (e) => e.from !== id && e.to !== id,
       )
 
       touch()
@@ -254,7 +244,11 @@ export const useCanvasStore = defineStore('canvas', () => {
   }
 
   // Edge operations
-  function addEdge(from: string, to: string, label: EdgeRelationship = 'motivates'): CanvasEdge | null {
+  function addEdge(
+    from: string,
+    to: string,
+    label: EdgeRelationship = 'motivates',
+  ): CanvasEdge | null {
     if (!activeCanvas.value) return null
 
     // Prevent self-loops
