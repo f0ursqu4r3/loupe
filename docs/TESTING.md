@@ -21,9 +21,10 @@ be/
 │       └── models/
 │           └── tests.rs      # Model tests
 └── tests/
-    ├── api_tests.rs          # API integration tests
-    ├── connector_tests.rs    # Database connector tests
-    ├── db_tests.rs           # Database layer tests
+    ├── api_tests.rs          # HTTP API endpoint integration tests
+    ├── connector_tests.rs    # Database connector tests (Postgres)
+    ├── db_tests.rs           # Database layer CRUD tests
+    ├── workflow_tests.rs     # End-to-end workflow tests (NEW)
     └── common/
         ├── db.rs             # Test database setup
         ├── fixtures.rs       # Test data fixtures
@@ -66,9 +67,21 @@ cargo test --test db_tests
 
 Full system tests using testcontainers for real database instances.
 
+**Examples:**
+- `tests/workflow_tests.rs` - Complete user workflows from registration to dashboard creation
+- `tests/api_tests.rs` - HTTP API endpoint testing with actix-web
+
+**Workflows tested:**
+- Complete analytics pipeline (user → datasource → queries → visualizations → dashboards)
+- Scheduled query execution (create → schedule → execute → update)
+- Concurrent operations (parallel query runs, concurrent tile additions)
+- Error scenarios (query failures, org isolation, cascade deletion)
+- Pagination (large result sets, page boundaries)
+
 **Run:**
 ```bash
-cargo test --test api_tests -- --ignored
+cargo test --test workflow_tests
+cargo test --test api_tests
 ```
 
 ## Testing Best Practices
@@ -262,24 +275,57 @@ open coverage/index.html
 
 ### Using Testcontainers
 
+All integration tests use testcontainers to spin up isolated PostgreSQL instances.
+
+**Example pattern:**
 ```rust
-use testcontainers::clients::Cli;
+use testcontainers::{ContainerAsync, runners::AsyncRunner};
 use testcontainers_modules::postgres::Postgres;
+
+struct TestDb {
+    db: Database,
+    #[allow(dead_code)]
+    container: ContainerAsync<Postgres>,
+}
+
+impl TestDb {
+    async fn new() -> Self {
+        let container = Postgres::default()
+            .start()
+            .await
+            .expect("Failed to start postgres container");
+
+        let host = container.get_host().await.expect("get host");
+        let port = container.get_host_port_ipv4(5432).await.expect("get port");
+        let database_url = format!(
+            "postgres://postgres:postgres@{}:{}/postgres",
+            host, port
+        );
+
+        let db = Database::connect(&database_url)
+            .await
+            .expect("Failed to connect to test database");
+
+        db.run_migrations().await.expect("Failed to run migrations");
+
+        Self { db, container }
+    }
+}
 
 #[tokio::test]
 async fn test_with_real_database() {
-    let docker = Cli::default();
-    let postgres = docker.run(Postgres::default());
+    let test_db = TestDb::new().await;
+    let db = test_db.database();
 
-    let connection_string = format!(
-        "postgres://postgres:postgres@localhost:{}/postgres",
-        postgres.get_host_port_ipv4(5432)
-    );
-
-    let db = Database::connect(&connection_string).await.unwrap();
     // Run test with real database
 }
 ```
+
+**Benefits:**
+- ✅ Isolated test environment per test
+- ✅ Real PostgreSQL behavior (not mocked)
+- ✅ Automatic cleanup after tests
+- ✅ Parallel test execution safe
 
 ### Test Database Helpers
 
@@ -570,6 +616,196 @@ async fn test_error_propagation() {
         Error::NotFound(msg) => assert!(msg.contains("not found")),
         _ => panic!("Expected NotFound error"),
     }
+}
+```
+
+### Testing End-to-End Workflows
+
+Complete user workflows ensure all components work together:
+
+```rust
+#[tokio::test]
+async fn test_complete_analytics_pipeline() {
+    let test = TestWorkflow::new().await;
+    let db = &test.db;
+
+    // 1. Create organization and user
+    let org = db.create_organization("Analytics Corp").await.unwrap();
+    let user = db.create_user(
+        org.id,
+        "analyst@example.com",
+        "hash",
+        "Analyst",
+        OrgRole::Admin
+    ).await.unwrap();
+
+    // 2. Create datasource
+    let datasource = db.create_datasource(
+        org.id,
+        "Production DB",
+        DatasourceType::Postgres,
+        "connection_string",
+        user.id
+    ).await.unwrap();
+
+    // 3. Create query
+    let query = db.create_query(
+        org.id,
+        datasource.id,
+        "Daily Active Users",
+        Some("Count DAU"),
+        "SELECT date, COUNT(DISTINCT user_id) FROM logins GROUP BY date",
+        &json!([]),
+        &json!([]),
+        30,
+        10000,
+        user.id
+    ).await.unwrap();
+
+    // 4. Create visualization
+    let viz = db.create_visualization(
+        org.id,
+        query.id,
+        "DAU Chart",
+        ChartType::Line,
+        &json!({"x": "date", "y": "count"}),
+        &json!([]),
+        user.id
+    ).await.unwrap();
+
+    // 5. Create dashboard with tile
+    let dashboard = db.create_dashboard(
+        org.id,
+        "Executive Dashboard",
+        Some("Key metrics"),
+        &json!({}),
+        &json!([]),
+        user.id
+    ).await.unwrap();
+
+    let tile = db.create_tile(
+        dashboard.id,
+        viz.id,
+        Some("Daily Active Users"),
+        0, 0, 12, 6,
+        &json!({})
+    ).await.unwrap();
+
+    // 6. Execute query
+    let run = db.create_run(
+        org.id,
+        query.id,
+        datasource.id,
+        &query.sql,
+        &json!({}),
+        30,
+        10000,
+        user.id
+    ).await.unwrap();
+
+    let claimed = db.claim_run("runner-1").await.unwrap().unwrap();
+
+    let result = db.create_run_result(
+        run.id,
+        &json!([{"name": "date", "data_type": "DATE"}, {"name": "count", "data_type": "INT8"}]),
+        &json!([["2024-01-01", 1523], ["2024-01-02", 1678]]),
+        2,
+        256,
+        125
+    ).await.unwrap();
+
+    let completed = db.complete_run(run.id, result.id).await.unwrap();
+
+    // 7. Verify complete workflow
+    assert_eq!(completed.status, RunStatus::Completed);
+    let tiles = db.list_tiles(dashboard.id).await.unwrap();
+    assert_eq!(tiles.len(), 1);
+}
+```
+
+### Testing Concurrent Operations
+
+Test race conditions and parallel execution:
+
+```rust
+#[tokio::test]
+async fn test_concurrent_query_runs() {
+    let test = TestWorkflow::new().await;
+    let db = &test.db;
+
+    // Setup: create 10 queued runs
+    let mut run_ids = vec![];
+    for _ in 0..10 {
+        let run = db.create_run(/* ... */).await.unwrap();
+        run_ids.push(run.id);
+    }
+
+    // Spawn 10 runners concurrently
+    let mut set = JoinSet::new();
+    for i in 0..10 {
+        let runner_id = format!("runner-{}", i);
+        let db_clone = db.clone();
+        set.spawn(async move {
+            db_clone.claim_run(&runner_id).await
+        });
+    }
+
+    // Collect claimed runs
+    let mut claimed = vec![];
+    while let Some(res) = set.join_next().await {
+        if let Ok(Ok(Some(run))) = res {
+            claimed.push(run.id);
+        }
+    }
+
+    // All runs should be claimed exactly once
+    assert_eq!(claimed.len(), 10);
+    claimed.sort();
+    claimed.dedup();
+    assert_eq!(claimed.len(), 10); // No duplicates
+}
+```
+
+### Testing Organization Isolation
+
+Verify multi-tenant data isolation:
+
+```rust
+#[tokio::test]
+async fn test_organization_isolation() {
+    let test = TestWorkflow::new().await;
+    let db = &test.db;
+
+    let org1 = db.create_organization("Org 1").await.unwrap();
+    let org2 = db.create_organization("Org 2").await.unwrap();
+
+    let user1 = db.create_user(
+        org1.id,
+        "user1@org1.com",
+        "hash",
+        "User 1",
+        OrgRole::Admin
+    ).await.unwrap();
+
+    // Create datasource in org1
+    let ds1 = db.create_datasource(
+        org1.id,
+        "Org1 DS",
+        DatasourceType::Postgres,
+        "conn",
+        user1.id
+    ).await.unwrap();
+
+    // Attempt to access from org2 should fail
+    let wrong_org = db.get_datasource(ds1.id, org2.id).await;
+    assert!(wrong_org.is_err());
+
+    // List operations should be isolated
+    let org1_datasources = db.list_datasources(org1.id).await.unwrap();
+    let org2_datasources = db.list_datasources(org2.id).await.unwrap();
+
+    assert_eq!(org1_datasources.len(), 1);
+    assert_eq!(org2_datasources.len(), 0);
 }
 ```
 
