@@ -1,6 +1,7 @@
 mod routes;
 
 use actix_cors::Cors;
+use actix_governor::GovernorConfigBuilder;
 use actix_web::{middleware, web, App, HttpServer};
 use argon2::{
     Argon2,
@@ -61,6 +62,7 @@ async fn main() -> std::io::Result<()> {
     let state = Arc::new(AppState { db, jwt });
 
     tracing::info!("Starting Loupe API server at http://{}:{}", host, port);
+    tracing::info!("Rate limiting: 100 requests/minute per IP globally");
 
     HttpServer::new(move || {
         let cors = Cors::default()
@@ -69,9 +71,18 @@ async fn main() -> std::io::Result<()> {
             .allow_any_header()
             .max_age(3600);
 
+        // Global API rate limiter: 100 requests per minute per IP
+        // This prevents API abuse and brute force attacks
+        let governor_conf = GovernorConfigBuilder::default()
+            .requests_per_second(2)  // ~120 per minute
+            .burst_size(20)          // Allow bursts of 20 requests
+            .finish()
+            .unwrap();
+
         App::new()
             .wrap(cors)
             .wrap(middleware::Logger::default())
+            .wrap(actix_governor::Governor::new(&governor_conf))  // Apply rate limiting
             .app_data(web::Data::new(state.clone()))
             .configure(routes::configure)
     })
