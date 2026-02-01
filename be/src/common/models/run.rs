@@ -36,6 +36,31 @@ pub struct Run {
     pub error_message: Option<String>,
     pub created_by: Uuid,
     pub created_at: DateTime<Utc>,
+    /// Number of times this run has been retried
+    pub retry_count: i32,
+    /// Maximum number of retry attempts allowed
+    pub max_retries: i32,
+    /// Timestamp when this run is eligible for retry
+    pub next_retry_at: Option<DateTime<Utc>>,
+}
+
+/// A run that exceeded max retries and was moved to the dead letter queue
+#[derive(Debug, Clone, Serialize, FromRow)]
+pub struct RunFailure {
+    pub id: Uuid,
+    pub run_id: Uuid,
+    pub org_id: Uuid,
+    pub query_id: Uuid,
+    pub datasource_id: Uuid,
+    pub executed_sql: String,
+    pub parameters: serde_json::Value,
+    pub error_message: String,
+    pub retry_count: i32,
+    pub max_retries: i32,
+    pub first_failed_at: DateTime<Utc>,
+    pub last_failed_at: DateTime<Utc>,
+    pub created_by: Uuid,
+    pub created_at: DateTime<Utc>,
 }
 
 /// The result of a completed run

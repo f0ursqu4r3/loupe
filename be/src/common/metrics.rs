@@ -27,6 +27,13 @@ pub struct Metrics {
     pub query_rows_returned: HistogramVec,
     pub query_timeouts_total: IntCounter,
     pub queries_in_flight: IntGauge,
+
+    // Job processing metrics
+    pub jobs_claimed_total: IntCounterVec,
+    pub job_processing_duration_seconds: HistogramVec,
+    pub job_queue_depth: IntGauge,
+    pub job_retry_queue_depth: IntGauge,
+    pub job_dead_letter_queue_size: IntGauge,
 }
 
 impl Metrics {
@@ -141,6 +148,41 @@ impl Metrics {
             "Number of queries currently executing",
         )?;
 
+        // Job processing metrics
+        let jobs_claimed_total = IntCounterVec::new(
+            Opts::new("loupe_jobs_claimed_total", "Total number of jobs claimed from queue")
+                .namespace("loupe")
+                .subsystem("runner"),
+            &["type"], // "new" or "retry"
+        )?;
+
+        let job_processing_duration_seconds = HistogramVec::new(
+            HistogramOpts::new(
+                "loupe_job_processing_duration_seconds",
+                "Job processing duration (from claim to completion) in seconds",
+            )
+            .namespace("loupe")
+            .subsystem("runner")
+            // Buckets: 100ms, 500ms, 1s, 5s, 10s, 30s, 60s, 120s, 300s, 600s
+            .buckets(vec![0.1, 0.5, 1.0, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0, 600.0]),
+            &["status"], // completed, failed, timeout
+        )?;
+
+        let job_queue_depth = IntGauge::new(
+            "loupe_job_queue_depth",
+            "Number of jobs waiting in queue (status=queued)",
+        )?;
+
+        let job_retry_queue_depth = IntGauge::new(
+            "loupe_job_retry_queue_depth",
+            "Number of jobs waiting for retry (status=failed with next_retry_at)",
+        )?;
+
+        let job_dead_letter_queue_size = IntGauge::new(
+            "loupe_job_dead_letter_queue_size",
+            "Number of permanently failed jobs in dead letter queue",
+        )?;
+
         // Register all metrics
         registry.register(Box::new(http_requests_total.clone()))?;
         registry.register(Box::new(http_request_duration_seconds.clone()))?;
@@ -155,6 +197,11 @@ impl Metrics {
         registry.register(Box::new(query_rows_returned.clone()))?;
         registry.register(Box::new(query_timeouts_total.clone()))?;
         registry.register(Box::new(queries_in_flight.clone()))?;
+        registry.register(Box::new(jobs_claimed_total.clone()))?;
+        registry.register(Box::new(job_processing_duration_seconds.clone()))?;
+        registry.register(Box::new(job_queue_depth.clone()))?;
+        registry.register(Box::new(job_retry_queue_depth.clone()))?;
+        registry.register(Box::new(job_dead_letter_queue_size.clone()))?;
 
         Ok(Self {
             registry: Arc::new(registry),
@@ -171,6 +218,11 @@ impl Metrics {
             query_rows_returned,
             query_timeouts_total,
             queries_in_flight,
+            jobs_claimed_total,
+            job_processing_duration_seconds,
+            job_queue_depth,
+            job_retry_queue_depth,
+            job_dead_letter_queue_size,
         })
     }
 

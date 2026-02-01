@@ -9,7 +9,7 @@ Track backend improvements for security, performance, and maintainability.
 
 ---
 
-## ✅ Completed (18/48 tasks - 37.5%)
+## ✅ Completed (19/48 tasks - 39.6%)
 
 ### Critical Security (5/5 - 100%)
 
@@ -30,11 +30,12 @@ Track backend improvements for security, performance, and maintainability.
 
 1. ✅ **Schema Review** - 47 indexes/constraints added: sorting (27), filtering (4), composite (3), partial (2), CHECK (11)
 
-### Performance (3/5 - 60%)
+### Performance (4/5 - 80%)
 
 1. ✅ **Rate Limiting** - Global 100 req/min per IP via actix-governor
 2. ✅ **Connection Pooling** - SQLx pool monitoring with Prometheus metrics (active/idle/max connections, acquisition duration/timeouts), comprehensive documentation in [DATABASE_POOLING.md](DATABASE_POOLING.md)
 3. ✅ **Query Execution Safety** - Prometheus metrics for query execution (duration, status, rows returned), concurrent query limiter with per-org (5) and global (50) limits configurable via environment, slow query logging (1s threshold), query cancellation API endpoint (POST /api/v1/runs/{id}/cancel)
+4. ✅ **Background Job Processing** - Graceful shutdown with SIGTERM/SIGINT handlers (30s timeout), proper task tracking with JoinSet, retry logic with exponential backoff (30s base, 3 max retries, retryable error detection), dead letter queue for permanently failed jobs, job processing metrics (claims, queue depths, processing duration)
 
 ### Observability (5/5 - 100%)
 
@@ -46,7 +47,7 @@ Track backend improvements for security, performance, and maintainability.
 
 ---
 
-## 📋 Remaining Tasks (30/48)
+## 📋 Remaining Tasks (29/48)
 
 ### Testing & Quality (0/4)
 
@@ -113,7 +114,7 @@ Track backend improvements for security, performance, and maintainability.
 
 ---
 
-### Performance & Scalability (2/5 - 40%)
+### Performance & Scalability (1/5 - 20%)
 
 #### 19. Caching Strategy
 
@@ -123,15 +124,6 @@ Track backend improvements for security, performance, and maintainability.
 - [ ] Add cache invalidation strategy
 - [ ] Add cache headers (ETags, Last-Modified)
 - [ ] Monitor cache hit rates
-
-#### 20. Background Job Processing
-
-- [ ] Review runner architecture [runner/main.rs](../be/src/runner/main.rs)
-- [ ] Add job queue (consider sidekiq-style system)
-- [ ] Add job retry logic with backoff
-- [ ] Add dead letter queue
-- [ ] Monitor job processing metrics
-- [ ] Implement graceful shutdown
 
 ---
 
@@ -359,7 +351,7 @@ be/src/
 **API Design:** 4/4 (100%) ✅
 **Testing:** 0/4 (0%)
 **Database:** 1/4 (25%)
-**Performance:** 3/5 (60%) 📈
+**Performance:** 4/5 (80%) 📈
 **Observability:** 5/5 (100%) ✅
 **Code Organization:** 0/4 (0%)
 **Security Hardening:** 0/5 (0%)
@@ -367,7 +359,7 @@ be/src/
 **DevOps:** 0/4 (0%)
 **Data Management:** 0/3 (0%)
 
-**Overall Progress:** 18/48 major tasks (37.5%)
+**Overall Progress:** 19/48 major tasks (39.6%)
 
 ---
 

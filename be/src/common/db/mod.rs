@@ -1250,6 +1250,145 @@ impl Database {
         Ok(run)
     }
 
+    /// Schedule a run for retry with exponential backoff
+    ///
+    /// Uses exponential backoff: base_delay * 2^retry_count
+    /// Example: 30s, 60s, 120s, 240s, ...
+    pub async fn schedule_retry(&self, id: Uuid, error_message: &str) -> Result<Option<Run>> {
+        let run = sqlx::query_as::<_, Run>(
+            r#"
+            UPDATE runs
+            SET status = 'failed',
+                error_message = $2,
+                retry_count = retry_count + 1,
+                next_retry_at = CASE
+                    WHEN retry_count < max_retries THEN
+                        NOW() + (INTERVAL '30 seconds' * POWER(2, retry_count))
+                    ELSE
+                        NULL
+                END
+            WHERE id = $1
+            RETURNING *
+            "#,
+        )
+        .bind(id)
+        .bind(error_message)
+        .fetch_one(&self.pool)
+        .await?;
+
+        // Return Some if retry is scheduled, None if max retries exceeded
+        if run.next_retry_at.is_some() {
+            Ok(Some(run))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Claim a run that's ready for retry
+    ///
+    /// Finds runs where next_retry_at is in the past and status is 'failed'
+    pub async fn claim_retry_run(&self, runner_id: &str) -> Result<Option<Run>> {
+        let run = sqlx::query_as::<_, Run>(
+            r#"
+            UPDATE runs
+            SET status = 'queued',
+                runner_id = $1,
+                next_retry_at = NULL,
+                error_message = NULL
+            WHERE id = (
+                SELECT id FROM runs
+                WHERE status = 'failed'
+                  AND next_retry_at IS NOT NULL
+                  AND next_retry_at <= NOW()
+                ORDER BY next_retry_at ASC
+                FOR UPDATE SKIP LOCKED
+                LIMIT 1
+            )
+            RETURNING *
+            "#,
+        )
+        .bind(runner_id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(run)
+    }
+
+    /// Get queue depth statistics
+    ///
+    /// Returns (pending_jobs, retry_jobs, dead_letter_jobs)
+    pub async fn get_queue_stats(&self) -> Result<(i64, i64, i64)> {
+        // Count pending jobs (status = queued)
+        let pending: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM runs WHERE status = 'queued'"
+        )
+        .fetch_one(&self.pool)
+        .await?;
+
+        // Count retry jobs (status = failed with next_retry_at set)
+        let retry: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM runs WHERE status = 'failed' AND next_retry_at IS NOT NULL"
+        )
+        .fetch_one(&self.pool)
+        .await?;
+
+        // Count dead letter queue
+        let dead_letter: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM run_failures"
+        )
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok((pending.0, retry.0, dead_letter.0))
+    }
+
+    /// Move a permanently failed run to the dead letter queue
+    ///
+    /// This should be called when a run exceeds max retries.
+    /// The run is copied to run_failures and deleted from runs.
+    pub async fn move_to_dead_letter_queue(&self, run_id: Uuid) -> Result<()> {
+        // Get the run first
+        let run = sqlx::query_as::<_, crate::models::Run>(
+            "SELECT * FROM runs WHERE id = $1"
+        )
+        .bind(run_id)
+        .fetch_one(&self.pool)
+        .await?;
+
+        // Insert into dead letter queue
+        sqlx::query(
+            r#"
+            INSERT INTO run_failures (
+                run_id, org_id, query_id, datasource_id, executed_sql, parameters,
+                error_message, retry_count, max_retries, first_failed_at, last_failed_at,
+                created_by
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), $11)
+            "#,
+        )
+        .bind(run.id)
+        .bind(run.org_id)
+        .bind(run.query_id)
+        .bind(run.datasource_id)
+        .bind(&run.executed_sql)
+        .bind(&run.parameters)
+        .bind(run.error_message.as_deref().unwrap_or("Unknown error"))
+        .bind(run.retry_count)
+        .bind(run.max_retries)
+        .bind(run.started_at.unwrap_or(run.created_at))
+        .bind(run.created_by)
+        .execute(&self.pool)
+        .await?;
+
+        // Delete from runs table
+        sqlx::query("DELETE FROM runs WHERE id = $1")
+            .bind(run_id)
+            .execute(&self.pool)
+            .await?;
+
+        Ok(())
+    }
+
     // ==================== Run Results ====================
 
     pub async fn create_run_result(
