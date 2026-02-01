@@ -1,5 +1,5 @@
 use crate::AppState;
-use crate::routes::auth::get_auth_context;
+use crate::permissions::{get_user_context, require_permission, Permission};
 use actix_web::{HttpRequest, HttpResponse, web};
 use loupe::Error;
 use loupe::models::{
@@ -27,7 +27,9 @@ async fn list_dashboards(
     state: web::Data<Arc<AppState>>,
     req: HttpRequest,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&state, &req)?;
+    let (_, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Viewer)?;
+
     let dashboards = state.db.list_dashboards(org_id).await?;
 
     let mut response = Vec::new();
@@ -56,7 +58,8 @@ async fn create_dashboard(
     req: HttpRequest,
     body: web::Json<CreateDashboardRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (user_id, org_id) = get_auth_context(&state, &req)?;
+    let (user_id, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Editor)?;
 
     let tags_json = serde_json::to_value(&body.tags).unwrap_or_default();
 
@@ -93,7 +96,9 @@ async fn get_dashboard(
     req: HttpRequest,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&state, &req)?;
+    let (_, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Viewer)?;
+
     let id = path.into_inner();
     let dashboard = state.db.get_dashboard(id, org_id).await?;
     let tiles = state.db.list_tiles(dashboard.id).await?;
@@ -119,7 +124,9 @@ async fn update_dashboard(
     path: web::Path<Uuid>,
     body: web::Json<UpdateDashboardRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&state, &req)?;
+    let (_, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Editor)?;
+
     let id = path.into_inner();
 
     let tags = body
@@ -160,7 +167,9 @@ async fn delete_dashboard(
     req: HttpRequest,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&state, &req)?;
+    let (_, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Editor)?;
+
     let id = path.into_inner();
     state.db.delete_dashboard(id, org_id).await?;
     Ok(HttpResponse::NoContent().finish())
@@ -172,7 +181,9 @@ async fn create_tile(
     path: web::Path<Uuid>,
     body: web::Json<CreateTileRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&state, &req)?;
+    let (_, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Editor)?;
+
     let dashboard_id = path.into_inner();
 
     // Verify dashboard exists
@@ -212,7 +223,9 @@ async fn delete_tile(
     req: HttpRequest,
     path: web::Path<TilePathParams>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&state, &req)?;
+    let (_, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Editor)?;
+
     let params = path.into_inner();
 
     // Verify dashboard belongs to this org
@@ -228,7 +241,9 @@ async fn update_tile(
     path: web::Path<TilePathParams>,
     body: web::Json<UpdateTileRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&state, &req)?;
+    let (_, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Editor)?;
+
     let params = path.into_inner();
 
     // Verify dashboard belongs to this org

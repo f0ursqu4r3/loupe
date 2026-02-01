@@ -1,5 +1,5 @@
 use crate::AppState;
-use crate::routes::auth::get_auth_context;
+use crate::permissions::{get_user_context, require_permission, Permission};
 use actix_web::{HttpRequest, HttpResponse, web};
 use loupe::{Error, SqlValidator};
 use loupe::models::{
@@ -31,7 +31,9 @@ async fn list_runs(
     req: HttpRequest,
     query: web::Query<ListRunsQuery>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&state, &req)?;
+    let (_, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Viewer)?;
+
     let runs = state.db.list_runs(org_id, query.query_id).await?;
     let response: Vec<RunResponse> = runs.into_iter().map(Into::into).collect();
     Ok(HttpResponse::Ok().json(response))
@@ -42,7 +44,8 @@ async fn create_run(
     req: HttpRequest,
     body: web::Json<CreateRunRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (user_id, org_id) = get_auth_context(&state, &req)?;
+    let (user_id, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Viewer)?;  // Anyone can run saved queries
 
     // Get the query
     let query = state.db.get_query(body.query_id, org_id).await?;
@@ -123,7 +126,9 @@ async fn execute_adhoc(
     req: HttpRequest,
     body: web::Json<ExecuteAdHocRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (user_id, org_id) = get_auth_context(&state, &req)?;
+    let (user_id, org_id, role) = get_user_context(&state, &req).await?;
+    // SECURITY: Only editors and admins can execute ad-hoc SQL
+    require_permission(role, Permission::Editor)?;
 
     // SECURITY: Validate SQL to prevent injection attacks
     // This is CRITICAL - validate BEFORE storing or executing
@@ -180,7 +185,9 @@ async fn get_run(
     req: HttpRequest,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&state, &req)?;
+    let (_, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Viewer)?;
+
     let id = path.into_inner();
     let run = state.db.get_run(id, org_id).await?;
     Ok(HttpResponse::Ok().json(RunResponse::from(run)))
@@ -188,8 +195,12 @@ async fn get_run(
 
 async fn get_run_result(
     state: web::Data<Arc<AppState>>,
+    req: HttpRequest,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, Error> {
+    let (_, _, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Viewer)?;
+
     let run_id = path.into_inner();
     let result = state.db.get_run_result(run_id).await?;
     Ok(HttpResponse::Ok().json(RunResultResponse::from(result)))

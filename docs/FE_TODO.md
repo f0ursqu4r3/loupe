@@ -350,6 +350,180 @@ hover:border-primary-500/50 hover:shadow-lg hover:-translate-y-0.5 transition-al
 
 ---
 
+## Authentication & Authorization 🔒
+
+### 23. RBAC Support for Backend Permissions
+
+**Backend Context:** The backend now enforces role-based permissions (Admin, Editor, Viewer). The frontend needs to handle these appropriately.
+
+**See:** [RBAC_IMPLEMENTATION.md](./RBAC_IMPLEMENTATION.md) for backend details.
+
+- [ ] Add user role to auth state/store
+- [ ] Fetch and store current user's role on login
+- [ ] Create `usePermissions()` composable for permission checks
+- [ ] Handle 403 Forbidden errors gracefully
+- [ ] Show user-friendly error messages when permission denied
+- [ ] Add error ID display for debugging (from backend error responses)
+
+**Error Handling:**
+```typescript
+// Example: Handle 403 errors
+if (error.response?.status === 403) {
+  toast.error('You don\'t have permission to perform this action')
+  // Optionally show error ID for support
+  console.error('Error ID:', error.response.data?.error?.error_id)
+}
+```
+
+### 24. Conditional UI Based on Roles
+
+**Implement UI visibility based on user permissions:**
+
+**Dashboards:**
+- [ ] Hide "New Dashboard" button for Viewers
+- [ ] Hide edit/delete actions for Viewers
+- [ ] Show read-only badge for Viewers
+
+**Queries:**
+- [ ] Hide "New Query" button for Viewers
+- [ ] Hide edit/delete actions for Viewers
+- [ ] Disable "Ad-hoc SQL" tab for Viewers (Editor+ only)
+- [ ] Show permission indicator on query execution
+
+**Datasources:**
+- [ ] Hide "New Datasource" button for non-Admins
+- [ ] Hide edit/delete actions for non-Admins
+- [ ] Show "Admin only" badge on sensitive actions
+
+**Example Implementation:**
+```vue
+<template>
+  <!-- Only show for Editors and Admins -->
+  <LButton
+    v-if="canEdit"
+    @click="createDashboard"
+  >
+    New Dashboard
+  </LButton>
+
+  <!-- Show disabled state for Viewers -->
+  <LButton
+    v-else
+    disabled
+    :tooltip="'Editor or Admin role required'"
+  >
+    New Dashboard
+  </LButton>
+</template>
+
+<script setup>
+import { usePermissions } from '@/composables/usePermissions'
+
+const { canEdit, canAdmin, role } = usePermissions()
+</script>
+```
+
+### 25. User Profile & Role Display
+
+- [ ] Add user profile dropdown in header
+- [ ] Show current user's name and email
+- [ ] Display user's role with badge (Admin/Editor/Viewer)
+- [ ] Add role-specific styling (Admin: red, Editor: blue, Viewer: gray)
+- [ ] Add "Role: ..." indicator in settings
+- [ ] Show organization name in profile
+- [ ] Add logout functionality
+
+**Example:**
+```vue
+<div class="user-profile">
+  <div class="user-info">
+    <span class="user-name">John Doe</span>
+    <LBadge :variant="roleVariant">{{ role }}</LBadge>
+  </div>
+  <div class="user-email">john@example.com</div>
+  <div class="organization">Acme Corp</div>
+</div>
+```
+
+### 26. Permission-Based Routing
+
+- [ ] Add route guards based on permissions
+- [ ] Redirect non-Admins away from datasource management
+- [ ] Add "Access Denied" page for unauthorized routes
+- [ ] Show appropriate message based on required permission
+- [ ] Provide navigation back to accessible areas
+
+**Example Route Guard:**
+```typescript
+router.beforeEach((to, from, next) => {
+  const { canAdmin } = usePermissions()
+
+  if (to.meta.requiresAdmin && !canAdmin.value) {
+    next({ name: 'AccessDenied', query: { required: 'Admin' } })
+  } else {
+    next()
+  }
+})
+```
+
+### 27. Composable: usePermissions()
+
+**Create reusable permission checking logic:**
+
+- [ ] Create `composables/usePermissions.ts`
+- [ ] Export `canView`, `canEdit`, `canAdmin` computed properties
+- [ ] Export `hasPermission(permission)` function
+- [ ] Export current `role` ref
+- [ ] Handle unauthenticated state
+- [ ] Add TypeScript types for roles and permissions
+
+**Implementation:**
+```typescript
+// composables/usePermissions.ts
+import { computed } from 'vue'
+import { useAuthStore } from '@/stores/auth'
+
+export enum Permission {
+  Viewer = 'viewer',
+  Editor = 'editor',
+  Admin = 'admin'
+}
+
+export function usePermissions() {
+  const authStore = useAuthStore()
+
+  const role = computed(() => authStore.user?.role)
+
+  const canView = computed(() => true) // All roles can view
+  const canEdit = computed(() =>
+    role.value === 'editor' || role.value === 'admin'
+  )
+  const canAdmin = computed(() => role.value === 'admin')
+
+  const hasPermission = (required: Permission) => {
+    if (!role.value) return false
+
+    const hierarchy = {
+      viewer: ['viewer'],
+      editor: ['viewer', 'editor'],
+      admin: ['viewer', 'editor', 'admin']
+    }
+
+    return hierarchy[role.value]?.includes(required) ?? false
+  }
+
+  return {
+    role,
+    canView,
+    canEdit,
+    canAdmin,
+    hasPermission
+  }
+}
+```
+
+---
+
 ## Accessibility ♿
 
 ### 23. Focus Management
@@ -531,12 +705,13 @@ hover:border-primary-500/50 hover:shadow-lg hover:-translate-y-0.5 transition-al
 **Branding Completed:** 1/3
 **Components Completed:** 5/5 ✓
 **Advanced Features Completed:** 2/4
+**Authentication & Authorization:** 0/5 (NEW - Backend RBAC support)
 **Accessibility Completed:** 4/4 ✓
 **Polish Completed:** 1/4
 **Performance Completed:** 1/2
 **Documentation Completed:** 2/2 ✓
 
-**Overall Progress:** 36/36 major tasks (100%)
+**Overall Progress:** 36/41 major tasks (88%)
 
 ---
 
@@ -552,6 +727,8 @@ Add any notes, decisions, or discussions here:
 
 ## Related Documents
 
+- [Backend TODO](./BE_TODO.md) - Backend improvements and features
+- [RBAC Implementation](./RBAC_IMPLEMENTATION.md) - Role-based access control documentation
 - [Design System](./DESIGN_SYSTEM.md) (to be created)
 - [Component Library](./COMPONENTS.md) (to be created)
 - [Accessibility Guidelines](./ACCESSIBILITY.md) (to be created)

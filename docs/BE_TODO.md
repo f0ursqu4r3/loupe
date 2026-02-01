@@ -59,12 +59,12 @@ These are high-priority security and data integrity improvements.
 - [x] Add audit logging for auth events
 - [x] Prevent unauthorized access to other users' data (org_id checks)
 - [x] Add rate limiting on all endpoints (100 req/min global)
-- [ ] Implement role-based access control (RBAC) - Basic roles exist
+- [x] Implement role-based access control (RBAC) - Enforced on all core routes
 - [ ] Add account lockout after failed attempts
 - [ ] Implement secure password reset flow
 - [ ] Implement proper session management/revocation
 
-**Status:** ✅ **MOSTLY COMPLETE** - JWT auth secure, advanced features pending
+**Status:** ✅ **MOSTLY COMPLETE** - JWT auth secure with RBAC, advanced features pending
 
 ### 4. Error Handling & Information Disclosure ✅
 
@@ -666,13 +666,19 @@ be/src/
 
 ### 48. Organization Management
 
-- [ ] Add organization model
-- [ ] Add team/user management
-- [ ] Add role-based permissions
+- [x] Add organization model (exists in database)
+- [x] Add role-based permissions (RBAC implemented - see [RBAC_IMPLEMENTATION.md](./RBAC_IMPLEMENTATION.md))
+- [ ] Add organization management API (create, update, settings)
+- [ ] Add team/user management API (list users, update roles, remove users)
 - [ ] Add invitation system
-- [ ] Add organization settings
 - [ ] Add usage tracking per org
 - [ ] Add billing integration (future)
+
+**Status:** ⚠️ **PARTIALLY COMPLETE** - RBAC enforced, management APIs pending
+
+**Files:**
+- [permissions.rs](../be/src/api/permissions.rs) - RBAC implementation
+- [RBAC_IMPLEMENTATION.md](./RBAC_IMPLEMENTATION.md) - Complete documentation
 
 ---
 

@@ -1,4 +1,5 @@
 mod app_middleware;
+mod permissions;
 mod routes;
 
 use actix_cors::Cors;

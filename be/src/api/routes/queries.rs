@@ -1,5 +1,5 @@
 use crate::AppState;
-use crate::routes::auth::get_auth_context;
+use crate::permissions::{get_user_context, require_permission, Permission};
 use actix_web::{HttpRequest, HttpResponse, web};
 use loupe::{Error, SqlValidator};
 use loupe::models::{
@@ -27,7 +27,9 @@ async fn list_queries(
     state: web::Data<Arc<AppState>>,
     req: HttpRequest,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&state, &req)?;
+    let (_, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Viewer)?;
+
     let queries = state.db.list_queries(org_id).await?;
     let response: Vec<QueryResponse> = queries.into_iter().map(Into::into).collect();
     Ok(HttpResponse::Ok().json(response))
@@ -38,7 +40,8 @@ async fn create_query(
     req: HttpRequest,
     body: web::Json<CreateQueryRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (user_id, org_id) = get_auth_context(&state, &req)?;
+    let (user_id, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Editor)?;
 
     // Validate request input
     body.validate()
@@ -84,7 +87,9 @@ async fn get_query(
     req: HttpRequest,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&state, &req)?;
+    let (_, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Viewer)?;
+
     let id = path.into_inner();
     let query = state.db.get_query(id, org_id).await?;
     Ok(HttpResponse::Ok().json(QueryResponse::from(query)))
@@ -96,7 +101,9 @@ async fn update_query(
     path: web::Path<Uuid>,
     body: web::Json<UpdateQueryRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&state, &req)?;
+    let (_, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Editor)?;
+
     let id = path.into_inner();
 
     // Validate request input
@@ -139,7 +146,9 @@ async fn delete_query(
     req: HttpRequest,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&state, &req)?;
+    let (_, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Editor)?;
+
     let id = path.into_inner();
     state.db.delete_query(id, org_id).await?;
     Ok(HttpResponse::NoContent().finish())
@@ -149,7 +158,8 @@ async fn export_queries(
     state: web::Data<Arc<AppState>>,
     req: HttpRequest,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&state, &req)?;
+    let (_, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Viewer)?;
 
     let queries = state.db.list_queries(org_id).await?;
     let datasources = state.db.list_datasources(org_id).await?;
@@ -185,7 +195,8 @@ async fn import_queries(
     req: HttpRequest,
     body: web::Json<ImportQueriesRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (user_id, org_id) = get_auth_context(&state, &req)?;
+    let (user_id, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Editor)?;
 
     // Verify datasource exists and belongs to org
     state.db.get_datasource(body.datasource_id, org_id).await?;

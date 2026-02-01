@@ -1,5 +1,5 @@
 use crate::AppState;
-use crate::routes::auth::get_auth_context;
+use crate::permissions::{get_user_context, require_permission, Permission};
 use actix_web::{HttpRequest, HttpResponse, web};
 use loupe::Error;
 use loupe::connectors::{Connector, PostgresConnector};
@@ -27,7 +27,9 @@ async fn list_datasources(
     state: web::Data<Arc<AppState>>,
     req: HttpRequest,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&state, &req)?;
+    let (_, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Viewer)?;
+
     let datasources = state.db.list_datasources(org_id).await?;
     let response: Vec<DatasourceResponse> = datasources.into_iter().map(Into::into).collect();
     Ok(HttpResponse::Ok().json(response))
@@ -38,7 +40,9 @@ async fn create_datasource(
     req: HttpRequest,
     body: web::Json<CreateDatasourceRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (user_id, org_id) = get_auth_context(&state, &req)?;
+    let (user_id, org_id, role) = get_user_context(&state, &req).await?;
+    // SECURITY: Only admins can create datasources (contains sensitive connection strings)
+    require_permission(role, Permission::Admin)?;
 
     // In production, encrypt the connection string
     let encrypted = &body.connection_string; // TODO: actual encryption
@@ -56,7 +60,9 @@ async fn get_datasource(
     req: HttpRequest,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&state, &req)?;
+    let (_, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Viewer)?;
+
     let id = path.into_inner();
     let datasource = state.db.get_datasource(id, org_id).await?;
     Ok(HttpResponse::Ok().json(DatasourceResponse::from(datasource)))
@@ -68,7 +74,9 @@ async fn update_datasource(
     path: web::Path<Uuid>,
     body: web::Json<UpdateDatasourceRequest>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&state, &req)?;
+    let (_, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Admin)?;
+
     let id = path.into_inner();
 
     let encrypted = body.connection_string.as_deref(); // TODO: encryption
@@ -86,7 +94,9 @@ async fn delete_datasource(
     req: HttpRequest,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&state, &req)?;
+    let (_, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Admin)?;
+
     let id = path.into_inner();
     state.db.delete_datasource(id, org_id).await?;
     Ok(HttpResponse::NoContent().finish())
@@ -97,7 +107,9 @@ async fn test_connection(
     req: HttpRequest,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&state, &req)?;
+    let (_, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Viewer)?;
+
     let id = path.into_inner();
     let datasource = state.db.get_datasource(id, org_id).await?;
 
@@ -132,7 +144,9 @@ async fn get_schema(
     req: HttpRequest,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, Error> {
-    let (_, org_id) = get_auth_context(&state, &req)?;
+    let (_, org_id, role) = get_user_context(&state, &req).await?;
+    require_permission(role, Permission::Viewer)?;
+
     let id = path.into_inner();
     let datasource = state.db.get_datasource(id, org_id).await?;
 

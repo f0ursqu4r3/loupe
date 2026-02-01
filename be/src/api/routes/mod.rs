@@ -1,4 +1,4 @@
-mod auth;
+pub mod auth;
 mod canvases;
 mod dashboards;
 mod datasources;
