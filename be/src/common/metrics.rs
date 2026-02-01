@@ -1,5 +1,6 @@
 use prometheus::{
-    Encoder, HistogramOpts, HistogramVec, IntCounterVec, Opts, Registry, TextEncoder,
+    Encoder, HistogramOpts, HistogramVec, IntCounter, IntCounterVec, IntGauge, IntGaugeVec, Opts,
+    Registry, TextEncoder,
 };
 use std::sync::Arc;
 
@@ -7,9 +8,18 @@ use std::sync::Arc;
 #[derive(Clone)]
 pub struct Metrics {
     pub registry: Arc<Registry>,
+
+    // HTTP metrics
     pub http_requests_total: IntCounterVec,
     pub http_request_duration_seconds: HistogramVec,
     pub http_requests_in_flight: IntCounterVec,
+
+    // Database connection pool metrics
+    pub db_pool_connections_active: IntGauge,
+    pub db_pool_connections_idle: IntGauge,
+    pub db_pool_connections_max: IntGauge,
+    pub db_pool_acquire_duration_seconds: HistogramVec,
+    pub db_pool_acquire_timeout_total: IntCounter,
 }
 
 impl Metrics {
@@ -51,16 +61,57 @@ impl Metrics {
             &["method", "endpoint"],
         )?;
 
+        // Database connection pool metrics
+        let db_pool_connections_active = IntGauge::new(
+            "loupe_db_pool_connections_active",
+            "Number of active database connections currently in use",
+        )?;
+
+        let db_pool_connections_idle = IntGauge::new(
+            "loupe_db_pool_connections_idle",
+            "Number of idle database connections in the pool",
+        )?;
+
+        let db_pool_connections_max = IntGauge::new(
+            "loupe_db_pool_connections_max",
+            "Maximum number of database connections allowed",
+        )?;
+
+        let db_pool_acquire_duration_seconds = HistogramVec::new(
+            HistogramOpts::new(
+                "loupe_db_pool_acquire_duration_seconds",
+                "Time taken to acquire a database connection from the pool",
+            )
+            // Buckets: 1ms, 5ms, 10ms, 25ms, 50ms, 100ms, 250ms, 500ms, 1s, 5s
+            .buckets(vec![0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 5.0]),
+            &["operation"],
+        )?;
+
+        let db_pool_acquire_timeout_total = IntCounter::new(
+            "loupe_db_pool_acquire_timeout_total",
+            "Total number of database connection acquisition timeouts",
+        )?;
+
         // Register all metrics
         registry.register(Box::new(http_requests_total.clone()))?;
         registry.register(Box::new(http_request_duration_seconds.clone()))?;
         registry.register(Box::new(http_requests_in_flight.clone()))?;
+        registry.register(Box::new(db_pool_connections_active.clone()))?;
+        registry.register(Box::new(db_pool_connections_idle.clone()))?;
+        registry.register(Box::new(db_pool_connections_max.clone()))?;
+        registry.register(Box::new(db_pool_acquire_duration_seconds.clone()))?;
+        registry.register(Box::new(db_pool_acquire_timeout_total.clone()))?;
 
         Ok(Self {
             registry: Arc::new(registry),
             http_requests_total,
             http_request_duration_seconds,
             http_requests_in_flight,
+            db_pool_connections_active,
+            db_pool_connections_idle,
+            db_pool_connections_max,
+            db_pool_acquire_duration_seconds,
+            db_pool_acquire_timeout_total,
         })
     }
 
@@ -73,6 +124,16 @@ impl Metrics {
         String::from_utf8(buffer).map_err(|e| {
             prometheus::Error::Msg(format!("Failed to encode metrics as UTF-8: {}", e))
         })
+    }
+
+    /// Update database connection pool metrics
+    ///
+    /// Should be called periodically to update the pool statistics.
+    /// Can be called from middleware or a background task.
+    pub fn update_pool_metrics(&self, stats: &crate::db::PoolStats) {
+        self.db_pool_connections_active.set(stats.connections_active as i64);
+        self.db_pool_connections_idle.set(stats.connections_idle as i64);
+        self.db_pool_connections_max.set(stats.connections_max as i64);
     }
 
     /// Normalize endpoint path for metrics (remove IDs and params)

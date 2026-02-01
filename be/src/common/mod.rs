@@ -13,7 +13,7 @@ pub mod tracing;
 pub mod validation;
 
 pub use config::{init_tracing, load_env};
-pub use db::{Database, DatabaseConfig};
+pub use db::{Database, DatabaseConfig, PoolStats};
 pub use error::{Error, Result};
 pub use filtering::{
     parse_tags, DateRangeParams, SearchParams, SortParams, SortableColumns,

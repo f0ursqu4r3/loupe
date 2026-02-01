@@ -13,6 +13,17 @@ pub struct Database {
     pub pool: PgPool,
 }
 
+/// Connection pool statistics
+#[derive(Debug, Clone, Copy)]
+pub struct PoolStats {
+    /// Number of connections currently in use
+    pub connections_active: u32,
+    /// Number of idle connections available in the pool
+    pub connections_idle: u32,
+    /// Maximum number of connections allowed in the pool
+    pub connections_max: u32,
+}
+
 /// Database connection configuration
 pub struct DatabaseConfig {
     /// Minimum number of connections in the pool
@@ -199,6 +210,22 @@ impl Database {
                 // Return false instead of error to avoid breaking health checks
                 Ok(false)
             }
+        }
+    }
+
+    /// Get connection pool statistics
+    ///
+    /// Returns statistics about the current state of the connection pool,
+    /// including active connections, idle connections, and pool size.
+    pub fn pool_stats(&self) -> PoolStats {
+        let size = self.pool.size() as u32;
+        let idle = self.pool.num_idle() as u32;
+        let active = size.saturating_sub(idle);
+
+        PoolStats {
+            connections_active: active,
+            connections_idle: idle,
+            connections_max: self.pool.options().get_max_connections(),
         }
     }
 

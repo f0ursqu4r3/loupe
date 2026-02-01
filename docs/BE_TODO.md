@@ -9,7 +9,7 @@ Track backend improvements for security, performance, and maintainability.
 
 ---
 
-## ✅ Completed (16/48 tasks - 33.3%)
+## ✅ Completed (17/48 tasks - 35.4%)
 
 ### Critical Security (5/5 - 100%)
 
@@ -30,9 +30,10 @@ Track backend improvements for security, performance, and maintainability.
 
 1. ✅ **Schema Review** - 47 indexes/constraints added: sorting (27), filtering (4), composite (3), partial (2), CHECK (11)
 
-### Performance (1/5 - 20%)
+### Performance (2/5 - 40%)
 
 1. ✅ **Rate Limiting** - Global 100 req/min per IP via actix-governor
+2. ✅ **Connection Pooling** - SQLx pool monitoring with Prometheus metrics (active/idle/max connections, acquisition duration/timeouts), comprehensive documentation in [DATABASE_POOLING.md](DATABASE_POOLING.md)
 
 ### Observability (5/5 - 100%)
 
@@ -44,7 +45,7 @@ Track backend improvements for security, performance, and maintainability.
 
 ---
 
-## 📋 Remaining Tasks (32/48)
+## 📋 Remaining Tasks (31/48)
 
 ### Testing & Quality (0/4)
 
@@ -111,15 +112,7 @@ Track backend improvements for security, performance, and maintainability.
 
 ---
 
-### Performance & Scalability (4/5)
-
-#### 18. Connection Pooling
-
-- [ ] Review SQLx pool configuration
-- [ ] Monitor pool utilization
-- [ ] Add pool metrics
-- [ ] Handle pool exhaustion gracefully
-- [ ] Test under high concurrency
+### Performance & Scalability (2/5 - 40%)
 
 #### 19. Caching Strategy
 
