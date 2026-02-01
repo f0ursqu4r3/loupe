@@ -5,13 +5,13 @@ mod routes;
 use actix_cors::Cors;
 use actix_governor::GovernorConfigBuilder;
 use actix_web::{web, App, HttpServer};
-use app_middleware::{CorrelationIdMiddleware, RequestLogger, SecurityHeaders};
+use app_middleware::{CorrelationIdMiddleware, MetricsMiddleware, RequestLogger, SecurityHeaders};
 use argon2::{
     Argon2,
     password_hash::{PasswordHasher, SaltString, rand_core::OsRng},
 };
 use loupe::models::OrgRole;
-use loupe::{init_tracing, load_env, Database, JwtManager};
+use loupe::{init_tracing, load_env, Database, JwtManager, Metrics};
 use std::sync::Arc;
 
 pub struct AppState {
@@ -64,8 +64,12 @@ async fn main() -> std::io::Result<()> {
     let jwt = JwtManager::new(jwt_secret, jwt_expiration_hours);
     let state = Arc::new(AppState { db, jwt });
 
+    // Initialize metrics
+    let metrics = Arc::new(Metrics::new().expect("Failed to create metrics registry"));
+
     tracing::info!("Starting Loupe API server at http://{}:{}", host, port);
     tracing::info!("Rate limiting: 100 requests/minute per IP globally");
+    tracing::info!("Metrics endpoint: http://{}:{}/metrics", host, port);
 
     HttpServer::new(move || {
         let cors = Cors::default()
@@ -87,8 +91,10 @@ async fn main() -> std::io::Result<()> {
             .wrap(SecurityHeaders)  // Add security headers
             .wrap(CorrelationIdMiddleware)  // Generate/extract correlation ID
             .wrap(RequestLogger)  // Structured request logging with correlation IDs
+            .wrap(MetricsMiddleware::new(metrics.clone()))  // Collect Prometheus metrics
             .wrap(actix_governor::Governor::new(&governor_conf))  // Apply rate limiting
             .app_data(web::Data::new(state.clone()))
+            .app_data(web::Data::new(metrics.clone()))  // Make metrics available to routes
             .configure(routes::configure)
     })
     .bind((host.as_str(), port))?

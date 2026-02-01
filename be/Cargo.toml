@@ -25,6 +25,9 @@ actix-web = "4"
 actix-cors = "0.7"
 actix-governor = "0.6"
 
+# Metrics
+prometheus = "0.13"
+
 # Async runtime
 tokio = { version = "1", features = ["full"] }
 futures-util = "0.3"

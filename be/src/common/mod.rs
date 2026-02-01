@@ -4,6 +4,7 @@ pub mod db;
 pub mod error;
 pub mod filtering;
 pub mod jwt;
+pub mod metrics;
 pub mod models;
 pub mod pagination;
 pub mod params;
@@ -17,6 +18,7 @@ pub use filtering::{
     parse_tags, DateRangeParams, SearchParams, SortParams, SortableColumns,
 };
 pub use jwt::{Claims, JwtManager};
+pub use metrics::Metrics;
 pub use pagination::{PaginatedResponse, PaginationParams, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE};
 pub use params::{
     BoundParams, ParamSchema, TypedValue, bind_params, extract_params, substitute_params,

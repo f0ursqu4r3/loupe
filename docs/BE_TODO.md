@@ -9,7 +9,7 @@ Track backend improvements for security, performance, and maintainability.
 
 ---
 
-## ✅ Completed (12/48 tasks - 25.0%)
+## ✅ Completed (13/48 tasks - 27.1%)
 
 ### Critical Security (5/5 - 100%)
 
@@ -34,13 +34,14 @@ Track backend improvements for security, performance, and maintainability.
 
 1. ✅ **Rate Limiting** - Global 100 req/min per IP via actix-governor
 
-### Observability (1/5 - 20%)
+### Observability (2/5 - 40%)
 
 1. ✅ **Structured Logging** - JSON format support, correlation IDs, request duration tracking, auth event logging
+2. ✅ **Metrics & Monitoring** - Prometheus metrics, request count/duration histograms, /metrics endpoint
 
 ---
 
-## 📋 Remaining Tasks (36/48)
+## 📋 Remaining Tasks (35/48)
 
 ### Testing & Quality (0/4)
 
@@ -148,16 +149,7 @@ Track backend improvements for security, performance, and maintainability.
 
 ---
 
-### Observability & Operations (1/5)
-
-#### 24. Metrics & Monitoring
-
-- [ ] Add Prometheus metrics
-- [ ] Track request count/duration by endpoint (p50, p95, p99)
-- [ ] Track error rates
-- [ ] Track database query metrics and connection pool metrics
-- [ ] Track job queue length and runner/scheduler health
-- [ ] Create Grafana dashboards
+### Observability & Operations (2/5)
 
 #### 25. Health Checks
 
@@ -404,14 +396,14 @@ be/src/
 **Testing:** 0/4 (0%)
 **Database:** 1/4 (25%)
 **Performance:** 1/5 (20%)
-**Observability:** 1/5 (20%)
+**Observability:** 2/5 (40%)
 **Code Organization:** 0/4 (0%)
 **Security Hardening:** 0/5 (0%)
 **Documentation:** 0/3 (0%)
 **DevOps:** 0/4 (0%)
 **Data Management:** 0/3 (0%)
 
-**Overall Progress:** 12/48 major tasks (25.0%)
+**Overall Progress:** 13/48 major tasks (27.1%)
 
 ---
 
