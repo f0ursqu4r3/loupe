@@ -2,6 +2,7 @@ pub mod cache;
 pub mod config;
 pub mod connectors;
 pub mod db;
+pub mod encryption;
 pub mod error;
 pub mod filtering;
 pub mod jwt;
@@ -18,6 +19,7 @@ pub mod validation;
 pub use cache::{CacheManager, CacheStats};
 pub use config::{init_tracing, load_env};
 pub use db::{Database, DatabaseConfig, PoolStats};
+pub use encryption::{mask_sensitive, EncryptionManager};
 pub use error::{Error, Result};
 pub use filtering::{
     parse_tags, DateRangeParams, SearchParams, SortParams, SortableColumns,

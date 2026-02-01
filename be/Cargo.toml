@@ -29,6 +29,9 @@ actix-governor = "0.6"  # Rate limiting
 # See docs/DEPENDENCY_POLICY.md for update procedures
 argon2 = "0.5"           # Password hashing - security critical
 jsonwebtoken = "9"        # JWT authentication - security critical
+aes-gcm = "0.10"         # AES-256-GCM encryption - data at rest
+ring = "0.17"            # Cryptographic operations
+hex = "0.4"              # Hex encoding for encrypted data
 
 # Database - CRITICAL: Test thoroughly before updating
 sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "postgres", "chrono", "uuid", "json"] }
