@@ -5,11 +5,11 @@
 Track backend improvements for security, performance, and maintainability.
 
 **Started:** 2026-01-11
-**Last Updated:** 2026-02-01
+**Last Updated:** 2026-01-31
 
 ---
 
-## ✅ Completed (11/48 tasks - 22.9%)
+## ✅ Completed (12/48 tasks - 25.0%)
 
 ### Critical Security (5/5 - 100%)
 
@@ -21,22 +21,26 @@ Track backend improvements for security, performance, and maintainability.
 
 ### API Design (4/4 - 100%)
 
-6. ✅ **REST API Standards** - Versioned endpoints (/api/v1/), standardized DTOs, HTTP cache headers
+1. ✅ **REST API Standards** - Versioned endpoints (/api/v1/), standardized DTOs, HTTP cache headers
 2. ✅ **Request/Response Validation** - Field-level validation, custom validators, date range checks
 3. ✅ **Pagination Implementation** - Consistent across all 7 endpoints, metadata (has_next/prev, total_pages)
 4. ✅ **Filtering & Sorting** - Text search, tag filtering, multi-column sorting, whitelist validation
 
 ### Database (1/4 - 25%)
 
-10. ✅ **Schema Review** - 47 indexes/constraints added: sorting (27), filtering (4), composite (3), partial (2), CHECK (11)
+1. ✅ **Schema Review** - 47 indexes/constraints added: sorting (27), filtering (4), composite (3), partial (2), CHECK (11)
 
 ### Performance (1/5 - 20%)
 
-11. ✅ **Rate Limiting** - Global 100 req/min per IP via actix-governor
+1. ✅ **Rate Limiting** - Global 100 req/min per IP via actix-governor
+
+### Observability (1/5 - 20%)
+
+1. ✅ **Structured Logging** - JSON format support, correlation IDs, request duration tracking, auth event logging
 
 ---
 
-## 📋 Remaining Tasks (37/48)
+## 📋 Remaining Tasks (36/48)
 
 ### Testing & Quality (0/4)
 
@@ -144,18 +148,7 @@ Track backend improvements for security, performance, and maintainability.
 
 ---
 
-### Observability & Operations (0/5)
-
-#### 23. Structured Logging
-
-- [ ] Add structured log format (JSON)
-- [ ] Add correlation IDs to requests
-- [ ] Log all API requests with duration
-- [ ] Log authentication events
-- [ ] Remove sensitive data from logs
-- [ ] Configure log rotation
-
-**Current:** Uses tracing crate, needs enhancement
+### Observability & Operations (1/5)
 
 #### 24. Metrics & Monitoring
 
@@ -411,14 +404,14 @@ be/src/
 **Testing:** 0/4 (0%)
 **Database:** 1/4 (25%)
 **Performance:** 1/5 (20%)
-**Observability:** 0/5 (0%)
+**Observability:** 1/5 (20%)
 **Code Organization:** 0/4 (0%)
 **Security Hardening:** 0/5 (0%)
 **Documentation:** 0/3 (0%)
 **DevOps:** 0/4 (0%)
 **Data Management:** 0/3 (0%)
 
-**Overall Progress:** 11/48 major tasks (22.9%)
+**Overall Progress:** 12/48 major tasks (25.0%)
 
 ---
 

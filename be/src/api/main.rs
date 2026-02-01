@@ -4,8 +4,8 @@ mod routes;
 
 use actix_cors::Cors;
 use actix_governor::GovernorConfigBuilder;
-use actix_web::{middleware, web, App, HttpServer};
-use app_middleware::SecurityHeaders;
+use actix_web::{web, App, HttpServer};
+use app_middleware::{CorrelationIdMiddleware, RequestLogger, SecurityHeaders};
 use argon2::{
     Argon2,
     password_hash::{PasswordHasher, SaltString, rand_core::OsRng},
@@ -85,7 +85,8 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(cors)
             .wrap(SecurityHeaders)  // Add security headers
-            .wrap(middleware::Logger::default())
+            .wrap(CorrelationIdMiddleware)  // Generate/extract correlation ID
+            .wrap(RequestLogger)  // Structured request logging with correlation IDs
             .wrap(actix_governor::Governor::new(&governor_conf))  // Apply rate limiting
             .app_data(web::Data::new(state.clone()))
             .configure(routes::configure)

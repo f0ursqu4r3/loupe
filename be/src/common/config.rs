@@ -1,4 +1,4 @@
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, fmt};
 
 /// Load environment files based on APP_ENV.
 ///
@@ -18,15 +18,47 @@ pub fn load_env() {
     dotenvy::from_filename(&env_file).ok();
 }
 
-/// Initialize tracing with the standard configuration.
+/// Initialize tracing with structured logging.
 ///
 /// Uses the RUST_LOG environment variable for filtering, defaulting to
 /// "info,sqlx=warn" if not set.
+///
+/// Supports two output formats via LOG_FORMAT environment variable:
+/// - "json": Structured JSON logging (recommended for production)
+/// - "text": Human-readable text format (default for development)
 pub fn init_tracing() {
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| "info,sqlx=warn".to_string()),
-        ))
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    let env_filter = tracing_subscriber::EnvFilter::new(
+        std::env::var("RUST_LOG").unwrap_or_else(|_| "info,sqlx=warn".to_string()),
+    );
+
+    let log_format = std::env::var("LOG_FORMAT").unwrap_or_else(|_| "text".to_string());
+
+    match log_format.as_str() {
+        "json" => {
+            // JSON format for structured logging (production)
+            tracing_subscriber::registry()
+                .with(env_filter)
+                .with(fmt::layer()
+                    .json()
+                    .with_current_span(true)
+                    .with_span_list(true)
+                    .with_target(true)
+                    .with_thread_ids(true)
+                    .with_thread_names(false)
+                    .with_file(true)
+                    .with_line_number(true))
+                .init();
+        }
+        _ => {
+            // Text format for human-readable logs (development)
+            tracing_subscriber::registry()
+                .with(env_filter)
+                .with(fmt::layer()
+                    .with_target(true)
+                    .with_thread_ids(false)
+                    .with_file(true)
+                    .with_line_number(true))
+                .init();
+        }
+    }
 }
