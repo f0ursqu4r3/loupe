@@ -1,732 +1,205 @@
-# Backend Architecture & Quality Improvements
+# Backend TODO - Loupe
 
-This document tracks backend improvements to make Loupe more robust, secure, and maintainable.
+## Overview
 
-## Status Legend
+Track backend improvements for security, performance, and maintainability.
 
-- ⚡ Quick win (< 2 hours)
-- 🎯 High impact
-- 🔧 Medium effort
-- 🔒 Security
-- 🧪 Testing
-- 🚀 Performance
-- 📊 Observability
+**Started:** 2026-01-11
+**Last Updated:** 2026-02-01
 
 ---
 
-## Critical Security & Validation 🔒🎯
+## ✅ Completed (11/48 tasks - 22.9%)
 
-These are high-priority security and data integrity improvements.
+### Critical Security (5/5 - 100%)
 
-### 1. Input Validation & Sanitization ✅
+1. ✅ **Input Validation & Sanitization** - Comprehensive validation with validator crate, 22 unit tests
+2. ✅ **SQL Injection Prevention** - Parameterized queries, SQL parser validation, dangerous function blocking
+3. ✅ **Authentication & Authorization** - JWT auth, Argon2 password hashing, full RBAC implementation
+4. ✅ **Error Handling & Information Disclosure** - Structured errors, sanitized messages, proper status codes
+5. ✅ **Database Connection Security** - SSL/TLS, connection pooling, health checks, timeout configuration
 
-- [x] Audit all route handlers for input validation
-- [x] Validate email format in auth endpoints
-- [x] Validate password strength (min 8 chars)
-- [x] Validate name length (1-255 chars)
-- [x] Sanitize user-provided SQL in queries (via SQL parser)
-- [x] Add comprehensive request validation middleware (validator crate)
-- [x] Add length limits on all string inputs
-- [x] Validate datasource connection strings
-- [x] Add custom validators for common patterns
-- [x] Add JSON schema validation for complex payloads
-- [x] Test with malformed/malicious inputs
+### API Design (4/4 - 100%)
 
-**Status:** ✅ **COMPLETE** - Comprehensive validation implemented across all endpoints with validator crate
+6. ✅ **REST API Standards** - Versioned endpoints (/api/v1/), standardized DTOs, HTTP cache headers
+2. ✅ **Request/Response Validation** - Field-level validation, custom validators, date range checks
+3. ✅ **Pagination Implementation** - Consistent across all 7 endpoints, metadata (has_next/prev, total_pages)
+4. ✅ **Filtering & Sorting** - Text search, tag filtering, multi-column sorting, whitelist validation
 
-**Implementation Details:**
+### Database (1/4 - 25%)
 
-- Created [validation.rs](../be/src/common/validation.rs) with custom validators
-- Added validation attributes to all request DTOs:
-  - Auth: Email format, password strength (8-128 chars), name length
-  - Datasources: Name validation, connection string validation (scheme check, length limits, injection pattern detection)
-  - Queries: Name, description, SQL length limits, parameter/tag array limits
-  - Dashboards: Name, description, tags, tile positioning and sizing
-  - Visualizations: Name, tags
-  - Schedules: Name, cron expression validation, tags
-  - Canvases: Name, time preset, node/edge validation
-- Custom validators implemented:
-  - `validate_connection_string`: Checks for protocol scheme, length limits, SQL injection patterns
-  - `validate_cron_expression`: Validates cron syntax using cron crate
-  - `validate_name`: Alphanumeric + allowed punctuation, 1-255 chars
-  - `validate_description`: Max 2000 chars
-  - `validate_sql_length`: 1-100,000 chars
-- All create/update endpoints now call `validate_request()` before processing
-- 12 unit tests for validation logic, all passing
+10. ✅ **Schema Review** - 47 indexes/constraints added: sorting (27), filtering (4), composite (3), partial (2), CHECK (11)
 
-### 2. SQL Injection Prevention ✅
+### Performance (1/5 - 20%)
 
-- [x] Audit all raw SQL queries for injection risks
-- [x] Use parameterized queries everywhere
-- [x] Review dynamic query building in connector modules
-- [x] Add SQL parser and validator ([sql_validator.rs](../be/src/common/sql_validator.rs))
-- [x] Block non-SELECT statements (INSERT, UPDATE, DELETE, DROP, etc.)
-- [x] Block dangerous functions (pg_read_file, dblink, etc.)
-- [x] Test with SQL injection payloads
-- [x] Document safe query patterns
-- [x] Review [connectors/postgres.rs](../be/src/common/connectors/postgres.rs) for injection risks
-
-**Status:** ✅ **COMPLETE** - SQL validation implemented with sqlparser-rs
-
-### 3. Authentication & Authorization ✅
-
-- [x] Review password hashing in [routes/auth.rs](../be/src/api/routes/auth.rs) - Using Argon2
-- [x] Add JWT token generation and validation ([jwt.rs](../be/src/common/jwt.rs))
-- [x] Add token refresh mechanism (POST /auth/refresh)
-- [x] Add token expiration (24h configurable)
-- [x] Add cryptographic signing with secret key
-- [x] Add email/password validation
-- [x] Add audit logging for auth events
-- [x] Prevent unauthorized access to other users' data (org_id checks)
-- [x] Add rate limiting on all endpoints (100 req/min global)
-- [x] Implement role-based access control (RBAC) - Enforced on all core routes
-- [ ] Add account lockout after failed attempts
-- [ ] Implement secure password reset flow
-- [ ] Implement proper session management/revocation
-
-**Status:** ✅ **MOSTLY COMPLETE** - JWT auth secure with RBAC, advanced features pending
-
-### 4. Error Handling & Information Disclosure ✅
-
-- [x] Review error types in [common/error.rs](../be/src/common/error.rs)
-- [x] Prevent leaking sensitive info in error messages
-- [x] Add structured error responses (JSON with error_id)
-- [x] Log detailed errors server-side only
-- [x] Return generic errors to clients for server errors
-- [x] Add error IDs for correlation/debugging
-- [x] Implement proper 4xx vs 5xx status codes
-- [x] Add context to errors without exposing internals
-- [x] Test error responses don't leak paths/queries
-
-**Status:** ✅ **COMPLETE** - Error disclosure fixed, logging implemented
-
-### 5. Database Connection Security ✅
-
-- [x] Review connection string handling
-- [x] Ensure SSL/TLS for database connections
-- [x] Implement connection pooling limits
-- [x] Add connection timeout configuration
-- [x] Validate DATABASE_URL format
-- [x] Prevent connection string exposure in logs
-- [ ] Add database credential rotation support (future enhancement)
-- [x] Review SQLx pool configuration
-- [x] Add connection health checks
-
-**Status:** ✅ **COMPLETE** - Production-ready database connection security implemented
-
-**Implementation Details:**
-
-- Created `DatabaseConfig` struct with comprehensive connection settings:
-  - Min/max connections: Configurable via `DB_MIN_CONNECTIONS` (default: 2) and `DB_MAX_CONNECTIONS` (default: 10)
-  - Connection timeout: 10 seconds
-  - Idle timeout: 10 minutes (closes idle connections to free resources)
-  - Max lifetime: 30 minutes (prevents long-lived connection issues)
-  - Acquire timeout: 5 seconds (prevents deadlocks)
-  - Test before acquire: Enabled (validates connections before use)
-- SSL/TLS Configuration:
-  - Development: `PgSslMode::Prefer` (use SSL if available, fallback to plain)
-  - Production: `PgSslMode::Require` (require SSL, fail if unavailable)
-  - Configurable via `DB_SSL_MODE` environment variable (disable, allow, prefer, require, verify-ca, verify-full)
-- DATABASE_URL Validation:
-  - Validates format on startup (must start with postgres:// or postgresql://)
-  - Checks minimum length requirements
-  - Prevents empty or malformed URLs
-- Security improvements:
-  - Connection errors don't expose DATABASE_URL in logs
-  - Sanitized error messages for client responses
-  - Detailed errors logged server-side only
-- Health check endpoint enhanced:
-  - `/health` now tests actual database connectivity
-  - Returns 503 Service Unavailable if database is down
-  - Returns connection status in JSON response
-- Environment variable configuration:
-  - `APP_ENV=production` automatically enables stricter SSL requirements
-  - All pool settings configurable via environment variables
-
-**Files Modified:**
-
-- [db/mod.rs](../be/src/common/db/mod.rs) - Enhanced connection logic and configuration
-- [health.rs](../be/src/api/routes/health.rs) - Added database connectivity check
+11. ✅ **Rate Limiting** - Global 100 req/min per IP via actix-governor
 
 ---
 
-## API Design & Consistency 🎯
+## 📋 Remaining Tasks (37/48)
 
-### 6. REST API Standards ✅
+### Testing & Quality (0/4)
 
-- [x] Audit all endpoints for REST conventions
-- [x] Standardize response formats
-- [x] Add consistent pagination pattern
-- [x] Add consistent filtering/sorting pattern
-- [ ] Implement HATEOAS links (optional, future enhancement)
-- [x] Version API endpoints (e.g., `/api/v1/`)
-- [ ] Document API with OpenAPI/Swagger (future enhancement)
-- [ ] Add request/response examples (future enhancement)
-- [x] Implement consistent error response format
-- [x] Add HTTP caching headers where appropriate
-
-**Status:** ✅ **COMPLETE** - REST API standards implemented, documentation pending
-
-**Implementation Details:**
-
-- **API Versioning**: All endpoints under `/api/v1/` prefix
-- **HTTP Status Codes**: Proper REST conventions followed
-  - GET: 200 OK
-  - POST (create): 201 Created
-  - PUT/PATCH (update): 200 OK
-  - DELETE: 204 No Content
-  - Errors: 400 Bad Request, 401 Unauthorized, 404 Not Found, 500 Internal Server Error
-- **Standardized Response DTOs**: Created for all endpoints
-  - Created `AuthResponse` for login/register (user + tokens)
-  - Created `RefreshTokenResponse` for token refresh
-  - Created `TriggerScheduleResponse` for schedule trigger
-  - All other endpoints already had proper response DTOs (DashboardResponse, QueryResponse, etc.)
-  - Eliminated all ad-hoc `serde_json::json!` responses in favor of typed DTOs
-- **Pagination**: Consistent `PaginatedResponse<T>` across all list endpoints
-- **HTTP Cache Headers** ([security_headers.rs](../be/src/api/app_middleware/security_headers.rs)):
-  - Health endpoint: `Cache-Control: public, max-age=60` (1 minute cache)
-  - All other endpoints: `Cache-Control: no-store, no-cache, must-revalidate, private` + `Pragma: no-cache`
-  - Prevents caching of sensitive/user-specific data
-- **Error Handling**: Consistent error response format with proper status codes, error IDs, and sanitized messages
-
-**Files Modified:**
-
-- [user.rs](../be/src/common/models/user.rs) - Added AuthResponse, RefreshTokenResponse
-- [schedule.rs](../be/src/common/models/schedule.rs) - Added TriggerScheduleResponse
-- [auth.rs](../be/src/api/routes/auth.rs) - Updated to use AuthResponse and RefreshTokenResponse
-- [schedules.rs](../be/src/api/routes/schedules.rs) - Updated to use TriggerScheduleResponse
-- [security_headers.rs](../be/src/api/app_middleware/security_headers.rs) - Added Cache-Control headers
-
-**Routes audited:**
-
-- [auth.rs](../be/src/api/routes/auth.rs) ✓
-- [canvases.rs](../be/src/api/routes/canvases.rs) ✓
-- [dashboards.rs](../be/src/api/routes/dashboards.rs) ✓
-- [datasources.rs](../be/src/api/routes/datasources.rs) ✓
-- [queries.rs](../be/src/api/routes/queries.rs) ✓
-- [runs.rs](../be/src/api/routes/runs.rs) ✓
-- [schedules.rs](../be/src/api/routes/schedules.rs) ✓
-- [visualizations.rs](../be/src/api/routes/visualizations.rs) ✓
-
-### 7. Request/Response Validation ✅
-
-- [x] Add request DTOs for all endpoints
-- [x] Add response DTOs for all endpoints
-- [x] Implement serde validation rules
-- [x] Add custom validators for business logic
-- [x] Validate date ranges
-- [x] Validate cron expressions in schedules
-- [x] Add field-level validation messages
-- [x] Test validation edge cases
-- [x] Document validation rules
-
-**Status:** ✅ **COMPLETE** - Comprehensive validation implemented
-
-**Implementation Details:**
-
-- **Custom Validators** ([validation.rs](../be/src/common/validation.rs)):
-  - `validate_connection_string`: Protocol scheme check, SQL injection pattern detection, length limits (10-2048 chars)
-  - `validate_cron_expression`: Validates cron syntax using cron crate
-  - `validate_name`: Alphanumeric + allowed punctuation, 1-255 chars
-  - `validate_description`: Max 2000 chars
-  - `validate_sql_length`: SQL query length validation (1-100,000 chars)
-  - `validate_date_range`: Ensures start < end, prevents ranges > 10 years
-  - `validate_pagination`: Validates limit (1-100) and offset (≥0)
-
-- **Request DTOs with Validation**:
-  - Auth: Email format, password strength (8-128 chars), name length
-  - Datasources: Name validation, connection string validation
-  - Queries: Name, description, SQL length limits, parameter/tag array limits
-  - Dashboards: Name, description, tags, tile positioning and sizing
-  - Visualizations: Name, tags validation
-  - Schedules: Name, cron expression validation, tags
-  - Canvases: Name, time preset, node/edge validation
-  - Runs: Date range validation for filtering
-
-- **Field-Level Validation Messages**:
-  - All validators return custom error messages with context
-  - Error messages formatted as "field: message" for clarity
-  - Examples: "Connection string must include a protocol scheme", "Start date must be before end date"
-
-- **Test Coverage**: 22 unit tests covering:
-  - Valid inputs for all validators
-  - Edge cases (empty strings, boundary values)
-  - Invalid inputs (SQL injection, wrong formats)
-  - Date range validation (invalid order, too large, None values)
-  - Pagination limits and offsets
-  - Cron expression parsing
-
-**Files Modified:**
-
-- [validation.rs](../be/src/common/validation.rs) - Core validation module (187 lines, 22 tests)
-- [runs.rs](../be/src/api/routes/runs.rs) - Added date range validation for run filters
-- All route handlers use `validate_request()` before processing
-
-### 8. Pagination Implementation ✅
-
-- [x] Design consistent pagination pattern
-- [x] Add `limit` and `offset` parameters
-- [ ] Add `cursor`-based pagination (optional, future enhancement)
-- [x] Return total count in responses
-- [x] Add pagination metadata (page, per_page, total, has_next, has_prev, total_pages)
-- [x] Implement in dashboard list endpoint
-- [x] Implement in query list endpoint
-- [x] Implement in run history endpoint
-- [x] Implement in visualization list endpoint
-- [x] Implement in schedule list endpoint
-- [x] Implement in canvas list endpoint
-- [x] Implement in datasource list endpoint
-- [x] Implement in organization users list endpoint
-- [x] Add default and max page sizes (DEFAULT_PAGE_SIZE=20, MAX_PAGE_SIZE=100)
-- [x] Update frontend API clients and views
-- [x] Document pagination in API docs
-
-**Status:** ✅ **COMPLETE** - Comprehensive pagination implemented across all list endpoints
-
-**Implementation Details:**
-
-- Created [pagination.rs](../be/src/common/pagination.rs) module with reusable types:
-  - `PaginationParams`: Query parameters with limit (default: 20), offset (default: 0)
-  - `PaginatedResponse<T>`: Generic wrapper with items, total, page, per_page, total_pages, has_next, has_prev
-  - Constants: DEFAULT_PAGE_SIZE (20), MAX_PAGE_SIZE (100)
-  - Automatic validation and clamping of limit and offset parameters
-  - Computed page number from offset/limit for easier navigation
-- Database layer enhancements ([db/mod.rs](../be/src/common/db/mod.rs)):
-  - Added 7 paginated methods: `list_*_paginated(org_id, limit, offset)`
-  - Each method returns `(Vec<T>, i64)` - items and total count
-  - Uses SQL LIMIT and OFFSET for efficient pagination
-  - Separate COUNT query for total count
-- Route handlers updated (8 endpoints):
-  - [dashboards.rs](../be/src/api/routes/dashboards.rs) - GET /dashboards
-  - [queries.rs](../be/src/api/routes/queries.rs) - GET /queries
-  - [runs.rs](../be/src/api/routes/runs.rs) - GET /runs (preserves query_id filter)
-  - [visualizations.rs](../be/src/api/routes/visualizations.rs) - GET /visualizations (preserves query_id filter)
-  - [schedules.rs](../be/src/api/routes/schedules.rs) - GET /schedules
-  - [canvases.rs](../be/src/api/routes/canvases.rs) - GET /canvases
-  - [datasources.rs](../be/src/api/routes/datasources.rs) - GET /datasources
-  - [organizations.rs](../be/src/api/routes/organizations.rs) - GET /organizations/users
-- Frontend updates:
-  - Created [pagination.ts](../fe/src/types/pagination.ts) with TypeScript types
-  - Updated 7 API clients to return `PaginatedResponse<T>` and accept `PaginationParams`
-  - Updated 11 Vue views to use `response.items` from paginated responses
-- Testing:
-  - 6 unit tests for pagination module (defaults, validation, page calculation, metadata)
-  - All tests passing
-  - Backend compilation successful
-
-**Files Modified:**
-
-- Backend:
-  - [pagination.rs](../be/src/common/pagination.rs) - New pagination module
-  - [db/mod.rs](../be/src/common/db/mod.rs) - Added 7 paginated database methods
-  - [mod.rs](../be/src/common/mod.rs) - Export pagination types
-  - 8 route handler files - Updated to use pagination
-- Frontend:
-  - [pagination.ts](../fe/src/types/pagination.ts) - New TypeScript types
-  - [index.ts](../fe/src/types/index.ts) - Export pagination types
-  - 7 API client files - Updated to handle PaginatedResponse
-  - 11 Vue view files - Updated to use .items from responses
-
-### 9. Filtering & Sorting ✅
-
-- [x] Design query parameter schema
-- [x] Add filter by created_at, updated_at (date range for runs)
-- [x] Add filter by status (for runs)
-- [x] Add filter by datasource_id, query_id, enabled
-- [x] Add sort by multiple fields (name, created_at, updated_at, started_at, completed_at, next_run_at)
-- [x] Add search/text filtering (ILIKE searches with pg_trgm indexes)
-- [x] Validate filter parameters (whitelist-based column validation)
-- [x] Prevent SQL injection in filters (parameterized queries, validated column names)
-- [x] Add filter combination logic (conditional SQL branching)
-- [x] Add tag filtering (JSONB containment)
-- [x] Create database migration for text search indexes (pg_trgm GIN indexes)
-- [x] Update frontend API clients with new filter types
-
-**Status:** ✅ **COMPLETE** - Comprehensive filtering and sorting implemented across all 7 endpoints
-
-**Implementation Details:**
-
-- Created [filtering.rs](../be/src/common/filtering.rs) module with reusable types:
-  - `SortParams`: Validates sort column against whitelist, supports asc/desc direction
-  - `SearchParams`: Sanitizes search terms, adds ILIKE pattern wrapping, length limits
-  - `DateRangeParams`: Optional start_date and end_date for time-based filtering
-  - `parse_tags()`: Parses comma-separated tags, enforces length/count limits
-  - `SortableColumns`: Whitelists for each endpoint preventing SQL injection
-- Database layer updates ([db/mod.rs](../be/src/common/db/mod.rs)):
-  - Updated 7 `list_*_paginated()` functions with filtering and sorting parameters
-  - Uses conditional SQL pattern matching to build queries safely
-  - All user input bound via `.bind()`, never string interpolation
-  - Column names validated against whitelists before use in ORDER BY clauses
-- Route handlers updated (7 endpoints):
-  - [dashboards.rs](../be/src/api/routes/dashboards.rs) - Search: name/description, Tags filter, Sort: name/created_at/updated_at
-  - [queries.rs](../be/src/api/routes/queries.rs) - Search: name/description/sql, Datasource filter, Tags filter, Sort: name/created_at/updated_at
-  - [runs.rs](../be/src/api/routes/runs.rs) - Query ID filter, Status enum filter, Date range filter, Sort: created_at/started_at/completed_at
-  - [visualizations.rs](../be/src/api/routes/visualizations.rs) - Search: name, Query ID filter, Tags filter, Sort: name/created_at/updated_at
-  - [schedules.rs](../be/src/api/routes/schedules.rs) - Search: name, Tags filter, Enabled boolean filter, Sort: name/next_run_at/created_at/updated_at
-  - [datasources.rs](../be/src/api/routes/datasources.rs) - Search: name, Sort: name/created_at/updated_at
-  - [canvases.rs](../be/src/api/routes/canvases.rs) - Search: name, Tags filter, Sort: name/created_at/updated_at
-- Database migration ([20260131000000_add_text_search_indexes.up.sql](../be/migrations/20260131000000_add_text_search_indexes.up.sql)):
-  - Enabled pg_trgm extension for trigram similarity searches
-  - Created GIN indexes on name columns for all 7 entities
-  - Created GIN indexes on queries.description and queries.sql
-  - Indexes provide fast ILIKE searches without full table scans
-- Frontend updates:
-  - Added filter types to [api.ts](../fe/src/types/api.ts): DashboardFilterParams, QueryFilterParams, RunFilterParams, VisualizationFilterParams, ScheduleFilterParams, DatasourceFilterParams, CanvasFilterParams
-  - Updated 6 API clients to accept new filter parameters
-  - Added index signatures to filter types for API client compatibility
-- Security features:
-  - Column name whitelist validation prevents ORDER BY injection
-  - All filter values bound via parameterized queries
-  - Search terms length-limited to 200 characters
-  - Tags limited to 10 tags, 50 chars each
-  - Status enum validated against allowed values
-- Testing:
-  - 16 unit tests for filtering module (SQL injection prevention, validation, sanitization)
-  - Backend compilation successful
-  - Frontend type-checking successful
-
-**Files Created:**
-
-- [filtering.rs](../be/src/common/filtering.rs) - Core filtering module
-- [20260131000000_add_text_search_indexes.up.sql](../be/migrations/20260131000000_add_text_search_indexes.up.sql) - Database indexes migration
-- [20260131000000_add_text_search_indexes.down.sql](../be/migrations/20260131000000_add_text_search_indexes.down.sql) - Migration rollback
-
-**Files Modified:**
-
-- Backend: [mod.rs](../be/src/common/mod.rs), [db/mod.rs](../be/src/common/db/mod.rs), 7 route handler files
-- Frontend: [api.ts](../fe/src/types/api.ts), [pagination.ts](../fe/src/types/pagination.ts), 6 API client files, [QueriesView.vue](../fe/src/views/QueriesView.vue)
-
----
-
-## Testing & Quality 🧪
-
-### 10. Unit Test Coverage
+#### 10. Unit Test Coverage
 
 - [ ] Audit existing tests in [tests/](../be/tests/)
 - [ ] Add tests for all model methods
-- [ ] Add tests for validation logic
-- [ ] Add tests for error handling
-- [ ] Add tests for auth logic
-- [ ] Add tests for connectors
-- [ ] Target 80%+ code coverage
-- [ ] Add coverage reporting (tarpaulin)
+- [ ] Add tests for auth logic and connectors
+- [ ] Target 80%+ code coverage with tarpaulin
 - [ ] Run tests in CI/CD
-- [ ] Add code coverage badges
 
-**Current test files:**
+**Current test files:** api_tests.rs, connector_tests.rs, db_tests.rs
 
-- [api_tests.rs](../be/tests/api_tests.rs)
-- [connector_tests.rs](../be/tests/connector_tests.rs)
-- [db_tests.rs](../be/tests/db_tests.rs)
+#### 11. Integration Tests
 
-### 11. Integration Tests
-
-- [ ] Test complete API workflows
-- [ ] Test auth flow end-to-end
-- [ ] Test dashboard creation → query → visualization
+- [ ] Test complete API workflows (auth → dashboard → query → visualization)
 - [ ] Test schedule → run workflow
-- [ ] Test error scenarios
-- [ ] Test concurrent requests
+- [ ] Test error scenarios and concurrent requests
 - [ ] Use testcontainers for isolation
-- [ ] Add API client tests
-- [ ] Test database migrations
-- [ ] Test rollback scenarios
+- [ ] Test database migrations and rollback
 
-### 12. Load & Performance Testing
+#### 12. Load & Performance Testing
 
 - [ ] Set up load testing framework (k6, wrk)
-- [ ] Test API endpoint performance
-- [ ] Test database query performance
+- [ ] Test API endpoint performance and database query performance
 - [ ] Test connection pool under load
-- [ ] Identify bottlenecks
-- [ ] Test runner throughput
-- [ ] Test scheduler performance
-- [ ] Document performance benchmarks
-- [ ] Set performance budgets
+- [ ] Identify bottlenecks and document performance benchmarks
 
-### 13. Property-Based Testing
+#### 13. Property-Based Testing
 
 - [ ] Add proptest for models
-- [ ] Generate random valid inputs
-- [ ] Test invariants hold
-- [ ] Test serialization/deserialization
-- [ ] Test validation rules
+- [ ] Test invariants hold (serialization/deserialization, validation rules)
 - [ ] Find edge cases automatically
 - [ ] Add fuzzing for critical paths
 
 ---
 
-## Database & Migrations 🔧
+### Database & Migrations (3/4)
 
-### 14. Schema Review ✅
+#### 15. Migration Best Practices
 
-- [x] Review initial migration [20260111000000_initial.up.sql](../be/migrations/20260111000000_initial.up.sql)
-- [x] Review canvas migration [20260128000000_canvases.up.sql](../be/migrations/20260128000000_canvases.up.sql)
-- [x] Add missing indexes for common queries
-- [x] Add foreign key constraints (already present in initial schema)
-- [x] Add CHECK constraints for validation
-- [x] Add NOT NULL where appropriate (reviewed, existing schema is correct)
-- [x] Review column types for efficiency (reviewed, types are appropriate)
-- [x] Add database-level defaults (reviewed, defaults are present)
-- [x] Document schema design decisions
-
-**Status:** ✅ **COMPLETE** - Comprehensive schema improvements implemented
-
-**Implementation Details:**
-
-Created migration [20260201000000_schema_improvements.sql](../be/migrations/20260201000000_schema_improvements.up.sql) with:
-
-**1. Indexes for Sorting** (27 new indexes):
-
-- Added indexes on `name`, `created_at`, `updated_at` for all filterable entities:
-  - Dashboards, Queries, Visualizations, Schedules, Datasources, Canvases
-- Added indexes on `started_at`, `completed_at` for Runs
-- Enables efficient sorting on all list endpoints
-
-**2. Indexes for Filtering** (4 new indexes):
-
-- `idx_runs_datasource_id` - Filter runs by datasource
-- `idx_schedules_query_id` - Find schedules for a query
-- `idx_tiles_visualization_id` - Reverse lookup for tiles
-- `idx_canvas_nodes_type` - Filter canvas nodes by type
-
-**3. Composite Indexes** (3 optimized indexes):
-
-- `idx_runs_org_status_created` - Most common run query pattern (org + status + sort)
-- `idx_schedules_enabled_next_run` - Scheduler query optimization (enabled schedules by next run)
-- `idx_runs_query_status_created` - Query detail view (runs for query + status + sort)
-
-**4. Partial Indexes** (2 performance indexes):
-
-- `idx_runs_active` - Active runs only (queued/running) for monitoring dashboards
-- `idx_runs_failed` - Failed runs only (failed/timeout/cancelled) for error analysis
-
-**5. CHECK Constraints** (11 validation constraints):
-
-- Queries/Runs: `timeout_seconds` (1-3600), `max_rows` (1-1000000)
-- Tiles: `pos_x >= 0`, `pos_y >= 0`, `width > 0`, `height > 0`
-- Canvas nodes: Position and size validation
-- Run results: `row_count >= 0`, `byte_count >= 0`, `execution_time_ms >= 0`
-- Canvases: `time_offset >= 0`
-
-**6. Schema Enhancements**:
-
-- Added `tags` JSONB column to `canvases` table (for consistency with other entities)
-- Added GIN index `idx_canvases_tags` for tag filtering
-- Added inline comments documenting constraint rationale and query patterns
-
-**7. Migration Testing**:
-
-- Forward migration tested ✓ (applied in 52ms)
-- Backward migration tested ✓ (reverted in 23ms)
-- Backend compilation verified ✓ (no schema-related errors)
-
-**Performance Impact**:
-
-- Sorting queries: ~10-100x faster with indexes (no full table scans)
-- Filtered queries: ~5-50x faster with composite indexes
-- Monitoring queries: ~100x faster with partial indexes (smaller index size)
-- Data integrity: Database-level validation prevents invalid data
-
-**Files Created:**
-
-- [20260201000000_schema_improvements.up.sql](../be/migrations/20260201000000_schema_improvements.up.sql) - Schema improvements
-- [20260201000000_schema_improvements.down.sql](../be/migrations/20260201000000_schema_improvements.down.sql) - Rollback migration
-
-**Existing Schema Quality** (No changes needed):
-
-- ✅ Foreign key constraints with CASCADE deletes already present
-- ✅ CHECK constraints for enums already present (role, status, chart_type, etc.)
-- ✅ Unique constraints already present (users.email, run_results.run_id)
-- ✅ NOT NULL constraints appropriately applied
-- ✅ GIN indexes for JSONB tags already present
-- ✅ Column types are efficient and appropriate
-
-### 15. Migration Best Practices
-
-- [ ] Test all migrations forward and backward
 - [ ] Add migration testing in CI
 - [ ] Document breaking changes
-- [ ] Add data migration scripts where needed
 - [ ] Test migrations on production-size data
 - [ ] Add migration versioning strategy
-- [ ] Handle concurrent migrations
-- [ ] Add migration rollback procedures
-- [ ] Document manual intervention steps
+- [ ] Document rollback procedures
 
-### 16. Query Optimization
+#### 16. Query Optimization
 
 - [ ] Identify N+1 query problems
 - [ ] Add eager loading where needed
 - [ ] Review slow query logs
-- [ ] Add database indexes strategically
 - [ ] Use EXPLAIN ANALYZE for complex queries
 - [ ] Add query result caching
-- [ ] Optimize JOIN queries
-- [ ] Add partial indexes where applicable
 - [ ] Monitor query performance in production
 
-### 17. Data Integrity
+#### 17. Data Integrity
 
-- [ ] Add database constraints
-- [ ] Add unique constraints
-- [ ] Add cascade delete rules
+- [ ] Add unique constraints where missing
 - [ ] Handle orphaned records
-- [ ] Add data validation at DB level
 - [ ] Implement soft deletes (optional)
-- [ ] Add audit columns (created_at, updated_at)
 - [ ] Add data consistency checks
 - [ ] Test referential integrity
 
 ---
 
-## Performance & Scalability 🚀
+### Performance & Scalability (4/5)
 
-### 18. Connection Pooling
+#### 18. Connection Pooling
 
 - [ ] Review SQLx pool configuration
-- [ ] Set appropriate pool size limits
-- [ ] Add connection timeout handling
 - [ ] Monitor pool utilization
 - [ ] Add pool metrics
 - [ ] Handle pool exhaustion gracefully
 - [ ] Test under high concurrency
-- [ ] Document pool tuning guidelines
 
-### 19. Caching Strategy
+#### 19. Caching Strategy
 
 - [ ] Identify cacheable endpoints
 - [ ] Add Redis/in-memory cache
-- [ ] Cache dashboard metadata
-- [ ] Cache query results (with TTL)
+- [ ] Cache dashboard metadata and query results (with TTL)
 - [ ] Add cache invalidation strategy
 - [ ] Add cache headers (ETags, Last-Modified)
-- [ ] Implement cache warming
 - [ ] Monitor cache hit rates
-- [ ] Document caching policies
 
-### 20. Background Job Processing
+#### 20. Background Job Processing
 
 - [ ] Review runner architecture [runner/main.rs](../be/src/runner/main.rs)
 - [ ] Add job queue (consider sidekiq-style system)
 - [ ] Add job retry logic with backoff
-- [ ] Add job timeout handling
 - [ ] Add dead letter queue
 - [ ] Monitor job processing metrics
-- [ ] Add job priority levels
 - [ ] Implement graceful shutdown
-- [ ] Add job cancellation support
-- [ ] Document job lifecycle
 
-### 21. Rate Limiting ✅
+#### 22. Query Execution Safety
 
-- [x] Add rate limiting middleware (actix-governor)
-- [x] Rate limit by IP address (PeerIpKeyExtractor)
-- [x] Return proper 429 status codes (automatic)
-- [x] Add Retry-After headers (automatic)
-- [x] Implement token bucket algorithm (via actix-governor)
-- [x] Global rate limit: 100 requests/minute per IP
-- [ ] Add different limits per endpoint
-- [ ] Rate limit by user/API key
-- [ ] Add rate limit bypass for internal services
-- [ ] Document rate limits in API docs
-- [ ] Monitor rate limit violations
-
-**Status:** ✅ **COMPLETE** - Global rate limiting implemented, endpoint-specific limits pending
-
-### 22. Query Execution Safety
-
-- [ ] Add query timeout limits
-- [ ] Add query result size limits
+- [ ] Add query timeout limits (partially done - queries have timeout_seconds)
+- [ ] Add query result size limits (partially done - queries have max_rows)
 - [ ] Prevent runaway queries
 - [ ] Add query cost estimation
 - [ ] Implement query queue
 - [ ] Add concurrent query limits per user
 - [ ] Add query cancellation support
 - [ ] Log slow queries
-- [ ] Add query execution monitoring
 
 ---
 
-## Observability & Operations 📊
+### Observability & Operations (0/5)
 
-### 23. Structured Logging
+#### 23. Structured Logging
 
-- [ ] Review tracing configuration
 - [ ] Add structured log format (JSON)
 - [ ] Add correlation IDs to requests
-- [ ] Log all API requests
+- [ ] Log all API requests with duration
 - [ ] Log authentication events
-- [ ] Log database queries (debug mode)
-- [ ] Add log levels appropriately
 - [ ] Remove sensitive data from logs
-- [ ] Add request duration logging
 - [ ] Configure log rotation
 
-**Current logging:** Uses tracing crate, needs enhancement
+**Current:** Uses tracing crate, needs enhancement
 
-### 24. Metrics & Monitoring
+#### 24. Metrics & Monitoring
 
 - [ ] Add Prometheus metrics
-- [ ] Track request count by endpoint
-- [ ] Track request duration (p50, p95, p99)
+- [ ] Track request count/duration by endpoint (p50, p95, p99)
 - [ ] Track error rates
-- [ ] Track database query metrics
-- [ ] Track connection pool metrics
-- [ ] Track job queue length
-- [ ] Track runner/scheduler health
-- [ ] Add custom business metrics
+- [ ] Track database query metrics and connection pool metrics
+- [ ] Track job queue length and runner/scheduler health
 - [ ] Create Grafana dashboards
 
-### 25. Health Checks
+#### 25. Health Checks
 
 - [ ] Enhance [routes/health.rs](../be/src/api/routes/health.rs)
-- [ ] Add database connectivity check
 - [ ] Add dependency health checks
-- [ ] Add liveness endpoint
-- [ ] Add readiness endpoint
-- [ ] Add startup probe
+- [ ] Add liveness/readiness/startup probes
 - [ ] Check critical services
 - [ ] Return detailed health status
-- [ ] Add health check monitoring
 
-### 26. Distributed Tracing
+#### 26. Distributed Tracing
 
 - [ ] Add OpenTelemetry support
 - [ ] Trace requests across services
 - [ ] Trace database queries
-- [ ] Add span attributes
-- [ ] Track error traces
-- [ ] Set up trace sampling
 - [ ] Integrate with Jaeger/Zipkin
-- [ ] Add trace context propagation
 - [ ] Document tracing setup
 
-### 27. Error Tracking
+#### 27. Error Tracking
 
 - [ ] Integrate Sentry or similar
-- [ ] Track unhandled errors
-- [ ] Add error context (user, request)
+- [ ] Track unhandled errors with context
 - [ ] Set up error alerts
-- [ ] Add error fingerprinting
 - [ ] Track error trends
-- [ ] Add source maps for debugging
 - [ ] Configure error sampling
-- [ ] Set up error notifications
 
 ---
 
-## Code Organization & Architecture 🔧
+### Code Organization & Architecture (0/4)
 
-### 28. Module Structure
+#### 28. Module Structure
 
-- [ ] Review module organization
 - [ ] Separate domain logic from API
-- [ ] Create service layer
-- [ ] Create repository layer
+- [ ] Create service layer and repository layer
 - [ ] Implement dependency injection
 - [ ] Add trait-based abstractions
-- [ ] Separate read/write models (CQRS-lite)
 - [ ] Document architecture patterns
 - [ ] Add architecture decision records (ADRs)
 
@@ -740,134 +213,102 @@ be/src/
 └── scheduler/    # Job scheduling service
 ```
 
-### 29. Error Handling Patterns
+#### 29. Error Handling Patterns
 
 - [ ] Review [common/error.rs](../be/src/common/error.rs)
 - [ ] Use thiserror consistently
 - [ ] Add error context with anyhow
 - [ ] Create domain-specific error types
-- [ ] Add error conversion traits
 - [ ] Document error handling patterns
-- [ ] Add error recovery strategies
 - [ ] Distinguish retriable vs non-retriable errors
 
-### 30. Configuration Management
+#### 30. Configuration Management
 
 - [ ] Review [common/config.rs](../be/src/common/config.rs)
-- [ ] Use typed configuration
-- [ ] Add config validation on startup
+- [ ] Use typed configuration with validation on startup
 - [ ] Support multiple environments
 - [ ] Add config file support (TOML/YAML)
 - [ ] Document all config options
-- [ ] Add config defaults
 - [ ] Support config hot-reload (where safe)
-- [ ] Add config schema
 
-### 31. Async Patterns
+#### 31. Async Patterns
 
 - [ ] Review tokio runtime configuration
 - [ ] Use async-trait consistently
 - [ ] Avoid blocking in async contexts
-- [ ] Add proper error propagation
-- [ ] Use appropriate task spawning
 - [ ] Handle cancellation properly
 - [ ] Add timeout handling
 - [ ] Document async patterns
-- [ ] Profile async performance
 
 ---
 
-## Security Hardening 🔒
+### Security Hardening (0/5)
 
-### 32. CORS Configuration
+#### 32. CORS Configuration
 
 - [ ] Review actix-cors settings
 - [ ] Restrict allowed origins
 - [ ] Add environment-based CORS config
-- [ ] Document CORS policy
 - [ ] Test CORS preflight requests
-- [ ] Add credential handling
-- [ ] Restrict allowed methods
-- [ ] Add exposed headers
+- [ ] Document CORS policy
 
-### 33. Security Headers
+#### 33. Security Headers
 
 - [ ] Add Content-Security-Policy
 - [ ] Add X-Frame-Options
 - [ ] Add X-Content-Type-Options
 - [ ] Add Strict-Transport-Security (HSTS)
 - [ ] Add X-XSS-Protection
-- [ ] Add Referrer-Policy
-- [ ] Add Permissions-Policy
-- [ ] Test header configuration
-- [ ] Document security headers
+- [ ] Add Referrer-Policy and Permissions-Policy
 
-### 34. Secrets Management
+#### 34. Secrets Management
 
-- [ ] Use environment variables for secrets
-- [ ] Add secrets validation on startup
 - [ ] Support secrets from files (Docker secrets)
 - [ ] Support secrets from vault
-- [ ] Never log secrets
+- [ ] Never log secrets (audit logs)
 - [ ] Add secrets rotation support
-- [ ] Document secrets management
 - [ ] Add secrets scanning in CI
 
-### 35. Dependency Security
+#### 35. Dependency Security
 
 - [ ] Run cargo audit regularly
 - [ ] Add dependabot/renovate
-- [ ] Keep dependencies updated
 - [ ] Review security advisories
 - [ ] Pin dependency versions
-- [ ] Audit transitive dependencies
-- [ ] Add license checking
 - [ ] Document dependency policy
 
-### 36. Data Encryption
+#### 36. Data Encryption
 
 - [ ] Encrypt sensitive data at rest
-- [ ] Encrypt connections (TLS)
 - [ ] Add field-level encryption for sensitive fields
-- [ ] Review password storage (argon2)
 - [ ] Add encryption key management
 - [ ] Document encryption strategy
 - [ ] Add data masking in logs
-- [ ] Implement secure key derivation
 
 ---
 
-## API Documentation 📚
+### Documentation (0/3)
 
-### 37. OpenAPI/Swagger Spec
+#### 37. OpenAPI/Swagger Spec
 
 - [ ] Generate OpenAPI specification
-- [ ] Document all endpoints
-- [ ] Add request/response schemas
-- [ ] Add authentication documentation
-- [ ] Add example requests/responses
-- [ ] Add error response documentation
+- [ ] Document all endpoints with request/response schemas
+- [ ] Add authentication and error response documentation
 - [ ] Host interactive API docs (Swagger UI)
-- [ ] Keep docs in sync with code
 - [ ] Version API documentation
 
-### 38. Code Documentation
+#### 38. Code Documentation
 
 - [ ] Add rustdoc comments to public APIs
 - [ ] Document modules with //!
 - [ ] Add usage examples
-- [ ] Document error conditions
-- [ ] Document panics
-- [ ] Document safety requirements
+- [ ] Document error conditions and panics
 - [ ] Generate and publish docs
-- [ ] Add inline comments for complex logic
 
-### 39. Developer Onboarding
+#### 39. Developer Onboarding
 
 - [ ] Create comprehensive README
-- [ ] Add setup instructions
-- [ ] Document local development
-- [ ] Add troubleshooting guide
+- [ ] Add setup and troubleshooting instructions
 - [ ] Document testing procedures
 - [ ] Add contribution guidelines
 - [ ] Create development runbook
@@ -875,141 +316,101 @@ be/src/
 
 ---
 
-## DevOps & Deployment 🚀
+### DevOps & Deployment (0/4)
 
-### 40. Containerization
+#### 40. Containerization
 
-- [ ] Create optimized Dockerfile
-- [ ] Use multi-stage builds
+- [ ] Create optimized Dockerfile with multi-stage builds
 - [ ] Add docker-compose for local dev
 - [ ] Minimize image size
 - [ ] Add health checks in container
-- [ ] Document container deployment
-- [ ] Add .dockerignore
-- [ ] Test container startup
 - [ ] Add container security scanning
 
-### 41. CI/CD Pipeline
+#### 41. CI/CD Pipeline
 
 - [ ] Set up GitHub Actions / GitLab CI
-- [ ] Run tests on every commit
-- [ ] Run lints (clippy)
-- [ ] Run security audit
+- [ ] Run tests, lints (clippy), security audit on every commit
 - [ ] Run code formatting check (rustfmt)
-- [ ] Build Docker images
-- [ ] Push to container registry
-- [ ] Add deployment automation
-- [ ] Add rollback procedures
+- [ ] Build and push Docker images
+- [ ] Add deployment automation and rollback procedures
 
-### 42. Environment Configuration
+#### 42. Environment Configuration
 
 - [ ] Define dev/staging/prod environments
 - [ ] Add environment-specific configs
-- [ ] Document environment differences
-- [ ] Add environment variable validation
 - [ ] Support 12-factor app principles
 - [ ] Add configuration templates
 - [ ] Document deployment process
 
-### 43. Database Migrations in Production
+#### 43. Database Migrations in Production
 
-- [ ] Add migration strategy documentation
 - [ ] Test migrations on production-like data
 - [ ] Add migration rollback plan
 - [ ] Implement zero-downtime migrations
-- [ ] Add migration monitoring
 - [ ] Document migration procedures
 - [ ] Add backup before migration
-- [ ] Test migration in staging
 
 ---
 
-## Data Management 📊
+### Data Management (0/3)
 
-### 44. Backup & Recovery
+#### 44. Backup & Recovery
 
 - [ ] Implement database backup strategy
 - [ ] Add automated backups
 - [ ] Test backup restoration
 - [ ] Document recovery procedures
-- [ ] Add point-in-time recovery
-- [ ] Store backups securely
-- [ ] Add backup monitoring
 - [ ] Document RTO/RPO
 
-### 45. Data Retention & Cleanup
+#### 45. Data Retention & Cleanup
 
 - [ ] Define data retention policies
 - [ ] Add old run cleanup job
 - [ ] Add query result archival
 - [ ] Implement soft delete
-- [ ] Add data export functionality
-- [ ] Document retention periods
-- [ ] Add compliance considerations
 - [ ] Monitor database growth
 
-### 46. Query Result Storage
+#### 46. Query Result Storage
 
 - [ ] Design result storage strategy
-- [ ] Add result compression
-- [ ] Add result expiration
-- [ ] Implement result pagination
-- [ ] Add result caching
+- [ ] Add result compression and expiration
 - [ ] Handle large result sets
 - [ ] Add result export formats
 - [ ] Monitor storage usage
 
 ---
 
-## Multi-Tenancy (Future) 🏗️
+### Multi-Tenancy (Partial)
 
-### 47. Tenant Isolation
+#### 47. Tenant Isolation
 
 - [ ] Design tenant architecture
-- [ ] Add tenant_id to all tables
+- [ ] Add tenant_id to all tables (already present as org_id)
 - [ ] Add row-level security
-- [ ] Isolate tenant data
 - [ ] Add tenant creation workflow
 - [ ] Add tenant limits/quotas
 - [ ] Test cross-tenant access prevention
-- [ ] Document tenant model
 
-### 48. Organization Management
+#### 48. Organization Management
 
 - [x] Add organization model (exists in database)
-- [x] Add role-based permissions (RBAC implemented - see [RBAC_IMPLEMENTATION.md](./RBAC_IMPLEMENTATION.md))
+- [x] Add role-based permissions (RBAC implemented)
 - [ ] Add organization management API (create, update, settings)
 - [x] Add team/user management API (list users, update roles, remove users)
 - [ ] Add invitation system
 - [ ] Add usage tracking per org
-- [ ] Add billing integration (future)
 
-**Status:** ⚠️ **MOSTLY COMPLETE** - RBAC enforced, user management implemented, org settings pending
-
-**Files:**
-
-- [permissions.rs](../be/src/api/permissions.rs) - RBAC implementation
-- [organizations.rs](../be/src/api/routes/organizations.rs) - User management API
-- [RBAC_IMPLEMENTATION.md](./RBAC_IMPLEMENTATION.md) - Complete documentation
-
-**Implemented Endpoints:**
-
-- `GET /organizations/users` - List all users in organization
-- `PUT /organizations/users/:id/role` - Update user role (Admin only)
-- `DELETE /organizations/users/:id` - Remove user from organization (Admin only)
+**Status:** Partially complete - RBAC enforced, user management implemented, org settings pending
 
 ---
 
-## Progress Tracking
+## Progress Summary
 
-**Started:** 2026-01-11
-**Last Updated:** 2026-02-01
-
-**Critical Security:** 5/5 (100%) ✅ - Input Validation ✅, SQL Injection ✅, Auth & RBAC ✅, Error Handling ✅, DB Connection ✅
-**API Design:** 4/4 (100%) ✅ - REST API Standards ✅, Request/Response Validation ✅, Pagination Implementation ✅, Filtering & Sorting ✅
+**Critical Security:** 5/5 (100%) ✅
+**API Design:** 4/4 (100%) ✅
 **Testing:** 0/4 (0%)
-**Database:** 1/4 (25%) - Schema Review ✅
-**Performance:** 1/5 (20%) - Rate Limiting ✅
+**Database:** 1/4 (25%)
+**Performance:** 1/5 (20%)
 **Observability:** 0/5 (0%)
 **Code Organization:** 0/4 (0%)
 **Security Hardening:** 0/5 (0%)
@@ -1023,14 +424,9 @@ be/src/
 
 ## Notes
 
-Add any notes, decisions, or discussions here:
-
-- Consider adding API versioning before v1 release
-- Evaluate using diesel vs SQLx tradeoffs
-- Review auth strategy (JWT vs sessions)
-- Consider GraphQL for complex queries
--
--
+- Consider adding API versioning strategy documentation
+- GraphQL for complex queries (future consideration)
+- Database credential rotation (future enhancement)
 
 ---
 
@@ -1038,6 +434,6 @@ Add any notes, decisions, or discussions here:
 
 - [Frontend TODO](./FE_TODO.md)
 - [Product Brief](./BRIEF.md)
-- [Agents & Workflows](./AGENTS.md)
+- [RBAC Implementation](./RBAC_IMPLEMENTATION.md)
 - [API Documentation](./API.md) (to be created)
 - [Deployment Guide](./DEPLOYMENT.md) (to be created)
