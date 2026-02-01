@@ -37,10 +37,5 @@ defineProps<Props>()
 
     <!-- Actions -->
     <slot name="actions" />
-
-    <!-- Right side -->
-    <div class="flex items-center gap-3">
-      <ThemeToggle />
-    </div>
   </header>
 </template>
