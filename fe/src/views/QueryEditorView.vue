@@ -42,7 +42,13 @@ import {
 import { SqlEditor } from '@/components/editor'
 import { QueryParameters, ParameterInputs } from '@/components/query'
 import { VisualizationRenderer } from '@/components/charts'
-import { queriesApi, runsApi, datasourcesApi, schedulesApi, visualizationsApi } from '@/services/api'
+import {
+  queriesApi,
+  runsApi,
+  datasourcesApi,
+  schedulesApi,
+  visualizationsApi,
+} from '@/services/api'
 import { formatDateLike } from '@/utils/dateTime'
 import type {
   Query,
@@ -644,7 +650,7 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
 </script>
 
 <template>
-  <AppLayout :title="isNew ? 'New Query' : query.name || 'Query Editor'" back="queries">
+  <AppLayout :title="isNew ? 'New Query' : query.name || 'Query Editor'" back="queries" no-padding>
     <template #header-actions>
       <LButton
         v-if="!isNew"
@@ -673,7 +679,7 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
       <LSpinner size="lg" />
     </div>
 
-    <div v-else class="space-y-4">
+    <div v-else class="space-y-4 h-full">
       <!-- Error banner -->
       <div
         v-if="error"
@@ -696,262 +702,283 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
       </div>
 
       <!-- Main content with conditional splitpanes layout -->
-      <Splitpanes
-        v-if="!isNew && showPreviewPanel"
-        class="default-theme"
-        @resized="onPaneResized"
-      >
+      <Splitpanes v-if="!isNew" class="default-theme" @resized="onPaneResized">
         <Pane :size="100 - previewPanelPct" :min-size="40">
-          <div class="h-full overflow-y-auto pr-2 space-y-4">
-      <!-- Query metadata -->
-      <LCard padding="sm">
-        <button
-          type="button"
-          class="flex items-center gap-2 text-sm font-medium text-text hover:text-primary-600 transition-colors mb-3"
-          @click="showMetadata = !showMetadata"
-        >
-          <ChevronDown
-            :size="16"
-            class="transition-transform"
-            :class="{ '-rotate-90': !showMetadata }"
-          />
-          Query Settings
-        </button>
+          <div class="h-full overflow-y-auto p-4 space-y-4">
+            <!-- Query metadata -->
+            <LCard padding="sm">
+              <button
+                type="button"
+                class="flex items-center gap-2 text-sm font-medium text-text hover:text-primary-600 transition-colors mb-3"
+                @click="showMetadata = !showMetadata"
+              >
+                <ChevronDown
+                  :size="16"
+                  class="transition-transform"
+                  :class="{ '-rotate-90': !showMetadata }"
+                />
+                Query Settings
+              </button>
 
-        <div v-if="showMetadata" class="space-y-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-text mb-1.5">Name</label>
-            <LInput v-model="query.name" placeholder="My Query" />
-          </div>
+              <div v-if="showMetadata" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div>
+                    <label class="block text-sm font-medium text-text mb-1.5">Name</label>
+                    <LInput v-model="query.name" placeholder="My Query" />
+                  </div>
 
-          <div>
-            <label class="block text-sm font-medium text-text mb-1.5">Datasource</label>
-            <LSelect
-              v-model="query.datasource_id"
-              :options="datasourceOptions"
-              placeholder="Select datasource..."
-            >
-              <template #prefix>
-                <Database :size="16" class="text-text-muted" />
-              </template>
-            </LSelect>
-          </div>
+                  <div>
+                    <label class="block text-sm font-medium text-text mb-1.5">Datasource</label>
+                    <LSelect
+                      v-model="query.datasource_id"
+                      :options="datasourceOptions"
+                      placeholder="Select datasource..."
+                    >
+                      <template #prefix>
+                        <Database :size="16" class="text-text-muted" />
+                      </template>
+                    </LSelect>
+                  </div>
 
-          <div>
-            <label class="block text-sm font-medium text-text mb-1.5">Timeout</label>
-            <div class="relative">
-              <LInput v-model.number="query.timeout_seconds" type="number" :min="1" :max="300" />
-              <div class="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted text-sm">
-                <Clock :size="16" />
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-text mb-1.5">Max Rows</label>
-            <div class="relative">
-              <LInput v-model.number="query.max_rows" type="number" :min="1" :max="100000" />
-              <div class="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted text-sm">
-                <Rows3 :size="16" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="mt-4">
-          <label class="block text-sm font-medium text-text mb-1.5">Description (optional)</label>
-          <LTextarea
-            v-model="query.description"
-            placeholder="Describe what this query does..."
-            :rows="2"
-          />
-        </div>
-
-        <!-- Tags -->
-        <div class="mt-4">
-          <label class="block text-sm font-medium text-text mb-1.5">Tags</label>
-          <LTagsInput
-            :model-value="query.tags || []"
-            @update:model-value="query.tags = $event"
-            placeholder="Add tags for filtering..."
-          />
-        </div>
-
-        <!-- Parameters section -->
-        <div class="mt-4">
-          <button
-            type="button"
-            class="flex items-center gap-2 text-sm font-medium text-text hover:text-primary-600 transition-colors"
-            @click="showParameters = !showParameters"
-          >
-            <ChevronDown
-              :size="16" class="transition-transform"
-              :class="{ '-rotate-90': !showParameters }"
-            />
-            Parameters
-            <span v-if="query.parameters?.length" class="text-xs text-text-muted">
-              ({{ query.parameters.length }})
-            </span>
-          </button>
-          <div v-if="showParameters" class="mt-3">
-            <QueryParameters
-              :model-value="query.parameters || []"
-              @update:model-value="query.parameters = $event"
-              :sql="query.sql || ''"
-            />
-          </div>
-        </div>
-        </div>
-      </LCard>
-
-      <!-- Parameter inputs for running -->
-      <ParameterInputs
-        v-if="query.parameters?.length"
-        :parameters="query.parameters"
-        v-model="parameterValues"
-      />
-
-      <!-- SQL Editor -->
-      <LCard padding="none" class="overflow-hidden">
-        <div class="p-3 border-b border-border flex items-center justify-between">
-          <span class="text-sm font-medium text-text">SQL</span>
-          <div class="flex items-center gap-3">
-            <button
-              type="button"
-              class="flex items-center gap-1.5 text-xs text-text-muted hover:text-text transition-colors"
-              @click="sqlEditorRef?.format()"
-              title="Format SQL (⌘I)"
-            >
-              <WandSparkles :size="14" />
-              Format
-            </button>
-            <span class="text-xs text-text-subtle">⌘+Enter to run</span>
-          </div>
-        </div>
-        <SqlEditor
-          ref="sqlEditorRef"
-          :model-value="query.sql ?? ''"
-          @update:model-value="query.sql = $event"
-          :height="`${editorHeight}px`"
-          @run="runQuery"
-        />
-        <!-- Resize handle -->
-        <div
-          class="h-2 bg-surface-sunken hover:bg-primary-500/20 cursor-row-resize flex items-center justify-center transition-colors border-t border-border group"
-          @mousedown="startResize"
-        >
-          <GripHorizontal
-            :size="12"
-            class="text-text-subtle group-hover:text-primary-500 transition-colors"
-          />
-        </div>
-      </LCard>
-
-      <!-- Results panel -->
-      <LCard v-if="showResults" padding="none">
-        <button
-          class="w-full p-3 border-b border-border flex items-center justify-between hover:bg-surface-sunken transition-colors"
-          @click="showResults = !showResults"
-        >
-          <div class="flex items-center gap-3">
-            <span class="text-sm font-medium text-text">Results</span>
-            <template v-if="currentRun && !running">
-              <LBadge :variant="currentRun.status === 'completed' ? 'success' : 'error'" size="sm">
-                {{ currentRun.status }}
-              </LBadge>
-              <span v-if="getRunDuration(currentRun)" class="text-xs text-text-muted">
-                {{ formatDuration(getRunDuration(currentRun)!) }}
-              </span>
-              <span v-if="result" class="text-xs text-text-muted">
-                {{ result.rows.length.toLocaleString() }} rows
-              </span>
-            </template>
-          </div>
-          <div class="flex items-center gap-2">
-            <LButton
-              v-if="result && !isNew"
-              variant="ghost"
-              size="sm"
-              @click.stop="
-                router.push({ name: 'visualization-new', query: { query_id: query.id || queryId } })
-              "
-            >
-              <BarChart3 :size="16" />
-              Visualize
-            </LButton>
-            <ChevronUp v-if="showResults" :size="16" class="text-text-muted" />
-            <ChevronDown v-else :size="16" class="text-text-muted" />
-          </div>
-        </button>
-
-        <div v-if="showResults" class="max-h-96 overflow-auto">
-          <!-- Running state -->
-          <div v-if="running" class="flex items-center justify-center py-12">
-            <div class="flex flex-col items-center gap-3">
-              <LSpinner size="lg" />
-              <span class="text-sm text-text-muted">Executing query...</span>
-            </div>
-          </div>
-
-          <!-- Error state -->
-          <div v-else-if="resultError" class="p-4 bg-error-muted text-error text-sm">
-            <div class="flex items-start gap-2">
-              <AlertCircle :size="20" class="shrink-0 mt-0.5" />
-              <pre class="whitespace-pre-wrap font-mono text-xs">{{ resultError }}</pre>
-            </div>
-          </div>
-
-          <!-- Results table -->
-          <div v-else-if="result && result.rows.length > 0" class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead class="bg-surface-sunken sticky top-0">
-                <tr>
-                  <th
-                    v-for="col in result.columns"
-                    :key="col.name"
-                    class="px-4 py-2 text-left font-medium text-text-muted border-b border-border whitespace-nowrap"
-                  >
-                    <div class="flex flex-col">
-                      <span>{{ col.name }}</span>
-                      <span class="text-xs font-normal text-text-subtle">{{ col.data_type }}</span>
+                  <div>
+                    <label class="block text-sm font-medium text-text mb-1.5">Timeout</label>
+                    <div class="relative">
+                      <LInput
+                        v-model.number="query.timeout_seconds"
+                        type="number"
+                        :min="1"
+                        :max="300"
+                      />
+                      <div
+                        class="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted text-sm"
+                      >
+                        <Clock :size="16" />
+                      </div>
                     </div>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="(row, rowIdx) in result.rows"
-                  :key="rowIdx"
-                  class="border-b border-border hover:bg-surface-sunken/50"
-                >
-                  <td
-                    v-for="(cell, colIdx) in row"
-                    :key="colIdx"
-                    class="px-4 py-2 text-text whitespace-nowrap max-w-xs truncate"
+                  </div>
+
+                  <div>
+                    <label class="block text-sm font-medium text-text mb-1.5">Max Rows</label>
+                    <div class="relative">
+                      <LInput
+                        v-model.number="query.max_rows"
+                        type="number"
+                        :min="1"
+                        :max="100000"
+                      />
+                      <div
+                        class="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted text-sm"
+                      >
+                        <Rows3 :size="16" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mt-4">
+                  <label class="block text-sm font-medium text-text mb-1.5"
+                    >Description (optional)</label
                   >
-                    <span v-if="cell === null" class="text-text-subtle italic">null</span>
-                    <span v-else>{{
-                      formatResultCell(cell, result.columns[colIdx]?.data_type)
-                    }}</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+                  <LTextarea
+                    v-model="query.description"
+                    placeholder="Describe what this query does..."
+                    :rows="2"
+                  />
+                </div>
 
-          <!-- Empty results -->
-          <div v-else-if="result && result.rows.length === 0" class="p-8 text-center">
-            <p class="text-text-muted">Query returned no rows</p>
-          </div>
-        </div>
-      </LCard>
-            </div>
-          </Pane>
+                <!-- Tags -->
+                <div class="mt-4">
+                  <label class="block text-sm font-medium text-text mb-1.5">Tags</label>
+                  <LTagsInput
+                    :model-value="query.tags || []"
+                    @update:model-value="query.tags = $event"
+                    placeholder="Add tags for filtering..."
+                  />
+                </div>
 
-          <!-- Preview panel -->
-          <Pane :size="previewPanelPct" :min-size="25" :max-size="60">
-          <div class="h-full overflow-y-auto pl-2 space-y-4">
+                <!-- Parameters section -->
+                <div class="mt-4">
+                  <button
+                    type="button"
+                    class="flex items-center gap-2 text-sm font-medium text-text hover:text-primary-600 transition-colors"
+                    @click="showParameters = !showParameters"
+                  >
+                    <ChevronDown
+                      :size="16"
+                      class="transition-transform"
+                      :class="{ '-rotate-90': !showParameters }"
+                    />
+                    Parameters
+                    <span v-if="query.parameters?.length" class="text-xs text-text-muted">
+                      ({{ query.parameters.length }})
+                    </span>
+                  </button>
+                  <div v-if="showParameters" class="mt-3">
+                    <QueryParameters
+                      :model-value="query.parameters || []"
+                      @update:model-value="query.parameters = $event"
+                      :sql="query.sql || ''"
+                    />
+                  </div>
+                </div>
+              </div>
+            </LCard>
+
+            <!-- Parameter inputs for running -->
+            <ParameterInputs
+              v-if="query.parameters?.length"
+              :parameters="query.parameters"
+              v-model="parameterValues"
+            />
+
+            <!-- SQL Editor -->
+            <LCard padding="none" class="overflow-hidden">
+              <div class="p-3 border-b border-border flex items-center justify-between">
+                <span class="text-sm font-medium text-text">SQL</span>
+                <div class="flex items-center gap-3">
+                  <button
+                    type="button"
+                    class="flex items-center gap-1.5 text-xs text-text-muted hover:text-text transition-colors"
+                    @click="sqlEditorRef?.format()"
+                    title="Format SQL (⌘I)"
+                  >
+                    <WandSparkles :size="14" />
+                    Format
+                  </button>
+                  <span class="text-xs text-text-subtle">⌘+Enter to run</span>
+                </div>
+              </div>
+              <SqlEditor
+                ref="sqlEditorRef"
+                :model-value="query.sql ?? ''"
+                @update:model-value="query.sql = $event"
+                :height="`${editorHeight}px`"
+                @run="runQuery"
+              />
+              <!-- Resize handle -->
+              <div
+                class="h-2 bg-surface-sunken hover:bg-primary-500/20 cursor-row-resize flex items-center justify-center transition-colors border-t border-border group"
+                @mousedown="startResize"
+              >
+                <GripHorizontal
+                  :size="12"
+                  class="text-text-subtle group-hover:text-primary-500 transition-colors"
+                />
+              </div>
+            </LCard>
+
+            <!-- Results panel -->
+            <LCard v-if="showResults" padding="none">
+              <button
+                class="w-full p-3 border-b border-border flex items-center justify-between hover:bg-surface-sunken transition-colors"
+                @click="showResults = !showResults"
+              >
+                <div class="flex items-center gap-3">
+                  <span class="text-sm font-medium text-text">Results</span>
+                  <template v-if="currentRun && !running">
+                    <LBadge
+                      :variant="currentRun.status === 'completed' ? 'success' : 'error'"
+                      size="sm"
+                    >
+                      {{ currentRun.status }}
+                    </LBadge>
+                    <span v-if="getRunDuration(currentRun)" class="text-xs text-text-muted">
+                      {{ formatDuration(getRunDuration(currentRun)!) }}
+                    </span>
+                    <span v-if="result" class="text-xs text-text-muted">
+                      {{ result.rows.length.toLocaleString() }} rows
+                    </span>
+                  </template>
+                </div>
+                <div class="flex items-center gap-2">
+                  <LButton
+                    v-if="result && !isNew"
+                    variant="ghost"
+                    size="sm"
+                    @click.stop="
+                      router.push({
+                        name: 'visualization-new',
+                        query: { query_id: query.id || queryId },
+                      })
+                    "
+                  >
+                    <BarChart3 :size="16" />
+                    Visualize
+                  </LButton>
+                  <ChevronUp v-if="showResults" :size="16" class="text-text-muted" />
+                  <ChevronDown v-else :size="16" class="text-text-muted" />
+                </div>
+              </button>
+
+              <div v-if="showResults" class="max-h-96 overflow-auto">
+                <!-- Running state -->
+                <div v-if="running" class="flex items-center justify-center py-12">
+                  <div class="flex flex-col items-center gap-3">
+                    <LSpinner size="lg" />
+                    <span class="text-sm text-text-muted">Executing query...</span>
+                  </div>
+                </div>
+
+                <!-- Error state -->
+                <div v-else-if="resultError" class="p-4 bg-error-muted text-error text-sm">
+                  <div class="flex items-start gap-2">
+                    <AlertCircle :size="20" class="shrink-0 mt-0.5" />
+                    <pre class="whitespace-pre-wrap font-mono text-xs">{{ resultError }}</pre>
+                  </div>
+                </div>
+
+                <!-- Results table -->
+                <div v-else-if="result && result.rows.length > 0" class="overflow-x-auto">
+                  <table class="w-full text-sm">
+                    <thead class="bg-surface-sunken sticky top-0">
+                      <tr>
+                        <th
+                          v-for="col in result.columns"
+                          :key="col.name"
+                          class="px-4 py-2 text-left font-medium text-text-muted border-b border-border whitespace-nowrap"
+                        >
+                          <div class="flex flex-col">
+                            <span>{{ col.name }}</span>
+                            <span class="text-xs font-normal text-text-subtle">{{
+                              col.data_type
+                            }}</span>
+                          </div>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr
+                        v-for="(row, rowIdx) in result.rows"
+                        :key="rowIdx"
+                        class="border-b border-border hover:bg-surface-sunken/50"
+                      >
+                        <td
+                          v-for="(cell, colIdx) in row"
+                          :key="colIdx"
+                          class="px-4 py-2 text-text whitespace-nowrap max-w-xs truncate"
+                        >
+                          <span v-if="cell === null" class="text-text-subtle italic">null</span>
+                          <span v-else>{{
+                            formatResultCell(cell, result.columns[colIdx]?.data_type)
+                          }}</span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <!-- Empty results -->
+                <div v-else-if="result && result.rows.length === 0" class="p-8 text-center">
+                  <p class="text-text-muted">Query returned no rows</p>
+                </div>
+              </div>
+            </LCard>
+          </div>
+        </Pane>
+
+        <!-- Preview panel -->
+        <Pane v-if="showPreviewPanel" :size="previewPanelPct" :min-size="25" :max-size="60">
+          <div class="h-full overflow-y-auto w-full">
             <!-- Tabs for visualizations and schedules -->
             <div class="flex gap-1 border-b border-border sticky top-0 bg-surface z-10">
               <button
@@ -966,7 +993,9 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
                 <div class="flex items-center gap-2">
                   <BarChart3 :size="14" />
                   Visualizations
-                  <span v-if="visualizations.length" class="text-xs">({{ visualizations.length }})</span>
+                  <span v-if="visualizations.length" class="text-xs">
+                    ({{ visualizations.length }})
+                  </span>
                 </div>
               </button>
               <button
@@ -991,7 +1020,7 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
               <!-- Inline visualization editor -->
               <div v-if="editingVisualization" class="space-y-3">
                 <!-- Header with back button -->
-                <div class="flex items-center gap-2 pb-2 border-b border-border">
+                <div class="flex items-center gap-2 px-2 pb-2 border-b border-border">
                   <LButton variant="ghost" size="sm" @click="closeVisualizationEditor">
                     <ArrowLeft :size="14" />
                     Back
@@ -1000,14 +1029,18 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
                     {{ editingVisualization.id ? 'Edit' : 'New' }} Visualization
                   </span>
                   <div class="flex-1"></div>
-                  <LButton size="sm" :loading="savingVisualization" @click="saveInlineVisualization">
+                  <LButton
+                    size="sm"
+                    :loading="savingVisualization"
+                    @click="saveInlineVisualization"
+                  >
                     <Save :size="14" />
                     Save
                   </LButton>
                 </div>
 
                 <!-- Basic settings -->
-                <div class="space-y-3">
+                <div class="space-y-3 p-2">
                   <div>
                     <label class="block text-xs text-text-muted mb-1.5">Name</label>
                     <LInput v-model="editingVisualization.name" placeholder="My Visualization" />
@@ -1034,7 +1067,7 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
                           :class="[
                             editingVisualization.chart_type === opt.value
                               ? 'text-primary-600'
-                              : 'text-text-muted'
+                              : 'text-text-muted',
                           ]"
                         />
                         <span
@@ -1052,7 +1085,10 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
 
                   <!-- Line/Bar chart config -->
                   <div
-                    v-if="editingVisualization.chart_type === 'line' || editingVisualization.chart_type === 'bar'"
+                    v-if="
+                      editingVisualization.chart_type === 'line' ||
+                      editingVisualization.chart_type === 'bar'
+                    "
                     class="space-y-3 pt-2 border-t border-border"
                   >
                     <div>
@@ -1074,10 +1110,14 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
                       />
                     </div>
                     <div>
-                      <label class="block text-xs text-text-muted mb-1.5">Series Column (optional)</label>
+                      <label class="block text-xs text-text-muted mb-1.5"
+                        >Series Column (optional)</label
+                      >
                       <LSelect
                         :model-value="editingVisualization.config?.series_column || ''"
-                        @update:model-value="updateVisualizationConfig('series_column', $event || undefined)"
+                        @update:model-value="
+                          updateVisualizationConfig('series_column', $event || undefined)
+                        "
                         :options="[{ value: '', label: 'None' }, ...vizColumnOptions]"
                         placeholder="Group by..."
                       />
@@ -1155,7 +1195,7 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
                 </div>
 
                 <!-- Preview -->
-                <div class="pt-2 border-t border-border">
+                <div class="p-2 border-t border-border">
                   <div class="flex items-center justify-between mb-2">
                     <span class="text-xs font-medium text-text">Preview</span>
                     <LButton
@@ -1229,7 +1269,9 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
               <div class="flex items-center justify-between">
                 <LButton
                   size="sm"
-                  @click="router.push({ name: 'schedule-new', query: { query_id: query.id || queryId } })"
+                  @click="
+                    router.push({ name: 'schedule-new', query: { query_id: query.id || queryId } })
+                  "
                 >
                   <Plus :size="14" />
                   Create Schedule
@@ -1242,7 +1284,9 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
                 <p class="text-sm text-text-muted mb-4">No schedules yet</p>
                 <LButton
                   size="sm"
-                  @click="router.push({ name: 'schedule-new', query: { query_id: query.id || queryId } })"
+                  @click="
+                    router.push({ name: 'schedule-new', query: { query_id: query.id || queryId } })
+                  "
                 >
                   <Plus :size="14" />
                   Create Schedule
@@ -1270,8 +1314,8 @@ watch([() => query.value.name, () => query.value.sql, () => query.value.datasour
               </div>
             </div>
           </div>
-          </Pane>
-        </Splitpanes>
+        </Pane>
+      </Splitpanes>
 
       <!-- When preview panel is hidden or creating new query, redirect to enable it -->
       <div v-else class="text-center py-12">
