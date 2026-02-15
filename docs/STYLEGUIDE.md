@@ -588,7 +588,7 @@ For displaying key-value pairs:
 
 ```vue
 <div class="flex items-center gap-3 p-3 bg-surface-alt rounded-lg">
-  <Mail class="w-5 h-5 text-text-muted flex-shrink-0" />
+  <Mail class="w-5 h-5 text-text-muted shrink-0" />
   <div class="flex-1 min-w-0">
     <p class="text-xs text-text-muted">Label</p>
     <p class="text-sm text-text truncate">Value</p>
@@ -629,6 +629,7 @@ Use Vue's `<Transition>` with our animation classes:
 ```
 
 Available animations:
+
 - `animate-fade-in`
 - `animate-slide-in-right`
 - `animate-slide-in-left`
@@ -706,7 +707,7 @@ authStore.logout()
 
 ## File Organization
 
-```
+```text
 src/
 ├── components/
 │   ├── layout/          # App shell components

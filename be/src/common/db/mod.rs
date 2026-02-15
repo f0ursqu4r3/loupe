@@ -99,8 +99,27 @@ impl DatabaseConfig {
                 "require" => PgSslMode::Require,
                 "verify-ca" => PgSslMode::VerifyCa,
                 "verify-full" => PgSslMode::VerifyFull,
-                _ => PgSslMode::Prefer,
+                _ => {
+                    tracing::warn!(
+                        value = %ssl_str,
+                        "Invalid DB_SSL_MODE value. Falling back to Prefer."
+                    );
+                    PgSslMode::Prefer
+                }
             };
+        }
+
+        // Security hardening: production must never run with opportunistic or disabled TLS.
+        if (env == "prod" || env == "production")
+            && !matches!(
+                config.ssl_mode,
+                PgSslMode::Require | PgSslMode::VerifyCa | PgSslMode::VerifyFull
+            )
+        {
+            panic!(
+                "Insecure DB_SSL_MODE for production: {:?}. Use one of: require, verify-ca, verify-full",
+                config.ssl_mode
+            );
         }
 
         config

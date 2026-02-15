@@ -2,8 +2,7 @@
 
 **Date:** January 31, 2026
 **Status:** ✅ **PRODUCTION READY** - All critical vulnerabilities fixed
-**Last Updated:** 2026-02-01
-
+**Last Updated:** 2026-02-15
 ---
 
 ## Executive Summary
@@ -17,7 +16,7 @@
 2. ✅ **Arbitrary SQL Execution** → SQL parser validates all queries, blocks dangerous statements/functions
 3. ✅ **Information Disclosure** → Generic error messages, server-side logging, correlation IDs
 4. ✅ **Missing Input Validation** → Comprehensive validation (22 unit tests), validator crate integration
-5. ✅ **No Rate Limiting** → Global rate limiting (100 req/min per IP) via actix-governor
+5. [x] **No Rate Limiting** -> Global + endpoint-specific rate limiting, lockout, and exponential backoff
 
 **Implementation Details:** See [SECURITY_FIXES_2026-01.md](./SECURITY_FIXES_2026-01.md)
 
@@ -33,7 +32,7 @@
 | A04:2021 Insecure Design           | ✅ PASS    | Security requirements implemented    |
 | A05:2021 Security Misconfiguration | ⚠️ PARTIAL | Errors fixed, SSL in production      |
 | A06:2021 Vulnerable Components     | ✅ PASS    | Dependencies current                 |
-| A07:2021 Auth Failures             | ✅ PASS    | Rate limiting, JWT, secure hashing   |
+| A07:2021 Auth Failures             | PASS      | Endpoint-specific rate limits, lockout/backoff, JWT, secure hashing |
 | A08:2021 Data Integrity Failures   | ✅ PASS    | Comprehensive input validation       |
 | A09:2021 Logging Failures          | ✅ PASS    | Structured logging with error IDs    |
 | A10:2021 SSRF                      | ✅ PASS    | No external requests from user input |
@@ -48,14 +47,15 @@
 
 #### Database Connection Security
 
-- [ ] Enforce SSL/TLS in production (currently prefer mode)
-- [ ] Add connection string format validation to prevent injection
-- [ ] Validate minimum connection string length
+- [x] Enforce SSL/TLS in production (fail-fast if production SSL mode is insecure)
+- [x] Add connection string format validation to prevent injection
+- [x] Validate minimum connection string length
 
 #### Session Management Enhancements
 
 - [ ] Add session storage (Redis)
-- [ ] Implement proper logout functionality
+- [x] Implement proper logout functionality (`POST /auth/logout`)
+- [x] Revoke current token on logout (`jti` blacklist with TTL)
 - [ ] Add session invalidation on password change
 - [ ] Add concurrent session limits per user
 - [ ] Add session activity tracking
@@ -89,16 +89,16 @@
 
 #### Rate Limiting Enhancements
 
-- [ ] Add endpoint-specific rate limits (beyond global 100/min)
-- [ ] Add account lockout after 5 failed logins (15 min)
-- [ ] Implement exponential backoff for repeated failures
+- [x] Add endpoint-specific rate limits (`/auth/login`, `/auth/register`, `/runs/execute`)
+- [x] Add account lockout after 5 failed logins (15 min)
+- [x] Implement exponential backoff for repeated failures
 - [ ] Add user-level quotas (queries per hour, etc.)
 
 ### Future Enhancements
 
 #### Token Management
 
-- [ ] Add token revocation capability (blacklist)
+- [x] Add token revocation capability (blacklist, logout-based)
 - [ ] Implement token rotation
 - [ ] Add device/session tracking
 
@@ -174,6 +174,7 @@
 - JWT tokens with HS256 signing
 - Token expiration (24 hours configurable)
 - Refresh token mechanism
+- Logout endpoint with token revocation (`jti` blacklist)
 - Argon2id password hashing
 - Role-based access control (Admin/Editor/Viewer)
 - Organization-level data isolation
@@ -211,6 +212,9 @@
 ### Rate Limiting
 
 - Global: 100 requests/minute per IP
+- Endpoint-specific: `/auth/login`, `/auth/register`, `/runs/execute`
+- Exponential backoff for repeated failed logins
+- Account lockout: 5 failed logins triggers 15-minute lockout
 - actix-governor middleware
 - 429 status with Retry-After header
 - Token bucket algorithm
@@ -300,3 +304,5 @@ APP_ENV=production                   # REQUIRED: Production mode
 - [Rust Security Best Practices](https://anssi-fr.github.io/rust-guide/)
 - [JWT Best Practices](https://tools.ietf.org/html/rfc8725)
 - [Security Fixes Implementation](./SECURITY_FIXES_2026-01.md)
+
+

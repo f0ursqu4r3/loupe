@@ -1,5 +1,6 @@
 use crate::AppState;
 use crate::permissions::{get_user_context, require_permission, Permission};
+use actix_governor::{Governor, GovernorConfigBuilder};
 use actix_web::{HttpRequest, HttpResponse, web};
 use loupe::{Error, SqlValidator};
 use loupe::filtering::{SortParams, SortableColumns};
@@ -12,12 +13,26 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
 
+const EXECUTE_RATE_LIMIT_PER_MINUTE: u64 = 100;
+const EXECUTE_RATE_LIMIT_BURST: u32 = 25;
+
 pub fn configure(cfg: &mut web::ServiceConfig) {
+    // Endpoint-specific limit for ad-hoc SQL execution to contain abuse and expensive workloads.
+    let execute_rate_conf = GovernorConfigBuilder::default()
+        .requests_per_minute(EXECUTE_RATE_LIMIT_PER_MINUTE)
+        .burst_size(EXECUTE_RATE_LIMIT_BURST)
+        .finish()
+        .expect("valid execute rate limit configuration");
+
     cfg.service(
         web::scope("/runs")
             .route("", web::get().to(list_runs))
             .route("", web::post().to(create_run))
-            .route("/execute", web::post().to(execute_adhoc))
+            .service(
+                web::resource("/execute")
+                    .wrap(Governor::new(&execute_rate_conf))
+                    .route(web::post().to(execute_adhoc)),
+            )
             .route("/{id}", web::get().to(get_run))
             .route("/{id}/result", web::get().to(get_run_result))
             .route("/{id}/cancel", web::post().to(cancel_run)),

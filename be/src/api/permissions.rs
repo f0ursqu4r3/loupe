@@ -21,7 +21,7 @@ pub async fn get_user_context(
     state: &AppState,
     req: &HttpRequest,
 ) -> Result<(Uuid, Uuid, OrgRole), Error> {
-    let (user_id, org_id) = crate::routes::auth::get_auth_context(state, req)?;
+    let (user_id, org_id) = crate::routes::auth::get_auth_context(state, req).await?;
 
     // Fetch user to get role
     let user = state.db.get_user(user_id).await?;

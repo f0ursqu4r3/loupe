@@ -89,8 +89,15 @@ async fn main() -> std::io::Result<()> {
     let metrics = Arc::new(Metrics::new().expect("Failed to create metrics registry"));
 
     tracing::info!("Starting Loupe API server at http://{}:{}", config.api.host, config.api.port);
-    tracing::info!("Rate limiting: 100 requests/minute per IP globally");
+    tracing::info!("Rate limiting: global 100 req/min/IP + endpoint-specific limits on auth and runs/execute");
     tracing::info!("Metrics endpoint: http://{}:{}/metrics", config.api.host, config.api.port);
+
+    // Global API limiter shared across app instances.
+    let governor_conf = GovernorConfigBuilder::default()
+        .requests_per_minute(100)
+        .burst_size(20)
+        .finish()
+        .expect("valid global rate limit configuration");
 
     let server = HttpServer::new(move || {
         // CORS Configuration
@@ -139,14 +146,6 @@ async fn main() -> std::io::Result<()> {
                 .max_age(3600)
         };
 
-        // Global API rate limiter: 100 requests per minute per IP
-        // This prevents API abuse and brute force attacks
-        let governor_conf = GovernorConfigBuilder::default()
-            .requests_per_second(2)  // ~120 per minute
-            .burst_size(20)          // Allow bursts of 20 requests
-            .finish()
-            .unwrap();
-
         App::new()
             .wrap(cors)
             .wrap(sentry_actix::Sentry::new())  // Error tracking with Sentry
@@ -156,7 +155,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(SentryContextMiddleware)  // Enrich Sentry events with context
             .wrap(RequestLogger)  // Structured request logging with correlation IDs
             .wrap(MetricsMiddleware::new(metrics.clone()))  // Collect Prometheus metrics
-            .wrap(actix_governor::Governor::new(&governor_conf))  // Apply rate limiting
+            .wrap(actix_governor::Governor::new(&governor_conf))  // Apply global rate limiting
             .app_data(web::Data::new(state.clone()))
             .app_data(web::Data::new(metrics.clone()))  // Make metrics available to routes
             .configure(routes::configure)
