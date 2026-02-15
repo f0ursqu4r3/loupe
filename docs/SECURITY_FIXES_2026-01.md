@@ -311,12 +311,12 @@ if req.name.trim().is_empty() || req.name.len() > 255 {
    - ⏳ Range validation for numbers
    - ⏳ Array size limits
 
-2. **Rate Limiting** (Partially Complete)
+2. **Rate Limiting** (Complete)
    - [x] Global API rate limiting via actix-governor
    - [x] Account lockout after failed logins (5 attempts / 15 min)
-   - [ ] `/auth/login`: endpoint-specific throttling
-   - [ ] `/auth/register`: 3 per hour
-   - [ ] `/runs/execute`: 100 per minute
+   - [x] `/auth/login`: endpoint-specific throttling
+   - [x] `/auth/register`: 3 per hour
+   - [x] `/runs/execute`: 100 per minute
 
 ### MEDIUM Priority 🟡
 

@@ -8,10 +8,20 @@ use argon2::{
 use chrono::Utc;
 use loupe::Error;
 use loupe::models::{AuthResponse, CreateUserRequest, LoginRequest, OrgRole, RefreshTokenResponse, UserResponse};
+use std::sync::{Arc, LazyLock};
 use std::time::Duration;
-use std::sync::Arc;
 use uuid::Uuid;
 use validator::Validate;
+
+/// Pre-computed Argon2 hash used to burn CPU on login attempts for non-existent
+/// accounts so the response time is indistinguishable from a real password check.
+static DUMMY_PASSWORD_HASH: LazyLock<String> = LazyLock::new(|| {
+    let salt = SaltString::generate(&mut OsRng);
+    Argon2::default()
+        .hash_password(b"dummy-password-for-timing-equalization", &salt)
+        .expect("Failed to generate dummy password hash")
+        .to_string()
+});
 
 const FAILED_LOGIN_LIMIT: u32 = 5;
 const FAILED_LOGIN_WINDOW_SECS: u64 = 15 * 60;
@@ -145,21 +155,22 @@ async fn is_login_locked(cache: &loupe::CacheManager, email: &str) -> Result<Opt
 
 async fn record_failed_login_attempt(cache: &loupe::CacheManager, email: &str) -> Result<(), Error> {
     let attempts_key = failed_login_attempts_key(email);
-    let lockout_until_key = account_lockout_until_key(email);
-    let lockout_level_key = lockout_level_key(email);
 
+    // Atomic increment — no read-then-write race.
     let attempts = cache
-        .get::<u32>(&attempts_key)
+        .increment(&attempts_key, Duration::from_secs(FAILED_LOGIN_WINDOW_SECS))
         .await
-        .map(|val| val.unwrap_or(0).saturating_add(1))
         .map_err(|e| {
-            tracing::error!(error = %e, "Failed to read login attempt counter");
+            tracing::error!(error = %e, "Failed to increment login attempt counter");
             Error::Internal("Authentication service unavailable".to_string())
-        })?;
+        })? as u32;
 
     if attempts >= FAILED_LOGIN_LIMIT {
+        let lockout_lk = lockout_level_key(email);
+
+        // Escalation level is low-contention — get-then-set is acceptable here.
         let lockout_level = cache
-            .get::<u32>(&lockout_level_key)
+            .get::<u32>(&lockout_lk)
             .await
             .map(|val| val.unwrap_or(0).saturating_add(1))
             .map_err(|e| {
@@ -172,7 +183,7 @@ async fn record_failed_login_attempt(cache: &loupe::CacheManager, email: &str) -
 
         cache
             .set_with_ttl(
-                &lockout_until_key,
+                &account_lockout_until_key(email),
                 &unlock_at,
                 Duration::from_secs(lockout_secs),
             )
@@ -184,7 +195,7 @@ async fn record_failed_login_attempt(cache: &loupe::CacheManager, email: &str) -
 
         cache
             .set_with_ttl(
-                &lockout_level_key,
+                &lockout_lk,
                 &lockout_level,
                 Duration::from_secs(LOCKOUT_ESCALATION_WINDOW_SECS),
             )
@@ -198,18 +209,6 @@ async fn record_failed_login_attempt(cache: &loupe::CacheManager, email: &str) -
             tracing::error!(error = %e, "Failed to clear login attempt counter");
             Error::Internal("Authentication service unavailable".to_string())
         })?;
-    } else {
-        cache
-            .set_with_ttl(
-                &attempts_key,
-                &attempts,
-                Duration::from_secs(FAILED_LOGIN_WINDOW_SECS),
-            )
-            .await
-            .map_err(|e| {
-                tracing::error!(error = %e, "Failed to update login attempt counter");
-                Error::Internal("Authentication service unavailable".to_string())
-            })?;
     }
 
     Ok(())
@@ -342,8 +341,14 @@ async fn login(
     let user = match state.db.get_user_by_email(&req.email).await? {
         Some(user) => user,
         None => {
+            // Run Argon2 verify against a dummy hash so the response time is
+            // indistinguishable from a real password check (prevents user enumeration
+            // via timing side-channel).
+            let dummy = PasswordHash::new(&DUMMY_PASSWORD_HASH)
+                .expect("DUMMY_PASSWORD_HASH is a valid Argon2 hash");
+            let _ = Argon2::default().verify_password(req.password.as_bytes(), &dummy);
+
             record_failed_login_attempt(&state.cache, &req.email).await?;
-            // Use constant-time response to prevent timing attacks
             tracing::warn!(email = %req.email, "Login attempt with non-existent email");
             return Err(Error::Unauthorized("Invalid email or password".to_string()));
         }
@@ -392,7 +397,7 @@ async fn logout(
     req: HttpRequest,
 ) -> Result<HttpResponse, Error> {
     let token = extract_token(&req)?;
-    let claims = state.jwt.validate_token(&token)?;
+    let claims = validate_token_with_revocation(state.get_ref().as_ref(), &token).await?;
     revoke_token(&state.cache, &claims.jti, claims.exp).await?;
 
     tracing::info!(

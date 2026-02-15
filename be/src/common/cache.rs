@@ -126,6 +126,29 @@ impl CacheManager {
         Ok(())
     }
 
+    /// Atomically increment a key and set its TTL.
+    ///
+    /// Returns the new value after incrementing.  If the key does not exist
+    /// Redis creates it with value 0 before incrementing, so the first call
+    /// returns 1.  The TTL is (re-)applied on every call so the window stays
+    /// anchored to the most recent increment.
+    pub async fn increment(&self, key: &str, ttl: Duration) -> Result<u64, RedisError> {
+        if !self.enabled {
+            return Ok(0);
+        }
+
+        let mut conn = self
+            .client
+            .as_ref()
+            .expect("Cache client should be available when enabled")
+            .clone();
+
+        let new_val: u64 = conn.incr(key, 1u64).await?;
+        let _: () = conn.expire(key, ttl.as_secs() as i64).await?;
+
+        Ok(new_val)
+    }
+
     /// Delete a key from cache
     pub async fn delete(&self, key: &str) -> Result<(), RedisError> {
         if !self.enabled {
