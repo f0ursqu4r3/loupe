@@ -1,4 +1,4 @@
-use loupe::{init_tracing, load_env, Database};
+use loupe::{ObservabilityConfig, init_tracing, load_env, Database};
 use std::time::Duration;
 
 const DEFAULT_POLL_INTERVAL_SECS: u64 = 10;
@@ -6,7 +6,7 @@ const DEFAULT_POLL_INTERVAL_SECS: u64 = 10;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     load_env();
-    init_tracing();
+    init_tracing(&ObservabilityConfig::from_env());
 
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let scheduler_id = std::env::var("SCHEDULER_ID").unwrap_or_else(|_| {

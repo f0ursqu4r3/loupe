@@ -61,6 +61,14 @@ impl CacheManager {
         })
     }
 
+    /// Get a clone of the Redis connection manager.
+    fn conn(&self) -> ConnectionManager {
+        self.client
+            .as_ref()
+            .expect("Cache client should be available when enabled")
+            .clone()
+    }
+
     /// Get a value from cache
     ///
     /// Returns `Ok(None)` if cache is disabled or key doesn't exist
@@ -72,7 +80,7 @@ impl CacheManager {
             return Ok(None);
         }
 
-        let mut conn = self.client.as_ref().expect("Cache client should be available when enabled").clone();
+        let mut conn = self.conn();
         let value: Option<String> = conn.get(key).await?;
 
         match value {
@@ -120,7 +128,7 @@ impl CacheManager {
                 e.to_string(),
             )))?;
 
-        let mut conn = self.client.as_ref().expect("Cache client should be available when enabled").clone();
+        let mut conn = self.conn();
         let _: () = conn.set_ex(key, json_str, ttl.as_secs()).await?;
 
         Ok(())
@@ -137,11 +145,7 @@ impl CacheManager {
             return Ok(0);
         }
 
-        let mut conn = self
-            .client
-            .as_ref()
-            .expect("Cache client should be available when enabled")
-            .clone();
+        let mut conn = self.conn();
 
         let new_val: u64 = conn.incr(key, 1u64).await?;
         let _: () = conn.expire(key, ttl.as_secs() as i64).await?;
@@ -155,7 +159,7 @@ impl CacheManager {
             return Ok(());
         }
 
-        let mut conn = self.client.as_ref().expect("Cache client should be available when enabled").clone();
+        let mut conn = self.conn();
         let _: () = conn.del(key).await?;
 
         Ok(())
@@ -172,7 +176,7 @@ impl CacheManager {
             return Ok(0);
         }
 
-        let mut conn = self.client.as_ref().expect("Cache client should be available when enabled").clone();
+        let mut conn = self.conn();
 
         // SCAN for keys matching pattern
         let keys: Vec<String> = redis::cmd("KEYS")
@@ -198,7 +202,7 @@ impl CacheManager {
 
     /// Get cache statistics
     pub async fn stats(&self) -> Result<CacheStats, RedisError> {
-        let mut conn = self.client.as_ref().expect("Cache client should be available when enabled").clone();
+        let mut conn = self.conn();
 
         // Get Redis INFO stats
         let info: String = redis::cmd("INFO")

@@ -8,10 +8,10 @@ use argon2::{
 use chrono::Utc;
 use loupe::Error;
 use loupe::models::{AuthResponse, CreateUserRequest, LoginRequest, OrgRole, RefreshTokenResponse, UserResponse};
+use loupe::validation::validate_request;
 use std::sync::{Arc, LazyLock};
 use std::time::Duration;
 use uuid::Uuid;
-use validator::Validate;
 
 /// Pre-computed Argon2 hash used to burn CPU on login attempts for non-existent
 /// accounts so the response time is indistinguishable from a real password check.
@@ -266,9 +266,7 @@ async fn register(
     state: web::Data<Arc<AppState>>,
     req: web::Json<CreateUserRequest>,
 ) -> Result<HttpResponse, Error> {
-    // Validate request using validator crate
-    req.validate()
-        .map_err(|e| Error::BadRequest(format!("Validation failed: {}", e)))?;
+    validate_request(&*req)?;
 
     // Check if user already exists
     if state.db.get_user_by_email(&req.email).await?.is_some() {
@@ -321,9 +319,7 @@ async fn login(
     state: web::Data<Arc<AppState>>,
     req: web::Json<LoginRequest>,
 ) -> Result<HttpResponse, Error> {
-    // Validate request
-    req.validate()
-        .map_err(|e| Error::BadRequest(format!("Validation failed: {}", e)))?;
+    validate_request(&*req)?;
 
     if let Some(retry_after_secs) = is_login_locked(&state.cache, &req.email).await? {
         tracing::warn!(email = %req.email, "Login blocked due to account lockout");
@@ -397,7 +393,7 @@ async fn logout(
     req: HttpRequest,
 ) -> Result<HttpResponse, Error> {
     let token = extract_token(&req)?;
-    let claims = validate_token_with_revocation(state.get_ref().as_ref(), &token).await?;
+    let claims = validate_token_with_revocation(&state, &token).await?;
     revoke_token(&state.cache, &claims.jti, claims.exp).await?;
 
     tracing::info!(
@@ -417,7 +413,7 @@ async fn refresh_token(
 ) -> Result<HttpResponse, Error> {
     // Extract and validate refresh token
     let token = extract_token(&req)?;
-    let claims = validate_token_with_revocation(state.get_ref().as_ref(), &token).await?;
+    let claims = validate_token_with_revocation(&state, &token).await?;
 
     // Issue new tokens
     let user_id = claims.user_id()?;
@@ -438,7 +434,7 @@ async fn refresh_token(
 }
 
 async fn me(state: web::Data<Arc<AppState>>, req: HttpRequest) -> Result<HttpResponse, Error> {
-    let (user_id, _org_id) = get_auth_context(state.get_ref().as_ref(), &req).await?;
+    let (user_id, _org_id) = get_auth_context(&state, &req).await?;
 
     let user = state.db.get_user(user_id).await?;
 

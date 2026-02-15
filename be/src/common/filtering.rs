@@ -109,6 +109,49 @@ impl SortableColumns {
         &["name", "created_at", "updated_at"];
 }
 
+/// Pre-validated list parameters shared across all paginated list endpoints.
+///
+/// Consolidates pagination, sorting, search, and tag filtering into a single
+/// struct so each route handler doesn't have to repeat the same validation.
+pub struct ListParams {
+    pub pagination: crate::pagination::PaginationParams,
+    pub sort_column: String,
+    pub sort_direction: String,
+    pub search: Option<String>,
+    pub tags: Option<Vec<String>>,
+}
+
+impl ListParams {
+    /// Parse and validate raw query-string fields into ready-to-use list params.
+    pub fn parse(
+        limit: i64,
+        offset: i64,
+        sort_by: Option<String>,
+        sort_direction: Option<String>,
+        search: Option<String>,
+        tags: Option<&String>,
+        sortable_columns: &[&str],
+        default_sort: &str,
+    ) -> Self {
+        let mut pagination = crate::pagination::PaginationParams { limit, offset };
+        pagination.validate();
+
+        let sort = SortParams { sort_by, sort_direction };
+        let (sort_column, sort_dir) = sort.validate_and_build(sortable_columns, default_sort);
+
+        let search_pattern = SearchParams { search }.get_pattern();
+        let parsed_tags = tags.map(|t| parse_tags(t)).filter(|v| !v.is_empty());
+
+        Self {
+            pagination,
+            sort_column,
+            sort_direction: sort_dir,
+            search: search_pattern,
+            tags: parsed_tags,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

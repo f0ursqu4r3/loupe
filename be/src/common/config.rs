@@ -208,7 +208,7 @@ impl CacheConfig {
 }
 
 impl ObservabilityConfig {
-    fn from_env() -> Self {
+    pub fn from_env() -> Self {
         let log_level = std::env::var("RUST_LOG")
             .unwrap_or_else(|_| "info,sqlx=warn".to_string());
 

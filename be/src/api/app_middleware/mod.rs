@@ -5,7 +5,7 @@ pub mod security_headers;
 pub mod sentry_context;
 pub mod tracing_middleware;
 
-pub use correlation_id::{CorrelationId, CorrelationIdMiddleware};
+pub use correlation_id::CorrelationIdMiddleware;
 pub use metrics_middleware::MetricsMiddleware;
 pub use request_logger::RequestLogger;
 pub use security_headers::SecurityHeaders;

@@ -914,7 +914,7 @@ mod pagination_workflow {
 
         // Test pagination - first page (limit 10)
         let (page1, total1) = db
-            .list_queries_paginated(org.id, 10, 0)
+            .list_queries_paginated(org.id, None, None, None, "created_at", "desc", 10, 0)
             .await
             .unwrap();
 
@@ -923,7 +923,7 @@ mod pagination_workflow {
 
         // Second page
         let (page2, total2) = db
-            .list_queries_paginated(org.id, 10, 10)
+            .list_queries_paginated(org.id, None, None, None, "created_at", "desc", 10, 10)
             .await
             .unwrap();
 
@@ -932,7 +932,7 @@ mod pagination_workflow {
 
         // Third page (partial)
         let (page3, total3) = db
-            .list_queries_paginated(org.id, 10, 20)
+            .list_queries_paginated(org.id, None, None, None, "created_at", "desc", 10, 20)
             .await
             .unwrap();
 
@@ -941,7 +941,7 @@ mod pagination_workflow {
 
         // Page beyond data
         let (page4, total4) = db
-            .list_queries_paginated(org.id, 10, 30)
+            .list_queries_paginated(org.id, None, None, None, "created_at", "desc", 10, 30)
             .await
             .unwrap();
 

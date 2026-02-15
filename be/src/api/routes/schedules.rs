@@ -2,10 +2,10 @@ use crate::AppState;
 use crate::permissions::{get_user_context, require_permission, Permission};
 use actix_web::{HttpRequest, HttpResponse, web};
 use loupe::Error;
-use loupe::filtering::{parse_tags, SearchParams, SortParams, SortableColumns};
+use loupe::filtering::{ListParams, SortableColumns};
 use loupe::models::{CreateScheduleRequest, ScheduleResponse, TriggerScheduleResponse, UpdateScheduleRequest};
 use loupe::validation::validate_request;
-use loupe::{PaginatedResponse, PaginationParams};
+use loupe::PaginatedResponse;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -15,7 +15,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .route("", web::get().to(list_schedules))
             .route("", web::post().to(create_schedule))
             .route("/{id}", web::get().to(get_schedule))
-            .route("/{id}", web::patch().to(update_schedule))
+            .route("/{id}", web::put().to(update_schedule))
             .route("/{id}", web::delete().to(delete_schedule))
             .route("/{id}/enable", web::post().to(enable_schedule))
             .route("/{id}/disable", web::post().to(disable_schedule))
@@ -55,48 +55,30 @@ async fn list_schedules(
     let (_, org_id, role) = get_user_context(&state, &req).await?;
     require_permission(role, Permission::Viewer)?;
 
-    let mut pagination = PaginationParams {
-        limit: query.limit,
-        offset: query.offset,
-    };
-    pagination.validate();
-
-    // Validate and build sort params
-    let sort = SortParams {
-        sort_by: query.sort_by.clone(),
-        sort_direction: query.sort_direction.clone(),
-    };
-    let (sort_column, sort_direction) = sort.validate_and_build(
-        SortableColumns::SCHEDULES,
-        "created_at",
+    let lp = ListParams::parse(
+        query.limit, query.offset,
+        query.sort_by.clone(), query.sort_direction.clone(),
+        query.search.clone(), query.tags.as_ref(),
+        SortableColumns::SCHEDULES, "created_at",
     );
-
-    // Parse tags filter
-    let tags = query.tags.as_ref().map(|t| parse_tags(t)).filter(|v| !v.is_empty());
-
-    // Get search pattern
-    let search_params = SearchParams {
-        search: query.search.clone(),
-    };
-    let search = search_params.get_pattern();
 
     let (schedules, total) = state
         .db
         .list_schedules_paginated(
             org_id,
-            search,
-            tags,
+            lp.search,
+            lp.tags,
             query.enabled,
-            &sort_column,
-            &sort_direction,
-            pagination.limit,
-            pagination.offset,
+            &lp.sort_column,
+            &lp.sort_direction,
+            lp.pagination.limit,
+            lp.pagination.offset,
         )
         .await?;
 
     let items: Vec<ScheduleResponse> = schedules.into_iter().map(Into::into).collect();
 
-    let paginated = PaginatedResponse::new(items, total, &pagination);
+    let paginated = PaginatedResponse::new(items, total, &lp.pagination);
     Ok(HttpResponse::Ok().json(paginated))
 }
 

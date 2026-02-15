@@ -3,12 +3,12 @@ use crate::permissions::{get_user_context, require_permission, Permission};
 use actix_governor::{Governor, GovernorConfigBuilder};
 use actix_web::{HttpRequest, HttpResponse, web};
 use loupe::{Error, SqlValidator};
-use loupe::filtering::{SortParams, SortableColumns};
+use loupe::filtering::{ListParams, SortableColumns};
 use loupe::models::{
     CreateRunRequest, ExecuteAdHocRequest, ParamDef, RunResponse, RunResultResponse, RunStatus,
 };
 use loupe::params::{ParamSchema, bind_params};
-use loupe::{PaginatedResponse, PaginationParams};
+use loupe::PaginatedResponse;
 use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -72,21 +72,11 @@ async fn list_runs(
     let (_, org_id, role) = get_user_context(&state, &req).await?;
     require_permission(role, Permission::Viewer)?;
 
-    // Create pagination params
-    let mut pagination = PaginationParams {
-        limit: query.limit,
-        offset: query.offset,
-    };
-    pagination.validate();
-
-    // Create sort params and validate
-    let sort = SortParams {
-        sort_by: query.sort_by.clone(),
-        sort_direction: query.sort_direction.clone(),
-    };
-    let (sort_column, sort_direction) = sort.validate_and_build(
-        SortableColumns::RUNS,
-        "created_at",
+    let lp = ListParams::parse(
+        query.limit, query.offset,
+        query.sort_by.clone(), query.sort_direction.clone(),
+        None, None,
+        SortableColumns::RUNS, "created_at",
     );
 
     // Validate status enum if provided
@@ -114,16 +104,16 @@ async fn list_runs(
             status,
             query.start_date,
             query.end_date,
-            &sort_column,
-            &sort_direction,
-            pagination.limit,
-            pagination.offset,
+            &lp.sort_column,
+            &lp.sort_direction,
+            lp.pagination.limit,
+            lp.pagination.offset,
         )
         .await?;
 
     let items: Vec<RunResponse> = runs.into_iter().map(Into::into).collect();
 
-    let paginated = PaginatedResponse::new(items, total, &pagination);
+    let paginated = PaginatedResponse::new(items, total, &lp.pagination);
     Ok(HttpResponse::Ok().json(paginated))
 }
 

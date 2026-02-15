@@ -1,7 +1,9 @@
 use loupe::connectors::{Connector, PostgresConnector};
 use loupe::models::DatasourceType;
 use loupe::params::TypedValue;
-use loupe::{init_tracing, load_env, Database, Metrics, QueryLimiter, QueryLimits};
+use loupe::{
+    Database, Metrics, ObservabilityConfig, QueryLimiter, QueryLimits, init_tracing, load_env,
+};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::signal;
@@ -16,11 +18,14 @@ const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(30); // Grace period for 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     load_env();
-    init_tracing();
+    init_tracing(&ObservabilityConfig::from_env());
 
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let runner_id = std::env::var("RUNNER_ID").unwrap_or_else(|_| {
-        format!("runner-{}", uuid::Uuid::new_v4().to_string().split('-').next().unwrap())
+        format!(
+            "runner-{}",
+            uuid::Uuid::new_v4().to_string().split('-').next().unwrap()
+        )
     });
 
     tracing::info!("Starting Loupe Runner: {}", runner_id);
@@ -102,7 +107,7 @@ async fn main() -> anyhow::Result<()> {
             _ = tokio::time::sleep(POLL_INTERVAL), if tasks.len() < MAX_CONCURRENT_RUNS => {
                 // First try to claim a retry run (prioritize retries)
                 let run_result = db.claim_retry_run(&runner_id).await;
-                let (run, run_type) = match run_result {
+                let (run, _run_type) = match run_result {
                     Ok(Some(retry_run)) => {
                         tracing::info!(
                             "Claimed retry run {} (attempt {})",
@@ -195,7 +200,10 @@ async fn execute_run(
             let error_msg = format!("Query limit reached: {}", e);
             db.fail_run(run.id, &error_msg).await?;
             tracing::warn!("Run {} rejected: {}", run.id, error_msg);
-            metrics.query_executions_total.with_label_values(&["rejected"]).inc();
+            metrics
+                .query_executions_total
+                .with_label_values(&["rejected"])
+                .inc();
             return Ok(());
         }
     };
@@ -223,7 +231,9 @@ async fn execute_run(
 
     // Execute with or without parameters
     let result = if params.is_empty() {
-        connector.execute(&run.executed_sql, timeout, max_rows).await
+        connector
+            .execute(&run.executed_sql, timeout, max_rows)
+            .await
     } else {
         connector
             .execute_with_params(&run.executed_sql, &params, timeout, max_rows)
@@ -236,7 +246,10 @@ async fn execute_run(
             let execution_time_secs = execution_time_ms as f64 / 1000.0;
 
             // Record metrics
-            metrics.query_executions_total.with_label_values(&["completed"]).inc();
+            metrics
+                .query_executions_total
+                .with_label_values(&["completed"])
+                .inc();
             metrics
                 .query_execution_duration_seconds
                 .with_label_values(&[&run.query_id.to_string()])
@@ -299,12 +312,18 @@ async fn execute_run(
 
             // Check if it was a timeout
             if error_msg.contains("timed out") {
-                metrics.query_executions_total.with_label_values(&["timeout"]).inc();
+                metrics
+                    .query_executions_total
+                    .with_label_values(&["timeout"])
+                    .inc();
                 metrics.query_timeouts_total.inc();
 
                 // Try to schedule retry for timeouts
                 if is_retryable {
-                    match db.schedule_retry(run.id, &format!("Query timed out: {}", error_msg)).await? {
+                    match db
+                        .schedule_retry(run.id, &format!("Query timed out: {}", error_msg))
+                        .await?
+                    {
                         Some(retry_run) => {
                             tracing::warn!(
                                 run_id = %run.id,
@@ -337,7 +356,10 @@ async fn execute_run(
                 // Try to schedule retry for retryable errors
                 match db.schedule_retry(run.id, &error_msg).await? {
                     Some(retry_run) => {
-                        metrics.query_executions_total.with_label_values(&["retry_scheduled"]).inc();
+                        metrics
+                            .query_executions_total
+                            .with_label_values(&["retry_scheduled"])
+                            .inc();
                         tracing::warn!(
                             run_id = %run.id,
                             query_id = %run.query_id,
@@ -350,7 +372,10 @@ async fn execute_run(
                     }
                     None => {
                         // Max retries exceeded, move to dead letter queue
-                        metrics.query_executions_total.with_label_values(&["failed_permanent"]).inc();
+                        metrics
+                            .query_executions_total
+                            .with_label_values(&["failed_permanent"])
+                            .inc();
                         db.fail_run(run.id, &error_msg).await?;
                         db.move_to_dead_letter_queue(run.id).await?;
                         tracing::error!(
@@ -363,7 +388,10 @@ async fn execute_run(
                 }
             } else {
                 // Non-retryable error (SQL syntax error, invalid credentials, etc.)
-                metrics.query_executions_total.with_label_values(&["failed"]).inc();
+                metrics
+                    .query_executions_total
+                    .with_label_values(&["failed"])
+                    .inc();
                 db.fail_run(run.id, &error_msg).await?;
                 tracing::error!(
                     run_id = %run.id,
@@ -442,12 +470,9 @@ fn parse_bound_params(params_json: &serde_json::Value) -> anyhow::Result<Vec<Typ
         let value = item.get("value");
 
         let typed = match type_str {
-            "string" => TypedValue::String(
-                value
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string(),
-            ),
+            "string" => {
+                TypedValue::String(value.and_then(|v| v.as_str()).unwrap_or("").to_string())
+            }
             "number" => TypedValue::Number(value.and_then(|v| v.as_f64()).unwrap_or(0.0)),
             "integer" => TypedValue::Integer(value.and_then(|v| v.as_i64()).unwrap_or(0)),
             "boolean" => TypedValue::Boolean(value.and_then(|v| v.as_bool()).unwrap_or(false)),

@@ -2,14 +2,14 @@ use crate::AppState;
 use crate::permissions::{get_user_context, require_permission, Permission};
 use actix_web::{HttpRequest, HttpResponse, web};
 use loupe::{Error, SqlValidator};
-use loupe::filtering::{parse_tags, SearchParams, SortParams, SortableColumns};
+use loupe::filtering::{ListParams, SortableColumns};
 use loupe::models::{
     CreateQueryRequest, ImportQueriesRequest, ImportQueriesResponse, QueryExport, QueryResponse,
     UpdateQueryRequest,
 };
-use loupe::{PaginatedResponse, PaginationParams};
+use loupe::PaginatedResponse;
+use loupe::validation::validate_request;
 use std::sync::Arc;
-use validator::Validate;
 use uuid::Uuid;
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
@@ -57,48 +57,30 @@ async fn list_queries(
     let (_, org_id, role) = get_user_context(&state, &req).await?;
     require_permission(role, Permission::Viewer)?;
 
-    let mut pagination = PaginationParams {
-        limit: query.limit,
-        offset: query.offset,
-    };
-    pagination.validate();
-
-    // Validate and build sort params
-    let sort = SortParams {
-        sort_by: query.sort_by.clone(),
-        sort_direction: query.sort_direction.clone(),
-    };
-    let (sort_column, sort_direction) = sort.validate_and_build(
-        SortableColumns::QUERIES,
-        "created_at",
+    let lp = ListParams::parse(
+        query.limit, query.offset,
+        query.sort_by.clone(), query.sort_direction.clone(),
+        query.search.clone(), query.tags.as_ref(),
+        SortableColumns::QUERIES, "created_at",
     );
-
-    // Parse tags filter
-    let tags = query.tags.as_ref().map(|t| parse_tags(t)).filter(|v| !v.is_empty());
-
-    // Get search pattern
-    let search_params = SearchParams {
-        search: query.search.clone(),
-    };
-    let search = search_params.get_pattern();
 
     let (queries, total) = state
         .db
         .list_queries_paginated(
             org_id,
-            search,
+            lp.search,
             query.datasource_id,
-            tags,
-            &sort_column,
-            &sort_direction,
-            pagination.limit,
-            pagination.offset,
+            lp.tags,
+            &lp.sort_column,
+            &lp.sort_direction,
+            lp.pagination.limit,
+            lp.pagination.offset,
         )
         .await?;
 
     let items: Vec<QueryResponse> = queries.into_iter().map(Into::into).collect();
 
-    let paginated = PaginatedResponse::new(items, total, &pagination);
+    let paginated = PaginatedResponse::new(items, total, &lp.pagination);
     Ok(HttpResponse::Ok().json(paginated))
 }
 
@@ -110,9 +92,7 @@ async fn create_query(
     let (user_id, org_id, role) = get_user_context(&state, &req).await?;
     require_permission(role, Permission::Editor)?;
 
-    // Validate request input
-    body.validate()
-        .map_err(|e| Error::BadRequest(format!("Validation failed: {}", e)))?;
+    validate_request(&*body)?;
 
     // Verify datasource exists and belongs to org
     state.db.get_datasource(body.datasource_id, org_id).await?;
@@ -173,9 +153,7 @@ async fn update_query(
 
     let id = path.into_inner();
 
-    // Validate request input
-    body.validate()
-        .map_err(|e| Error::BadRequest(format!("Validation failed: {}", e)))?;
+    validate_request(&*body)?;
 
     // SECURITY: Validate SQL if it's being updated
     if let Some(ref sql) = body.sql {

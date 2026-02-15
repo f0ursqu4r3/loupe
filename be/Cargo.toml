@@ -75,7 +75,6 @@ dotenvy = "0.15"         # .env file loading
 regex = "1"              # Pattern matching
 cron = "0.15"            # Cron expression parsing
 base64 = "0.22"          # Base64 encoding
-config = "0.15.19"       # Configuration management
 
 [dev-dependencies]
 # Testing

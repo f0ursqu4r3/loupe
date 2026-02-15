@@ -3,12 +3,12 @@ use crate::permissions::{get_user_context, require_permission, Permission};
 use actix_web::{HttpRequest, HttpResponse, web};
 use loupe::Error;
 use loupe::cache;
-use loupe::filtering::{parse_tags, SearchParams, SortParams, SortableColumns};
+use loupe::filtering::{ListParams, SortableColumns};
 use loupe::models::{
     CreateDashboardRequest, CreateTileRequest, DashboardResponse, TileResponse,
     UpdateDashboardRequest, UpdateTileRequest,
 };
-use loupe::{PaginatedResponse, PaginationParams};
+use loupe::PaginatedResponse;
 use loupe::validation::validate_request;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -58,47 +58,23 @@ async fn list_dashboards(
     let (_, org_id, role) = get_user_context(&state, &req).await?;
     require_permission(role, Permission::Viewer)?;
 
-    // Validate pagination
-    let mut pagination = PaginationParams {
-        limit: query.limit,
-        offset: query.offset,
-    };
-    pagination.validate();
-
-    // Validate and build sort parameters
-    let sort = SortParams {
-        sort_by: query.sort_by.clone(),
-        sort_direction: query.sort_direction.clone(),
-    };
-    let (sort_column, sort_direction) = sort.validate_and_build(
-        SortableColumns::DASHBOARDS,
-        "created_at", // default
+    let lp = ListParams::parse(
+        query.limit, query.offset,
+        query.sort_by.clone(), query.sort_direction.clone(),
+        query.search.clone(), query.tags.as_ref(),
+        SortableColumns::DASHBOARDS, "created_at",
     );
 
-    // Parse tags filter (comma-separated to Vec)
-    let tags = query
-        .tags
-        .as_ref()
-        .map(|t| parse_tags(t))
-        .filter(|v| !v.is_empty());
-
-    // Get search pattern
-    let search_params = SearchParams {
-        search: query.search.clone(),
-    };
-    let search = search_params.get_pattern();
-
-    // Call database layer with filters
     let (dashboards, total) = state
         .db
         .list_dashboards_paginated(
             org_id,
-            search,
-            tags,
-            &sort_column,
-            &sort_direction,
-            pagination.limit,
-            pagination.offset,
+            lp.search,
+            lp.tags,
+            &lp.sort_column,
+            &lp.sort_direction,
+            lp.pagination.limit,
+            lp.pagination.offset,
         )
         .await?;
 
@@ -120,7 +96,7 @@ async fn list_dashboards(
         });
     }
 
-    let paginated = PaginatedResponse::new(items, total, &pagination);
+    let paginated = PaginatedResponse::new(items, total, &lp.pagination);
     Ok(HttpResponse::Ok().json(paginated))
 }
 

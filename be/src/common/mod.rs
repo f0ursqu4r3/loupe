@@ -17,12 +17,12 @@ pub mod tracing;
 pub mod validation;
 
 pub use cache::{CacheManager, CacheStats};
-pub use config::{init_tracing, load_env, Config, AdminConfig};
+pub use config::{init_tracing, load_env, Config, AdminConfig, ObservabilityConfig};
 pub use db::{Database, DatabaseConfig, PoolStats};
 pub use encryption::{mask_sensitive, EncryptionManager};
 pub use error::{Error, Result};
 pub use filtering::{
-    parse_tags, DateRangeParams, SearchParams, SortParams, SortableColumns,
+    parse_tags, DateRangeParams, ListParams, SearchParams, SortParams, SortableColumns,
 };
 pub use jwt::{Claims, JwtManager};
 pub use metrics::Metrics;

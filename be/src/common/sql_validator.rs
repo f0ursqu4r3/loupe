@@ -1,12 +1,11 @@
 use crate::error::{Error, Result};
-use sqlparser::ast::{Expr, Function, FunctionArg, FunctionArgExpr, ObjectName, Query, Select, SelectItem, SetExpr, Statement, TableFactor, TableWithJoins, Visit, Visitor};
+use sqlparser::ast::{Expr, ObjectName, Statement, Visit, Visitor};
 use sqlparser::dialect::PostgreSqlDialect;
 use sqlparser::parser::Parser;
 
 /// SQL Validator for preventing SQL injection and restricting dangerous operations
 pub struct SqlValidator {
     max_query_length: usize,
-    allow_subqueries: bool,
 }
 
 impl SqlValidator {
@@ -14,15 +13,13 @@ impl SqlValidator {
     pub fn new() -> Self {
         Self {
             max_query_length: 100_000, // 100KB max
-            allow_subqueries: true,
         }
     }
 
-    /// Create a new SQL validator with custom settings
-    pub fn with_config(max_query_length: usize, allow_subqueries: bool) -> Self {
+    /// Create a new SQL validator with custom max query length
+    pub fn with_config(max_query_length: usize) -> Self {
         Self {
             max_query_length,
-            allow_subqueries,
         }
     }
 
@@ -246,7 +243,7 @@ mod tests {
 
     #[test]
     fn test_query_too_long() {
-        let validator = SqlValidator::with_config(100, true);
+        let validator = SqlValidator::with_config(100);
         let sql = format!("SELECT {}", "a,".repeat(1000));
         let result = validator.validate(&sql);
         assert!(result.is_err());
